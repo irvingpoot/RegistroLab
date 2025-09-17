@@ -1,5 +1,7 @@
 ---                            
 import '../styles/global.css'
+
+const { title } = Astro.props;
 ---
 
 <!doctype html>
@@ -9,7 +11,7 @@ import '../styles/global.css'
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Laboratorio del sueño</title>
+		<title>{title}</title>
 	</head>
 	<body class="font-sans bg-gradient-to-l from-black via-gray-950 to-black text-white">
 		<slot />

@@ -1,23 +1,18 @@
 ---
 import Layout from "../layouts/Layout.astro"
-import {
-	SignedIn,
-	SignedOut,
-	SignIn,
-	SignInButton,
-	UserButton
-} from '@clerk/astro/components';
+import Icon from "../components/Icon.astro"
 ---
 
-<Layout>
-    <main class="max-w-7xl mx-auto py-28">
+<Layout title="Lista de pacientes">
+	<Icon />
+    <main class="max-w-7xl mx-auto pt-10 pb-28">
 		<div class="flex flex-col items-center justify-center">
 			<h1 class="text-6xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
 		</div>
 
-        <h2 class=" text-center text-3xl pt-7 underline">Lista de pacientes</h2>
-        <div class="py-5 text-center">
-            <UserButton showName />
+        <div class="pb-10 text-center">
+			<h2 class=" text-center text-3xl pt-7">Lista de pacientes</h2>
+			<a class="absolute right-20 hover:text-blue-600 hover:scale-105 transition" href="registro">Registrar nuevo paciente</a>
         </div>
         <div class=" flex flex-col border-2 border-white rounded-2xl min-h-auto mx-5">
 			<table>
@@ -30,19 +25,19 @@ import {
 					</tr>
 				</thead>
 				<tbody>
-					<tr class="border-b border-gray-700 hover:bg-gray-800">
+					<tr onclick="location.href='/registro'" class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
 						<td class="px-6 py-4">Juan Pérez</td>
 						<td class="px-6 py-4">34</td>
 						<td class="px-6 py-4">Masculino</td>
 						<td class="px-6 py-4">2023-10-01</td>
 					</tr>
-					<tr class="border-b border-gray-700 hover:bg-gray-800">
+					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
 						<td class="px-6 py-4">María López</td>
 						<td class="px-6 py-4">28</td>
 						<td class="px-6 py-4">Femenino</td>
 						<td class="px-6 py-4">2023-10-05</td>
 					</tr>
-					<tr class="border-b border-gray-700 hover:bg-gray-800">
+					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
 						<td class="px-6 py-4">Carlos Sánchez</td>
 						<td class="px-6 py-4">45</td>
 						<td class="px-6 py-4">Masculino</td>
@@ -51,6 +46,5 @@ import {
 				</tbody>
 			</table>
         </div>
-		
 	</main>
 </Layout>

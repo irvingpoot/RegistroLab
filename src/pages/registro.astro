@@ -1,0 +1,43 @@
+---
+import Layout from "../layouts/Layout.astro"
+import Icon from "../components/Icon.astro"
+---
+
+<Layout title="Registro de Pacientes">
+    <Icon />
+    <main class="max-w-7xl mx-auto pt-10 pb-28">
+        <div class="flex flex-col items-center justify-center">
+			<h1 class="text-6xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
+		</div>
+
+        <form action="" method="post">
+            <div class="flex flex-col items-center justify-center pt-10">
+                <h2 class="text-3xl underline pb-5">Registro de nuevo paciente</h2>
+                <div class="flex flex-col space-y-4 w-1/2">
+                    <div class="flex flex-col">
+                        <label for="nombre" class="text-lg font-medium">Nombre:</label>
+                        <input type="text" id="nombre" name="nombre" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="edad" class="text-lg font-medium">Edad:</label>
+                        <input type="number" id="edad" name="edad" min="0" max="100" required class="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="genero" class="text-lg font-medium">Género:</label>
+                        <select id="genero" name="genero" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option class="bg-blue-950 text-white" value="" disabled selected>Selecciona una opción</option>
+                            <option class="bg-blue-950 text-white" value="masculino">Masculino</option>
+                            <option class="bg-blue-950 text-white" value="femenino">Femenino</option>
+                            <option class="bg-blue-950 text-white" value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="fecha_registro" class="text-lg font-medium">Fecha de registro:</label>
+                        <input type="date" id="fecha_registro" name="fecha_registro" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-300 hover:cursor-pointer">Registrar Paciente</button>
+                </div>
+            </div>
+        </form>
+    </main>
+</Layout>

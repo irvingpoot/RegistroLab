@@ -2,23 +2,19 @@
 import Layout from '../layouts/Layout.astro';
 import {
 	SignedIn,
-	SignedOut,
-	SignIn,
-	SignInButton,
-	UserButton
+	SignIn
 } from '@clerk/astro/components';
 ---
 
-<Layout> 
+<Layout title="Laboratorio del sueño"> 
 	<div class="flex flex-col min-h-screen">
 		<main class="flex-grow max-w-2xl mx-auto py-12 text-center">
 		<div class="flex flex-col items-center justify-center">
 			<h1 class="text-7xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
 			<h2 class="text-3xl py-15">Te damos la bienvenida al registro de pacientes</h2>
-			
 			<SignIn />
 		</div>
-
+		<!-- Se agregó la protección de las paginas de registro, lista, se agregaron animaciones, se creo la template de pagina registro -->
 		<div>
 			<SignedIn>
 				<div class="pt-15">
