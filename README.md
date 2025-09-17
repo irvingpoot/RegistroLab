@@ -1,62 +1,83 @@
-# RegistroLab
+# 📘 RegistroLab
 
-RegistroLab es una aplicación web construida con [Astro](https://astro.build/), [TailwindCSS](https://tailwindcss.com/) y [Clerk](https://clerk.com/) para gestionar autenticación y registros de usuarios.  
-El proyecto está configurado para ejecutarse con **pnpm**.
-
----
-
-## 🚀 Tecnologías utilizadas
-- [Astro](https://astro.build/) - Framework de frontend
-- [TailwindCSS](https://tailwindcss.com/) - Estilos utilitarios
-- [Clerk](https://clerk.com/) - Autenticación y gestión de usuarios
-- [Node.js](https://nodejs.org/) - Entorno de ejecución
+**RegistroLab** es una aplicación web diseñada para la **gestión de usuarios y registros**, construida con tecnologías modernas como [Astro](https://astro.build/), [TailwindCSS](https://tailwindcss.com/) y [Clerk](https://clerk.com/). Su objetivo es ofrecer una base sólida para proyectos que requieran autenticación, diseño adaptable y despliegue eficiente.
 
 ---
 
-## 📦 Instalación
+## 🚀 Tecnologías principales
 
-1. Clonar el repositorio:
-    ```sh
-    git clone <url-del-repo>
-    cd RegistroLab
-    ```
-2. Instalar dependencias con pnpm:
-    ```sh
-    pnpm install
-    ```
-3. Crear el archivo .env con las variables necesarias de Clerk:
-    ```sh
-    PUBLIC_CLERK_PUBLISHABLE_KEY=tu_publishable_key
-    CLERK_SECRET_KEY=tu_secret_key
-    ```
+<div align="center">
+  <img src="https://astro.build/assets/press/astro-icon-light.png" alt="Astro" width="60"/>&nbsp;&nbsp;
+  <img src="https://cdn.worldvectorlogo.com/logos/tailwindcss.svg" alt="TailwindCSS" width="60"/>&nbsp;&nbsp;
+  <img src="https://avatars.githubusercontent.com/u/63343630?s=200&v=4" alt="Clerk" width="60"/>
+</div>
+
+- **[Astro](https://astro.build/):** Framework de frontend rápido y flexible.
+- **[TailwindCSS](https://tailwindcss.com/):** Sistema de estilos utilitarios para interfaces modernas.
+- **[Clerk](https://clerk.com/):** Autenticación y gestión de usuarios.
+- **[Node.js](https://nodejs.org/):** Entorno de ejecución para JavaScript.
+- **[pnpm](https://pnpm.io/):** Gestor de paquetes ligero y eficiente.
+
+---
+
+## 📦 Instalación y configuración
+
+1. **Clonar el repositorio**:
+   ```sh
+   git clone <url-del-repo>
+   cd RegistroLab
+   ```
+
+2. **Instalar dependencias**:
+   ```sh
+   pnpm install
+   ```
+
+3. **Configurar variables de entorno**:
+   Crear un archivo `.env` en la raíz del proyecto con las claves de Clerk:
+   ```env
+   PUBLIC_CLERK_PUBLISHABLE_KEY=tu_publishable_key
+   CLERK_SECRET_KEY=tu_secret_key
+   ```
 
 ---
 
 ## 🛠️ Scripts disponibles
-- En el package.json se definen los siguientes comandos:
+Estos son los comandos definidos en `package.json`:
 
-- pnpm dev → Inicia el servidor de desarrollo
-
-- pnpm build → Compila la aplicación para producción
-
-- pnpm preview → Vista previa de la compilación
-
-- pnpm astro → Comando directo para correr scripts de Astro
+- `pnpm dev` → Inicia el servidor de desarrollo.
+- `pnpm build` → Genera la compilación para producción.
+- `pnpm preview` → Ejecuta una vista previa de la compilación.
+- `pnpm astro` → Acceso directo a scripts de Astro.
 
 ---
 
 ## 📂 Estructura del proyecto
+
 ```sh
 /
 ├── public/          # Archivos estáticos
 ├── src/
 │   ├── assets/      # Recursos (imágenes, íconos, etc.)
-│   ├── components/  # Componentes Astro
+│   ├── components/  # Componentes reutilizables
 │   ├── layouts/     # Plantillas de diseño
 │   └── pages/       # Páginas del sitio
 ├── .env             # Variables de entorno
-├── package.json
-├── astro.config.mjs
-├── tailwind.config.js
-└── tsconfig.json
+├── package.json     # Dependencias y scripts
+├── astro.config.mjs # Configuración de Astro
+├── tailwind.config.js # Configuración de TailwindCSS
+└── tsconfig.json    # Configuración de TypeScript
 ```
+
+---
+
+## 📌 Notas adicionales
+- Asegúrate de tener instalado **Node.js** (versión recomendada ≥ 18).
+- Se recomienda usar **pnpm** para mayor compatibilidad con el proyecto.
+- Clerk requiere claves válidas para funcionar correctamente.
+
+---
+
+## 📄 Licencia
+Este proyecto se distribuye bajo la licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.
+
