@@ -11,8 +11,8 @@ import Icon from "../components/Icon.astro"
 		</div>
 
         <div class="pb-10 text-center">
-			<h2 class=" text-center text-3xl pt-7">Lista de pacientes</h2>
-			<a class="absolute right-20 hover:text-blue-600 hover:scale-105 transition" href="registro">Registrar nuevo paciente</a>
+			<h2 class=" text-center text-3xl py-7">Lista de pacientes</h2>
+			<a class="hover:text-blue-600 hover:scale-105 transition" href="registro">Registrar nuevo paciente</a>
         </div>
         <div class=" flex flex-col border-2 border-white rounded-2xl min-h-auto mx-5">
 			<table>
@@ -22,26 +22,30 @@ import Icon from "../components/Icon.astro"
 						<th class="px-6 py-4 text-left">Edad</th>
 						<th class="px-6 py-4 text-left">Género</th>
 						<th class="px-6 py-4 text-left">Fecha de registro</th>
+						<th class="px-3 py-4 text-left">Registró</th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr onclick="location.href='/registro'" class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
+					<tr onclick="location.href='/registro'" class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
 						<td class="px-6 py-4">Juan Pérez</td>
 						<td class="px-6 py-4">34</td>
 						<td class="px-6 py-4">Masculino</td>
 						<td class="px-6 py-4">2023-10-01</td>
+						<td class="px-3 py-4">Admin</td>
 					</tr>
-					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
+					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
 						<td class="px-6 py-4">María López</td>
 						<td class="px-6 py-4">28</td>
 						<td class="px-6 py-4">Femenino</td>
 						<td class="px-6 py-4">2023-10-05</td>
+						<td class="px-3 py-4">Admin</td>
 					</tr>
-					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer hover:scale-101 transition">
+					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
 						<td class="px-6 py-4">Carlos Sánchez</td>
 						<td class="px-6 py-4">45</td>
 						<td class="px-6 py-4">Masculino</td>
 						<td class="px-6 py-4">2023-10-10</td>
+						<td class="px-3 py-4">Admin</td>
 					</tr>
 				</tbody>
 			</table>
