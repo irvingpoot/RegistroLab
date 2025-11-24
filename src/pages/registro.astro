@@ -2,7 +2,6 @@
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
-
 import { createClient } from "@supabase/supabase-js"
 
 // 1. Configuración de Supabase
@@ -10,7 +9,6 @@ const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
-
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user 
@@ -24,7 +22,7 @@ let registroExitoso = false;
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
-    
+        
         const nuevoPaciente = {
             nombre: data.get("nombre"),
             edad: parseInt(data.get("edad") as string),
@@ -39,7 +37,6 @@ if (Astro.request.method === "POST") {
             registrado_por: nombreRegistrador
         };
 
-        // Enviar a Supabase
         const { error: supabaseError } = await supabase
             .from('pacientes')
             .insert([nuevoPaciente]);
@@ -50,7 +47,6 @@ if (Astro.request.method === "POST") {
     } catch (e) {
         console.error(e);
         error = true;
-
         if (e instanceof Error) {
             mensaje = "Error al guardar: " + e.message;
         } else {
@@ -65,9 +61,8 @@ if (Astro.request.method === "POST") {
     <ReturnButton />
 
     {registroExitoso && (
-        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300">
+        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300 px-4">
             <div class="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full transform scale-100 animate-bounce-in">
-                
                 <div class="success-checkmark">
                     <div class="check-icon">
                         <span class="icon-line line-tip"></span>
@@ -76,109 +71,106 @@ if (Astro.request.method === "POST") {
                         <div class="icon-fix"></div>
                     </div>
                 </div>
-
                 <h2 class="text-2xl font-bold text-white mt-4 text-center">¡Registrado!</h2>
                 <p class="text-gray-400 mt-2 text-center">El paciente se guardó correctamente.</p>
                 <p class="text-blue-400 text-sm mt-4 animate-pulse">Redirigiendo a la lista...</p>
             </div>
-            
             <script>
                 setTimeout(() => {
                     window.location.href = "/lista";
-                }, 2500); // Espera 2.5 segundos antes de redirigir
+                }, 2500);
             </script>
         </div>
     )}
 
     {error && (
-        <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50">
+        <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50 w-11/12 md:w-auto text-center">
             {mensaje}
         </div>
     )}
 
-    <main class="max-w-7xl mx-auto pt-10 pb-28">
-        <div class="flex flex-col items-center justify-center">
-			<h1 class="text-6xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
+    <main class="max-w-7xl mx-auto pt-6 md:pt-10 pb-28 px-4">
+        <div class="flex flex-col items-center justify-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight max-lg:max-w-xs max-md:pt-15">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
 		</div>
 
-        <form method="post">
-            <div class="flex flex-col items-center justify-center pt-10">
-                <h2 class="text-3xl underline pb-5 text-center">Datos generales</h2>
-                <div class="flex flex-col space-y-4 w-1/2">
-                    <div class="flex gap-7">
+        <form method="POST">
+            <div class="flex flex-col items-center justify-center">
+                
+                <h2 class="text-2xl md:text-3xl underline pb-5 text-center text-gray-200">Datos generales</h2>
+                
+                <div class="flex flex-col space-y-4 w-full max-w-4xl px-2 md:px-0">
+                    
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
-                            <label for="nombre" class="text-lg font-medium">Nombre:</label>
-                            <input type="text" id="nombre" name="nombre" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="nombre" class="text-lg font-medium text-gray-300">Nombre:</label>
+                            <input type="text" id="nombre" name="nombre" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
                         </div>
 
-                        <div class="flex grow flex-col">
-                            <label for="edad" class="text-lg font-medium">Edad:</label>
-                            <input type="number" id="edad" name="edad" min="0" max="100" required class="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="flex flex-col md:w-32"> <label for="edad" class="text-lg font-medium text-gray-300">Edad:</label>
+                            <input type="number" id="edad" name="edad" min="0" max="120" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
 
-                        <div class="flex grow flex-col">
-                            <label for="genero" class="text-lg font-medium">Género:</label>
-                            <select id="genero" name="genero" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option class="bg-blue-950 text-white" value="" disabled selected>Selecciona una opción</option>
-                                <option class="bg-blue-950 text-white" value="masculino">Masculino</option>
-                                <option class="bg-blue-950 text-white" value="femenino">Femenino</option>
-                                <option class="bg-blue-950 text-white" value="otro">Otro</option>
+                        <div class="flex flex-col md:w-48"> <label for="genero" class="text-lg font-medium text-gray-300">Género:</label>
+                            <select id="genero" name="genero" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all appearance-none">
+                                <option class="bg-gray-900 text-gray-400" value="" disabled selected>Seleccionar</option>
+                                <option class="bg-gray-900" value="masculino">Masculino</option>
+                                <option class="bg-gray-900" value="femenino">Femenino</option>
+                                <option class="bg-gray-900" value="otro">Otro</option>
                             </select>
                         </div>
                     </div>
                     
-                    <div class="flex gap-7">
-                        <div class="flex grow flex-col">
-                            <label for="referencia" class="text-lg font-medium">¿Quién lo refiere?</label>
-                            <input type="text" id="referencia" name="referencia" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
+                        <div class="flex grow flex-col md:w-1/3">
+                            <label for="referencia" class="text-lg font-medium text-gray-300">¿Quién lo refiere?</label>
+                            <input type="text" id="referencia" name="referencia" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                         <div class="flex grow flex-col">
-                            <label for="motivo" class="text-lg font-medium">Motivo de la consulta</label>
-                            <input type="text" id="motivo" name="motivo" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="motivo" class="text-lg font-medium text-gray-300">Motivo de la consulta</label>
+                            <input type="text" id="motivo" name="motivo" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                     </div>
                 </div>
 
-                <h2 class="text-3xl underline pt-10 pb-5">Diagnosticos previos</h2>
-                <div class="flex flex-col space-y-4 w-1/2">
+                <h2 class="text-2xl md:text-3xl underline pt-10 pb-5 text-center text-gray-200">Diagnósticos previos</h2>
+                <div class="flex flex-col space-y-4 w-full max-w-4xl px-2 md:px-0">
                     <div class="flex flex-col">
-                        <label for="antecedentes" class="text-lg font-medium">Antecedentes familiares</label>
-                        <textarea 
-                            id="antecedentes" 
-                            name="antecedentes"
-                            rows="4"
-                            class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y">
-                        </textarea>
+                        <label for="antecedentes" class="text-lg font-medium text-gray-300">Antecedentes familiares</label>
+                        <textarea id="antecedentes" name="antecedentes" rows="4" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
                     </div>
                 </div>
 
-                <h2 class="text-3xl underline pt-10 pb-5">Caracteristicas del problema en especifico</h2>
-                <div class="flex flex-col space-y-4 w-1/2">
+                <h2 class="text-2xl md:text-3xl underline pt-10 pb-5 text-center text-gray-200">Detalles del problema</h2>
+                <div class="flex flex-col space-y-4 w-full max-w-4xl px-2 md:px-0">
                     
-                    <div class="flex gap-7">
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
-                            <label for="sintoma" class="text-lg font-medium">Sintoma</label>
-                            <input type="text" id="sintoma" name="sintoma" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="sintoma" class="text-lg font-medium text-gray-300">Síntoma principal</label>
+                            <input type="text" id="sintoma" name="sintoma" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                         <div class="flex grow flex-col">
-                            <label for="temporalidad" class="text-lg font-medium">Temporalidad</label>
-                            <input type="text" id="temporalidad" name="temporalidad" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="temporalidad" class="text-lg font-medium text-gray-300">Temporalidad</label>
+                            <input type="text" id="temporalidad" name="temporalidad" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                     </div>
 
-                    <div class="flex gap-7">
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
-                            <label for="frecuencia">Frecuencia</label>
-                            <input type="text" id="frecuencia" name="frecuencia" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="frecuencia" class="text-lg font-medium text-gray-300">Frecuencia</label>
+                            <input type="text" id="frecuencia" name="frecuencia" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                         <div class="flex grow flex-col">
-                            <label for="gravedad">Gravedad</label>
-                            <input type="text" id="gravedad" name="gravedad" required class="mt-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">   
+                            <label for="gravedad" class="text-lg font-medium text-gray-300">Gravedad</label>
+                            <input type="text" id="gravedad" name="gravedad" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">   
                         </div>
                     </div>
                 </div>
-                <div class="pt-7">
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-300 hover:cursor-pointer">Registrar Paciente</button>
+
+                <div class="pt-10 pb-10">
+                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white text-lg font-semibold px-8 py-3 rounded-xl hover:bg-blue-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] transition duration-300 cursor-pointer active:scale-95">
+                        Registrar Paciente
+                    </button>
                 </div>
                 
             </div>
@@ -221,7 +213,7 @@ if (Astro.request.method === "POST") {
                 content: '';
                 height: 100px;
                 position: absolute;
-                background: #111827;
+                background: #111827; /* Fondo coincide con el modal */
                 transform: rotate(-45deg);
             }
             

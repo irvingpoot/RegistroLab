@@ -9,11 +9,22 @@ const supabase = createClient(
 	import.meta.env.SUPABASE_KEY
 );
 
-// 2. Obtener los pacientes (ordenados por fecha de creación)
-const { data: pacientes, error } = await supabase
+// Recuperamos lo que el usuario escribió en la URL (?q=juan)
+const busqueda = Astro.url.searchParams.get('q') || '';
+
+// Construimos la consulta base
+let consulta = supabase
 	.from('pacientes')
 	.select('*')
 	.order('created_at', { ascending: false });
+
+// Si hay algo escrito, filtramos por nombre (insensible a mayúsculas/minúsculas)
+if (busqueda) {
+	consulta = consulta.ilike('nombre', `%${busqueda}%`);
+}
+
+// Ejecutamos la consulta final
+const { data: pacientes, error } = await consulta;
 
 if (error) console.error("Error cargando pacientes:", error);
 ---
@@ -22,13 +33,47 @@ if (error) console.error("Error cargando pacientes:", error);
 	<Icon />
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
 		<div class="flex flex-col items-center justify-center mb-10">
-            <h1 class="text-6xl font-extrabold text-center">Laboratorio del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
+            <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Laboratorio del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
 		</div>
-		<h2 class="text-2xl font-medium text-center text-gray-200">Lista de pacientes</h2>
-        <div class="flex justify-end items-end mb-6 mx-1">
-			<a href="registro" class="group relative overflow-hidden rounded-lg border border-blue-500/30 bg-transparent px-6 py-2 text-blue-300 shadow-sm transition-all hover:text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:border-blue-600">
+
+		<h2 class="text-2xl font-medium text-center text-gray-200 mb-2">Lista de pacientes</h2>
+        
+        <div class="flex flex-col-reverse md:flex-row justify-between items-center gap-4 mb-8 mx-1">
+    
+			<form method="GET" class="w-full md:max-w-md relative group">
+				<div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+					<svg class="w-4 h-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+						<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+					</svg>
+				</div>
+
+				<input 
+					type="text" 
+					name="q" 
+					value={busqueda}
+					class="block w-full p-3 ps-10 pr-36 text-sm text-white border border-gray-700 rounded-lg bg-gray-900/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 transition-all shadow-lg" 
+					placeholder="Buscar paciente..." 
+					autocomplete="off"
+				/>
+
+				<div class="absolute inset-y-0 right-2 flex items-center gap-1">
+					
+					{busqueda && (
+						<a href="/lista" class="text-gray-400 hover:text-white hover:bg-white/10 p-1.5 rounded-md transition-colors flex items-center" title="Limpiar búsqueda">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+							</svg>
+						</a>
+					)}
+
+					<button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md text-xs px-3 py-1.5 transition-colors cursor-pointer ml-1">
+						Buscar
+					</button>
+				</div>
+			</form>
+
+			<a href="registro" class="w-full md:w-auto group relative overflow-hidden rounded-lg border border-blue-500/30 bg-transparent px-6 py-2.5 text-blue-300 shadow-sm transition-all hover:text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:border-blue-600 flex items-center justify-center md:justify-start">
 				<span class="absolute inset-0 w-0 bg-blue-600/80 transition-all duration-[250ms] ease-out group-hover:w-full"></span>
-				
 				<span class="relative flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -36,17 +81,19 @@ if (error) console.error("Error cargando pacientes:", error);
 					Nuevo Registro
 				</span>
 			</a>
-        </div>
-            
-		<div class="">
-			<table class="w-full text-left border-collapse">
+
+		</div>
+
+		<div class="w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-900/20 backdrop-blur shadow-lg overflow-x-auto">
+			
+            <table class="w-full text-left border-collapse min-w-[900px]">
 				<thead class="bg-gradient-to-r from-transparent via-blue-950/30 to-transparent">
 					<tr>
-						<th class="px-8 py-4 text-gray-400 font-semibold text-sm">Nombre</th>
-						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Edad</th>
-						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Referencia</th>
-						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Registró</th>
-						<th class="px-6 py-4 text-gray-400 font-semibold text-sm text-right">Fecha</th>
+						<th class="px-8 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Nombre</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Edad</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Referencia</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Registró</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider text-right">Fecha</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -62,15 +109,17 @@ if (error) console.error("Error cargando pacientes:", error);
 										{paciente.nombre}
 									</span>
 								</div>
-								<div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-700/50 to-transparent group-hover:via-blue-500/50 transition-all"></div>
+                                <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-700/50 to-transparent group-hover:via-blue-500/50 transition-all"></div>
 							</td>
-							<td class="px-6 py-5 text-gray-400 align-middle">{paciente.edad}</td>
+							<td class="px-6 py-5 text-gray-400 align-middle">{paciente.edad} años</td>
 							<td class="px-6 py-5 text-gray-400 align-middle">{paciente.referencia}</td>
 							<td class="px-6 py-5 text-gray-400 align-middle">
 								{paciente.registrado_por || "—"}
 							</td>
 							<td class="px-6 py-5 text-gray-500 font-mono text-sm align-middle text-right">
-								{new Date(paciente.created_at).toLocaleDateString('es-MX')}
+								{new Date(paciente.created_at).toLocaleDateString('es-MX', {
+                                    year: '2-digit', month: 'short', day: 'numeric'
+                                })}
 							</td>
 						</tr>
 					))}
