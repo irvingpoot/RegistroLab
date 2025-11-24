@@ -14,9 +14,10 @@ const busqueda = Astro.url.searchParams.get('q') || '';
 
 // Construimos la consulta base
 let consulta = supabase
-	.from('pacientes')
-	.select('*')
-	.order('created_at', { ascending: false });
+    .from('pacientes')
+    .select('id, nombre, edad, referencia, registrado_por, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
 
 // Si hay algo escrito, filtramos por nombre (insensible a mayúsculas/minúsculas)
 if (busqueda) {
