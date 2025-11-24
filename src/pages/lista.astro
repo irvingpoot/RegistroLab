@@ -1,6 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
+import { createClient } from "@supabase/supabase-js"
+
+// 1. Configuración de Supabase
+const supabase = createClient(
+	import.meta.env.PUBLIC_SUPABASE_URL,
+	import.meta.env.SUPABASE_KEY
+);
+
+// 2. Obtener los pacientes (ordenados por fecha de creación)
+const { data: pacientes, error } = await supabase
+	.from('pacientes')
+	.select('*')
+	.order('created_at', { ascending: false });
+
+if (error) console.error("Error cargando pacientes:", error);
 ---
 
 <Layout title="Lista de pacientes">
@@ -14,8 +29,9 @@ import Icon from "../components/Icon.astro"
 			<h2 class=" text-center text-3xl py-7">Lista de pacientes</h2>
 			<a class="hover:text-blue-600 hover:scale-105 transition" href="registro">Registrar nuevo paciente</a>
         </div>
-        <div class=" flex flex-col border-2 border-white rounded-2xl min-h-auto mx-5">
-			<table>
+        
+        <div class="flex flex-col border-2 border-white rounded-2xl min-h-auto mx-5">
+			<table class="w-full">
 				<thead class="border-b-2 border-white">
 					<tr>
 						<th class="px-6 py-4 text-left">Nombre</th>
@@ -26,27 +42,29 @@ import Icon from "../components/Icon.astro"
 					</tr>
 				</thead>
 				<tbody>
-					<tr onclick="location.href='/registro'" class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
-						<td class="px-6 py-4">Juan Pérez</td>
-						<td class="px-6 py-4">34</td>
-						<td class="px-6 py-4">Servicio Medico</td>
-						<td class="px-6 py-4">2023-10-01</td>
-						<td class="px-3 py-4">Admin</td>
-					</tr>
-					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
-						<td class="px-6 py-4">María López</td>
-						<td class="px-6 py-4">28</td>
-						<td class="px-6 py-4">Servicio Medico</td>
-						<td class="px-6 py-4">2023-10-05</td>
-						<td class="px-3 py-4">Admin</td>
-					</tr>
-					<tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
-						<td class="px-6 py-4">Carlos Sánchez</td>
-						<td class="px-6 py-4">45</td>
-						<td class="px-6 py-4">Servicio Medico</td>
-						<td class="px-6 py-4">2023-10-10</td>
-						<td class="px-3 py-4">Admin</td>
-					</tr>
+                    {/* Iteramos sobre los datos reales */}
+                    {pacientes?.map((paciente) => (
+                        <tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
+                            <td class="px-6 py-4 capitalize">{paciente.nombre}</td>
+                            <td class="px-6 py-4">{paciente.edad}</td>
+                            <td class="px-6 py-4">{paciente.referencia}</td>
+                            <td class="px-6 py-4">
+                                {new Date(paciente.created_at).toLocaleDateString('es-MX')}
+                            </td>
+                            <td class="px-3 py-4">
+                                {paciente.registrado_por || "Anónimo"}
+                            </td>
+                        </tr>
+                    ))}
+
+                    {/* Mensaje si no hay datos*/}
+                    {(!pacientes || pacientes.length === 0) && (
+                        <tr>
+                            <td colspan="5" class="px-6 py-10 text-center text-gray-400">
+                                No hay pacientes registrados todavía.
+                            </td>
+                        </tr>
+                    )}
 				</tbody>
 			</table>
         </div>
