@@ -2,17 +2,106 @@
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
+
+import { createClient } from "@supabase/supabase-js"
+
+// 1. Configuración de Supabase
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+
+const user = await Astro.locals.currentUser();
+const nombreRegistrador = user 
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
+    : "Anónimo";
+
+let mensaje = "";
+let error = false;
+let registroExitoso = false;
+
+if (Astro.request.method === "POST") {
+    try {
+        const data = await Astro.request.formData();
+    
+        const nuevoPaciente = {
+            nombre: data.get("nombre"),
+            edad: parseInt(data.get("edad") as string),
+            genero: data.get("genero"),
+            referencia: data.get("referencia"),
+            motivo: data.get("motivo"),
+            antecedentes: data.get("antecedentes"),
+            sintoma: data.get("sintoma"),
+            temporalidad: data.get("temporalidad"),
+            frecuencia: data.get("frecuencia"),
+            gravedad: data.get("gravedad"),
+            registrado_por: nombreRegistrador
+        };
+
+        // Enviar a Supabase
+        const { error: supabaseError } = await supabase
+            .from('pacientes')
+            .insert([nuevoPaciente]);
+
+        if (supabaseError) throw supabaseError;
+        registroExitoso = true;
+
+    } catch (e) {
+        console.error(e);
+        error = true;
+
+        if (e instanceof Error) {
+            mensaje = "Error al guardar: " + e.message;
+        } else {
+            mensaje = "Error al guardar: Ocurrió un error desconocido";
+        }
+    }
+}
 ---
 
 <Layout title="Registro de Pacientes">
     <Icon />
     <ReturnButton />
+
+    {registroExitoso && (
+        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300">
+            <div class="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full transform scale-100 animate-bounce-in">
+                
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                        <div class="icon-circle"></div>
+                        <div class="icon-fix"></div>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-bold text-white mt-4 text-center">¡Registrado!</h2>
+                <p class="text-gray-400 mt-2 text-center">El paciente se guardó correctamente.</p>
+                <p class="text-blue-400 text-sm mt-4 animate-pulse">Redirigiendo a la lista...</p>
+            </div>
+            
+            <script>
+                setTimeout(() => {
+                    window.location.href = "/lista";
+                }, 2500); // Espera 2.5 segundos antes de redirigir
+            </script>
+        </div>
+    )}
+
+    {error && (
+        <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50">
+            {mensaje}
+        </div>
+    )}
+
     <main class="max-w-7xl mx-auto pt-10 pb-28">
         <div class="flex flex-col items-center justify-center">
 			<h1 class="text-6xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
 		</div>
 
-        <form action="" method="post">
+        <form method="post">
             <div class="flex flex-col items-center justify-center pt-10">
                 
                 <h2 class="text-3xl underline pb-5">Datos generales</h2>
@@ -97,3 +186,115 @@ import ReturnButton from "../components/ReturnButton.astro"
         </form>
     </main>
 </Layout>
+
+<style>
+    .success-checkmark {
+        width: 80px;
+        height: 115px;
+        margin: 0 auto;
+        
+        .check-icon {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            border-radius: 50%;
+            box-sizing: content-box;
+            border: 4px solid #4CAF50;
+            
+            &::before {
+                top: 3px;
+                left: -2px;
+                width: 30px;
+                transform-origin: 100% 50%;
+                border-radius: 100px 0 0 100px;
+            }
+            
+            &::after {
+                top: 0;
+                left: 30px;
+                width: 60px;
+                transform-origin: 0 50%;
+                border-radius: 0 100px 100px 0;
+                animation: rotate-circle 4.25s ease-in;
+            }
+            
+            &::before, &::after {
+                content: '';
+                height: 100px;
+                position: absolute;
+                background: #111827; /* Mismo color del fondo del modal para "ocultar" el borde al inicio */
+                transform: rotate(-45deg);
+            }
+            
+            .icon-line {
+                height: 5px;
+                background-color: #4CAF50;
+                display: block;
+                border-radius: 2px;
+                position: absolute;
+                z-index: 10;
+                
+                &.line-tip {
+                    top: 46px;
+                    left: 14px;
+                    width: 25px;
+                    transform: rotate(45deg);
+                    animation: icon-line-tip 0.75s;
+                }
+                
+                &.line-long {
+                    top: 38px;
+                    right: 8px;
+                    width: 47px;
+                    transform: rotate(-45deg);
+                    animation: icon-line-long 0.75s;
+                }
+            }
+            
+            .icon-circle {
+                top: -4px;
+                left: -4px;
+                z-index: 10;
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                position: absolute;
+                box-sizing: content-box;
+                border: 4px solid rgba(76, 175, 80, .5);
+            }
+            
+            .icon-fix {
+                top: 8px;
+                width: 5px;
+                left: 26px;
+                z-index: 1;
+                height: 85px;
+                position: absolute;
+                transform: rotate(-45deg);
+                background-color: #111827;
+            }
+        }
+    }
+
+    @keyframes rotate-circle {
+        0% { transform: rotate(-45deg); }
+        5% { transform: rotate(-45deg); }
+        12% { transform: rotate(-405deg); }
+        100% { transform: rotate(-405deg); }
+    }
+
+    @keyframes icon-line-tip {
+        0% { width: 0; left: 1px; top: 19px; }
+        54% { width: 0; left: 1px; top: 19px; }
+        70% { width: 50px; left: -8px; top: 37px; }
+        84% { width: 17px; left: 21px; top: 48px; }
+        100% { width: 25px; left: 14px; top: 46px; }
+    }
+
+    @keyframes icon-line-long {
+        0% { width: 0; right: 46px; top: 54px; }
+        65% { width: 0; right: 46px; top: 54px; }
+        84% { width: 55px; right: 0px; top: 35px; }
+        100% { width: 47px; right: 8px; top: 38px; }
+    }
+</style>
