@@ -20,53 +20,63 @@ if (error) console.error("Error cargando pacientes:", error);
 
 <Layout title="Lista de pacientes">
 	<Icon />
-    <main class="max-w-7xl mx-auto pt-10 pb-28">
-		<div class="flex flex-col items-center justify-center">
-			<h1 class="text-6xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
+    <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
+		<div class="flex flex-col items-center justify-center mb-10">
+            <h1 class="text-6xl font-extrabold text-center">Laboratorio del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
 		</div>
-
-        <div class="pb-10 text-center">
-			<h2 class=" text-center text-3xl py-7">Lista de pacientes</h2>
-			<a class="hover:text-blue-600 hover:scale-105 transition" href="registro">Registrar nuevo paciente</a>
+		<h2 class="text-2xl font-medium text-center text-gray-200">Lista de pacientes</h2>
+        <div class="flex justify-end items-end mb-6 mx-1">
+			<a href="registro" class="group relative overflow-hidden rounded-lg border border-blue-500/30 bg-transparent px-6 py-2 text-blue-300 shadow-sm transition-all hover:text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:border-blue-600">
+				<span class="absolute inset-0 w-0 bg-blue-600/80 transition-all duration-[250ms] ease-out group-hover:w-full"></span>
+				
+				<span class="relative flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+					</svg>
+					Nuevo Registro
+				</span>
+			</a>
         </div>
-        
-        <div class="flex flex-col border-2 border-white rounded-2xl min-h-auto mx-5">
-			<table class="w-full">
-				<thead class="border-b-2 border-white">
+            
+		<div class="">
+			<table class="w-full text-left border-collapse">
+				<thead class="bg-gradient-to-r from-transparent via-blue-950/30 to-transparent">
 					<tr>
-						<th class="px-6 py-4 text-left">Nombre</th>
-						<th class="px-6 py-4 text-left">Edad</th>
-						<th class="px-6 py-4 text-left">Refiere</th>
-						<th class="px-6 py-4 text-left">Fecha de registro</th>
-						<th class="px-3 py-4 text-left">Registró</th>
+						<th class="px-8 py-4 text-gray-400 font-semibold text-sm">Nombre</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Edad</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Referencia</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm">Registró</th>
+						<th class="px-6 py-4 text-gray-400 font-semibold text-sm text-right">Fecha</th>
 					</tr>
 				</thead>
 				<tbody>
-                    {/* Iteramos sobre los datos reales */}
-                    {pacientes?.map((paciente) => (
-                        <tr class="border-b border-gray-700 hover:text-blue-600 hover:cursor-pointer transition">
-                            <td class="px-6 py-4 capitalize">{paciente.nombre}</td>
-                            <td class="px-6 py-4">{paciente.edad}</td>
-                            <td class="px-6 py-4">{paciente.referencia}</td>
-                            <td class="px-6 py-4">
-                                {new Date(paciente.created_at).toLocaleDateString('es-MX')}
-                            </td>
-                            <td class="px-3 py-4">
-                                {paciente.registrado_por || "Anónimo"}
-                            </td>
-                        </tr>
-                    ))}
-
-                    {/* Mensaje si no hay datos*/}
-                    {(!pacientes || pacientes.length === 0) && (
-                        <tr>
-                            <td colspan="5" class="px-6 py-10 text-center text-gray-400">
-                                No hay pacientes registrados todavía.
-                            </td>
-                        </tr>
-                    )}
+					{pacientes?.map((paciente) => (
+						<tr 
+							class="group cursor-pointer hover:bg-white/[0.02] transition-colors relative"
+							onclick={`window.location.href = '/paciente/${paciente.id}'`}
+						>
+							<td class="px-8 py-5 align-middle">
+								<div class="flex items-center gap-3">
+									<div class="w-2 h-2 rounded-full bg-gray-700 group-hover:bg-blue-500 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.8)] transition-all"></div>
+									<span class="text-gray-200 font-medium text-lg capitalize group-hover:text-white transition-colors">
+										{paciente.nombre}
+									</span>
+								</div>
+								<div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-700/50 to-transparent group-hover:via-blue-500/50 transition-all"></div>
+							</td>
+							<td class="px-6 py-5 text-gray-400 align-middle">{paciente.edad}</td>
+							<td class="px-6 py-5 text-gray-400 align-middle">{paciente.referencia}</td>
+							<td class="px-6 py-5 text-gray-400 align-middle">
+								{paciente.registrado_por || "—"}
+							</td>
+							<td class="px-6 py-5 text-gray-500 font-mono text-sm align-middle text-right">
+								{new Date(paciente.created_at).toLocaleDateString('es-MX')}
+							</td>
+						</tr>
+					))}
 				</tbody>
 			</table>
-        </div>
+		</div>
+		
 	</main>
 </Layout>

@@ -1,0 +1,16 @@
+---
+// Definimos las propiedades que recibirá el componente
+interface Props {
+    title: string;
+    className?: string;
+}
+
+const { title, className = "" } = Astro.props;
+---
+
+<div class={`bg-gray-900/50 border border-gray-700 rounded-2xl p-8 hover:border-blue-500 transition duration-300 ${className}`}>
+    <h2 class="text-2xl font-bold text-blue-300 mb-6 border-b border-gray-700 pb-2">
+        {title}
+    </h2>
+    <slot />
+</div>
