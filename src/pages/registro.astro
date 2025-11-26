@@ -58,7 +58,7 @@ if (Astro.request.method === "POST") {
 
 <Layout title="Registro de Pacientes">
     <Icon />
-    <ReturnButton />
+    <ReturnButton href="/lista" text="Volver a la lista" />
 
     {registroExitoso && (
         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300 px-4">
