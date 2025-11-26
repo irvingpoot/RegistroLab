@@ -1,5 +1,14 @@
+---
+interface Props {
+    href?: string;
+    text?: string;
+}
+
+const { href = "/citas", text = "Volver al inicio" } = Astro.props;
+---
+
 <div class="absolute top-10 left-10">
-    <a href="/lista" class="flex items-center gap-2 text-gray-50 hover:text-blue-600 transition hover:scale-105">
-        <span>Volver a la lista</span>
+    <a href={href} class="flex items-center gap-2 text-gray-50 hover:text-blue-600 transition hover:scale-105">
+        <span>{text}</span>
     </a>
 </div>

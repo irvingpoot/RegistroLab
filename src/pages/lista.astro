@@ -1,7 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
-import { createClient } from "@supabase/supabase-js"
+import ReturnButton from "../components/ReturnButton.astro"
+import { createClient } from '@supabase/supabase-js';
 
 // 1. Configuración de Supabase
 const supabase = createClient(
@@ -30,8 +31,9 @@ const { data: pacientes, error } = await consulta;
 if (error) console.error("Error cargando pacientes:", error);
 ---
 
-<Layout title="Lista de pacientes">
+<Layout title="Pacientes - Laboratorio del Sueño">
 	<Icon />
+	<ReturnButton href="/citas" text="Volver a la agenda" />
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
 		<div class="flex flex-col items-center justify-center mb-10">
             <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Laboratorio del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
