@@ -79,5 +79,5 @@ Estos son los comandos definidos en `package.json`:
 ---
 
 ## 📄 Licencia
-Este proyecto se distribuye bajo la licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.
+Todos los derechos reservados. Consulta el archivo `LICENSE` para más detalles.
 
