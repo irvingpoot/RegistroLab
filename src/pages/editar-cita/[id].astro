@@ -22,14 +22,15 @@ if (Astro.request.method === "POST") {
         
         // Convertir fecha
         const fechaObj = new Date(data.get("fecha_hora") as string);
-        
+
         const actualizacion = {
             nombre: data.get("nombre"),
-            telefono: data.get("telefono"),
-            sintoma: data.get("sintoma"),
+            // Agregamos '|| null' para permitir vacíos
+            telefono: data.get("telefono") || null,
+            sintoma: data.get("sintoma") || null,
             referencia: data.get("referencia"),
             fecha_hora: fechaObj.toISOString(),
-            observaciones: data.get("observaciones"),
+            observaciones: data.get("observaciones") || null,
         };
 
         const { error: updateError } = await supabase
@@ -80,9 +81,11 @@ const fechaValue = new Date(cita.fecha_hora).toISOString().slice(0, 16);
                             <label class="text-lg font-medium text-gray-300">Nombre:</label>
                             <input type="text" name="nombre" value={cita.nombre} required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
+
                         <div class="flex grow flex-col md:w-1/3">
-                            <label class="text-lg font-medium text-gray-300">Teléfono:</label>
-                            <input type="tel" name="telefono" value={cita.telefono} required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
+                            {/* CAMBIO 1: Se agregó "(Opcional)" y se quitó el 'required' del input */}
+                            <label class="text-lg font-medium text-gray-300">Teléfono (Opcional):</label>
+                            <input type="tel" name="telefono" value={cita.telefono} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
                     </div>
 
@@ -95,12 +98,14 @@ const fechaValue = new Date(cita.fecha_hora).toISOString().slice(0, 16);
 
                     <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col md:w-1/3">
+                            {/* Nota: 'referencia' en nueva-cita es obligatorio, aquí lo dejé igual pero podrías ponerle 'required' si quieres consistencia estricta */}
                             <label class="text-lg font-medium text-gray-300">Referencia:</label>
-                            <input type="text" name="referencia" value={cita.referencia} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
+                            <input type="text" name="referencia" value={cita.referencia} required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
                         <div class="flex grow flex-col">
-                            <label class="text-lg font-medium text-gray-300">Síntoma:</label>
-                            <input type="text" name="sintoma" value={cita.sintoma} required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
+                            {/* CAMBIO 2: Se agregó "(Opcional)" y se quitó el 'required' del input */}
+                            <label class="text-lg font-medium text-gray-300">Síntoma (Opcional):</label>
+                            <input type="text" name="sintoma" value={cita.sintoma} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
                     </div>
 
