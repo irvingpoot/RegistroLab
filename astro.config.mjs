@@ -13,7 +13,7 @@ export default defineConfig({
         baseTheme: [dark],
         signIn: { variables: { colorBackground: "gray-950" } },
       },
-    signInForceRedirectUrl: "/lista",
+    signInForceRedirectUrl: "/citas",
     localization: esMX}
   )],
   vite: {
