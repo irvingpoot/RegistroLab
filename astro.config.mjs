@@ -1,6 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from "@astrojs/node";
+import vercel from "@astrojs/vercel";
 import clerk from "@clerk/astro";
 import tailwindcss from '@tailwindcss/vite';
 import { dark } from '@clerk/themes';
@@ -19,6 +19,6 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()]
   },
-  adapter: node({ mode: "standalone" }),
+  adapter: vercel(),
   output: "server",
 });
