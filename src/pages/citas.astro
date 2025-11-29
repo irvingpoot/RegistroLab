@@ -2,6 +2,7 @@
     import Layout from "../layouts/Layout.astro"
     import Icon from "../components/Icon.astro"
     import { createClient } from "@supabase/supabase-js"
+    import CitaCard from "../components/CitaCard.astro"
 
     const supabase = createClient(
         import.meta.env.PUBLIC_SUPABASE_URL,
@@ -29,7 +30,7 @@
 
     const citasAgrupadas = (citasRaw || []).reduce((grupos, cita) => {
         const fechaObj = new Date(cita.fecha_hora);
-        const fechaTitulo = fechaObj.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+        const fechaTitulo = fechaObj.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', timeZone: 'America/Merida' });
 
         if (!grupos[fechaTitulo]) grupos[fechaTitulo] = [];
         grupos[fechaTitulo].push(cita);
@@ -66,101 +67,19 @@
         </div>
 
         <div class="space-y-12 max-w-5xl mx-auto">
-            
             {gruposDeCitas.length > 0 ? (
                 gruposDeCitas.map(([fechaTitulo, citas]) => (
                     <section class="relative fade-in">
+                        {/* Encabezado de la fecha */}
                         <div class="flex items-center gap-4 mb-6 sticky top-0 bg-black/80 backdrop-blur-md py-3 z-10 border-b border-blue-900/30">
                             <div class="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                             <h3 class="text-2xl font-bold text-blue-100 capitalize">{fechaTitulo}</h3>
                         </div>
 
+                        {/* Grid de citas */}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 ml-0 md:ml-6">
                             {citas.map((cita) => (
-                                <div class="relative group bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 p-6 rounded-2xl transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(30,58,138,0.3)]">
-                                    
-                                    {/* 1. ENCABEZADO FLEX: Contiene Nombre (Izq) y Hora (Der) */}
-                                    <div class="flex justify-between items-start gap-4 mb-3">
-                                        
-                                        {/* LADO IZQUIERDO: Nombre y Teléfono */}
-                                        <div class="flex-1 min-w-0"> {/* min-w-0 es vital para que el texto haga wrap en flex */}
-                                            <h4 class="text-xl font-semibold text-gray-100 capitalize text-pretty break-words">
-                                                {cita.nombre}
-                                            </h4>
-                                            
-                                            <div class="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-blue-500 shrink-0">
-                                                    <path fill-rule="evenodd" d="M2 3.5A1.5 1.5 0 0 1 3.5 2h1.148a1.5 1.5 0 0 1 1.465 1.175l.716 3.223a1.5 1.5 0 0 1-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 0 0 6.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 0 1 1.767-1.052l3.223.716A1.5 1.5 0 0 1 18 15.352V16.5a1.5 1.5 0 0 1-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 0 1 2.43 8.326 13.019 13.019 0 0 1 2 5V3.5Z" clip-rule="evenodd" />
-                                                </svg>
-                                                <span>{cita.telefono || "Sin teléfono registrado"}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* LADO DERECHO: Hora (Ya no es absoluta) */}
-                                        <div class="flex flex-col items-end shrink-0"> {/* shrink-0 evita que la hora se aplaste */}
-                                            <span class="max-sm:text-xl text-2xl font-mono font-bold text-white tracking-tight whitespace-nowrap">
-                                                {new Date(cita.fecha_hora).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}
-                                            </span>
-                                            <span class="text-xs text-blue-400 font-medium uppercase tracking-widest mt-1">Hora</span>
-                                        </div>
-                                    </div>
-
-                                    {/* CONTENIDO DE LA TARJETA */}
-                                    <div class="space-y-3">
-                                        
-                                        <div class="grid grid-cols-2 gap-4 py-3 border-t border-gray-800/50">
-                                            <div>
-                                                <span class="block text-[10px] uppercase text-gray-500 font-bold">Referencia</span>
-                                                <span class="text-sm text-gray-300 break-words">{cita.referencia}</span>
-                                            </div>
-                                            <div>
-                                                <span class="block text-[10px] uppercase text-gray-500 font-bold">Síntoma</span>
-                                                {/* 2. SÍNTOMA: Quitamos 'truncate' y agregamos 'break-words' */}
-                                                <span class="text-sm text-gray-300 break-words block">
-                                                    {cita.sintoma || "Sin especificar"}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {cita.observaciones ? (
-                                            <div class="bg-black/20 p-3 rounded-lg border border-white/5">
-                                                <span class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Observaciones</span>
-                                                <p class="text-sm text-gray-400 italic leading-snug">"{cita.observaciones}"</p>
-                                            </div>
-                                        ) : (
-                                            <p class="text-xs text-gray-600 italic py-2">Sin observaciones adicionales.</p>
-                                        )}
-                                        
-                                        <div class="pt-2 border-t border-gray-800/50 flex justify-end">
-                                            <span class="text-[10px] text-gray-500">
-                                                Agendado por: <span class="text-gray-400 font-medium">{cita.registrado_por_id || "Sistema"}</span>
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-4 pl-0 flex justify-between items-center pt-3 border-t border-gray-800/50">
-                                        <a href={`/editar-cita/${cita.id}`} class="text-xs text-gray-400 hover:text-white hover:underline flex items-center gap-1 transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                            </svg>
-                                            Editar
-                                        </a>
-
-                                        <form method="POST" class="flex gap-2">
-                                            <input type="hidden" name="id_cita" value={cita.id} />
-                                            <button type="submit" name="accion" value="cancelar" class="h-8 w-8 rounded-full border border-gray-600 flex items-center justify-center text-gray-500 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500 transition-all cursor-pointer" title="Cancelar Cita" onclick="return confirm('¿Seguro que deseas cancelar esta cita?');">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                            <button type="submit" name="accion" value="completar" class="h-8 w-8 rounded-full border border-gray-600 flex items-center justify-center text-gray-500 hover:bg-green-500/20 hover:text-green-400 hover:border-green-500 transition-all cursor-pointer" title="Marcar como Completada">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                                </svg>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
+                                <CitaCard cita={cita} /> 
                             ))}
                         </div>
                     </section>

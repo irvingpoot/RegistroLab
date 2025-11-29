@@ -1,6 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro"
-import ReturnButton from "../../components/ReturnButton.astro" // Asegúrate de ajustar la ruta si es necesario
+import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
 
 const { id } = Astro.params;
@@ -15,13 +15,13 @@ const supabase = createClient(
 let mensaje = "";
 let error = false;
 
-// 1. Actualizar Datos (Si es POST)
+// Actualizar Datos (Si es POST)
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
         
-        // Convertir fecha
-        const fechaObj = new Date(data.get("fecha_hora") as string);
+        const fechaLocal = data.get("fecha_hora") as string;
+        const fechaObj = new Date(`${fechaLocal}-06:00`);
 
         const actualizacion = {
             nombre: data.get("nombre"),
@@ -49,7 +49,7 @@ if (Astro.request.method === "POST") {
     }
 }
 
-// 2. Obtener Datos actuales para rellenar el formulario
+// Obtener Datos actuales para rellenar el formulario
 const { data: cita, error: fetchError } = await supabase
     .from('citas')
     .select('*')
@@ -58,9 +58,23 @@ const { data: cita, error: fetchError } = await supabase
 
 if (fetchError || !cita) return Astro.redirect("/citas");
 
-// Formatear fecha para el input datetime-local (YYYY-MM-DDTHH:MM)
-// Truco: Cortamos los segundos y milisegundos del ISO string para que el input lo acepte
-const fechaValue = new Date(cita.fecha_hora).toISOString().slice(0, 16);
+const fechaObjCita = new Date(cita.fecha_hora);
+
+// Obtenemos la fecha (YYYY-MM-DD) en horario Mérida
+const fechaParte = fechaObjCita.toLocaleDateString('en-CA', { 
+    timeZone: 'America/Merida' 
+});
+
+// Obtenemos la hora (HH:MM) en horario Mérida (formato 24h)
+const horaParte = fechaObjCita.toLocaleTimeString('en-GB', { 
+    timeZone: 'America/Merida', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+});
+
+// Unimos ambas partes con una "T"
+const fechaValue = `${fechaParte}T${horaParte}`;
 ---
 
 <Layout title="Editar Cita">
@@ -83,7 +97,6 @@ const fechaValue = new Date(cita.fecha_hora).toISOString().slice(0, 16);
                         </div>
 
                         <div class="flex grow flex-col md:w-1/3">
-                            {/* CAMBIO 1: Se agregó "(Opcional)" y se quitó el 'required' del input */}
                             <label class="text-lg font-medium text-gray-300">Teléfono (Opcional):</label>
                             <input type="tel" name="telefono" value={cita.telefono} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
@@ -98,12 +111,10 @@ const fechaValue = new Date(cita.fecha_hora).toISOString().slice(0, 16);
 
                     <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col md:w-1/3">
-                            {/* Nota: 'referencia' en nueva-cita es obligatorio, aquí lo dejé igual pero podrías ponerle 'required' si quieres consistencia estricta */}
                             <label class="text-lg font-medium text-gray-300">Referencia:</label>
                             <input type="text" name="referencia" value={cita.referencia} required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>
                         <div class="flex grow flex-col">
-                            {/* CAMBIO 2: Se agregó "(Opcional)" y se quitó el 'required' del input */}
                             <label class="text-lg font-medium text-gray-300">Síntoma (Opcional):</label>
                             <input type="text" name="sintoma" value={cita.sintoma} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
                         </div>

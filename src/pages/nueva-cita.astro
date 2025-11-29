@@ -23,7 +23,7 @@ if (Astro.request.method === "POST") {
         const data = await Astro.request.formData();
         
         const fechaLocal = data.get("fecha_hora") as string;
-        const fechaObj = new Date(fechaLocal);
+        const fechaObj = new Date(`${fechaLocal}-06:00`);
         const fechaISO = fechaObj.toISOString();
 
         // Validación de duplicados
@@ -173,7 +173,6 @@ if (Astro.request.method === "POST") {
 </Layout>
 
 <style>
-    /* Invertir color del icono de calendario para que se vea blanco en fondo oscuro */
     input[type="datetime-local"]::-webkit-calendar-picker-indicator {
         filter: invert(1);
         cursor: pointer;

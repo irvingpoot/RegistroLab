@@ -4,13 +4,12 @@ import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Configuración de Supabase
 const supabase = createClient(
 	import.meta.env.PUBLIC_SUPABASE_URL,
 	import.meta.env.SUPABASE_KEY
 );
 
-// Recuperamos lo que el usuario escribió en la URL (?q=juan)
+// Recuperamos lo que el usuario escribió en la URL
 const busqueda = Astro.url.searchParams.get('q') || '';
 
 // Construimos la consulta base
