@@ -26,6 +26,7 @@ if (Astro.request.method === "POST") {
         const actualizacion = {
             nombre: data.get("nombre"),
             // Agregamos '|| null' para permitir vacíos
+            motivo: data.get("motivo"),
             telefono: data.get("telefono") || null,
             sintoma: data.get("sintoma") || null,
             referencia: data.get("referencia"),
@@ -90,6 +91,22 @@ const fechaValue = `${fechaParte}T${horaParte}`;
                 
                 <div class="flex flex-col space-y-4 w-full max-w-4xl px-2 md:px-0">
                     
+                    <label class="text-lg font-medium text-gray-300">Motivo de la cita:</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-700 bg-gray-900/50 rounded-xl mb-4">
+                        <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded">
+                            <input type="radio" name="motivo" value="entrevista" checked={cita.motivo === 'entrevista'} required class="accent-blue-500 w-5 h-5">
+                            <span class="font-medium">Entrevista Inicial</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded">
+                            <input type="radio" name="motivo" value="seguimiento" checked={cita.motivo === 'seguimiento'} required class="accent-blue-500 w-5 h-5">
+                            <span class="font-medium">Seguimiento</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded">
+                            <input type="radio" name="motivo" value="tratamiento" checked={cita.motivo === 'tratamiento'} required class="accent-blue-500 w-5 h-5">
+                            <span class="font-medium">Tratamiento</span>
+                        </label>
+                    </div>
+
                     <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
                             <label class="text-lg font-medium text-gray-300">Nombre:</label>

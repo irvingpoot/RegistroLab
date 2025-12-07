@@ -22,7 +22,7 @@
 
     const { data: citasRaw, error } = await supabase
         .from('citas')
-        .select('id, nombre, fecha_hora, sintoma, telefono, referencia, observaciones, registrado_por_id')
+        .select('id, nombre, fecha_hora, sintoma, telefono, referencia, observaciones, registrado_por_id, motivo')
         .eq('estado', 'pendiente')
         .order('fecha_hora', { ascending: true });
 
