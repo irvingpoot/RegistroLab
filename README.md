@@ -78,6 +78,3 @@ Estos son los comandos definidos en `package.json`:
 
 ---
 
-## 📄 Licencia
-Todos los derechos reservados. Consulta el archivo `LICENSE` para más detalles.
-
