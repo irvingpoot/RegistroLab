@@ -2,7 +2,8 @@
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
-import SintomaGroup from "../components/SintomaGroup.astro" 
+import SintomaGroup from "../components/SintomaGroup.astro"
+import PuntajeExtraGroup from "../components/PuntajeExtraGroup.astro" 
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -47,16 +48,13 @@ if (Astro.request.method === "POST") {
         const nuevoPaciente = {
             // 1. SocioDemográficos
             nombre: data.get("nombre"),
-            // Agregamos la edad calculada para que Supabase no se queje
-            edad: edadCalculada, 
-            fecha_nacimiento: fechaNacString ? new Date(fechaNacString).toISOString() : null,
+            edad: edadCalculada,
+            fecha_nacimiento: fechaNacString ? fechaNacString : null,
             genero: data.get("genero"),
             ocupacion: data.get("ocupacion"),
             escolaridad: data.get("escolaridad"),
             referencia: data.get("referencia"),
             motivo: data.get("motivo"),
-            
-            // ... (El resto de campos se mantiene EXACTAMENTE IGUAL) ...
             lateralidad: data.get("lateralidad"),
             peso: data.get("peso") ? parseFloat(data.get("peso") as string) : null,
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
@@ -85,7 +83,6 @@ if (Astro.request.method === "POST") {
 
             antecedentes: data.get("antecedentes"),
             
-            // Nota: Aquí se guardan los datos "base" del síntoma principal
             sintoma: data.get("sintoma"),
             temporalidad: data.get("temporalidad"),
             frecuencia: data.get("frecuencia"),
@@ -106,7 +103,6 @@ if (Astro.request.method === "POST") {
             registrado_por: nombreRegistrador
         };
 
-        // ... (El resto de la lógica de inserción se mantiene igual) ...
         const { data: pacienteInsertado, error: errorPaciente } = await supabase
             .from('pacientes')
             .insert([nuevoPaciente])
@@ -135,6 +131,31 @@ if (Astro.request.method === "POST") {
                 .insert(sintomasAInsertar);
 
             if (errorSintomas) console.error("Error guardando síntomas:", errorSintomas);
+        }
+        const extraNombres = data.getAll('extra_prueba_nombre');
+        const extraValores = data.getAll('extra_prueba_valor');
+
+        if (extraNombres.length > 0 && pacienteInsertado) {
+            const extrasAInsertar = extraNombres
+                .map((nombre, index) => {
+                    const valor = extraValores[index] ? parseInt(extraValores[index].toString()) : null;
+                    if (!nombre.toString().trim()) return null; // Ignorar vacíos
+
+                    return {
+                        paciente_id: pacienteInsertado.id,
+                        nombre_prueba: nombre.toString(),
+                        puntaje: valor
+                    };
+                })
+                .filter(item => item !== null); // Eliminar nulos
+
+            if (extrasAInsertar.length > 0) {
+                const { error: errorExtras } = await supabase
+                    .from('pacientes_puntajes_extra')
+                    .insert(extrasAInsertar);
+
+                if (errorExtras) console.error("Error guardando puntajes extra:", errorExtras);
+            }
         }
         
         return Astro.redirect('/registro?exito=true');
@@ -180,7 +201,7 @@ if (Astro.request.method === "POST") {
             <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight max-lg:max-w-xs max-md:pt-15">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
 		</div>
 
-        <form method="POST">
+        <form method="POST" id="form-registro" novalidate>
             <div class="flex flex-col items-center justify-center space-y-12">
                 
                 <section class="w-full max-w-4xl px-2 md:px-0">
@@ -214,7 +235,15 @@ if (Astro.request.method === "POST") {
                             </div>
                             <div class="flex grow flex-col">
                                 <label for="escolaridad" class="text-lg font-medium text-gray-300">Escolaridad:</label>
-                                <input type="text" id="escolaridad" name="escolaridad" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
+                                <select id="escolaridad" name="escolaridad" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all appearance-none">
+                                    <option class="bg-gray-900 text-gray-400" value="" disabled selected>Seleccionar</option>
+                                    <option class="bg-gray-900" value="Primaria">Primaria</option>
+                                    <option class="bg-gray-900" value="Secundaria">Secundaria</option>
+                                    <option class="bg-gray-900" value="Preparatoria">Preparatoria</option>
+                                    <option class="bg-gray-900" value="Licenciatura">Licenciatura</option>
+                                    <option class="bg-gray-900" value="Maestría">Maestría</option>
+                                    <option class="bg-gray-900" value="Doctorado">Doctorado</option>
+                                </select>
                             </div>
                         </div>
                         
@@ -278,8 +307,8 @@ if (Astro.request.method === "POST") {
                                 <input type="time" id="hora_levantarse" name="hora_levantarse" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                             </div>
                             <div class="flex grow flex-col">
-                                <label for="tiempo_dormir" class="text-lg font-medium text-gray-300">Tiempo promedio en quedarse dormido:</label>
-                                <input type="text" id="tiempo_dormir" name="tiempo_dormir" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" placeholder="Ej. 30 min">
+                                <label for="tiempo_dormir" class="text-lg font-medium text-gray-300">Tiempo promedio en quedarse dormido (min):</label>
+                                <input type="text" id="tiempo_dormir" name="tiempo_dormir" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" placeholder="Ej. 30">
                             </div>
                         </div>
 
@@ -503,7 +532,22 @@ if (Astro.request.method === "POST") {
                             <label class="text-sm font-medium text-gray-400 mb-1">Cuestionario de Insomnio</label>
                             <input type="number" name="cuestionario_insomnio" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
                         </div>
+                    </div>
 
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+
+                    <div class="border-t border-gray-800 pt-6">
+                        <h3 class="text-lg font-medium text-gray-300 mb-4">Otros Puntajes</h3>
+                        
+                        <div id="lista-puntajes-extra" class="space-y-4">
+                            <PuntajeExtraGroup className="puntaje-extra-template hidden" />
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="button" id="btn-add-puntaje" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-white transition-colors border border-blue-500/30 hover:bg-blue-600/20 px-4 py-2 rounded-lg cursor-pointer">
+                                <span class="text-xl leading-none">+</span> Agregar otro puntaje
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -516,17 +560,39 @@ if (Astro.request.method === "POST") {
             </div>
         </form>
     </main>
+
+    <dialog id="modal-errores" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left animate-shake">
+        <div class="flex flex-col items-center text-center">
+            <div class="p-3 bg-red-500/20 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8 text-red-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+            </div>
+            
+            <h3 class="text-xl font-bold text-white mb-2">Faltan datos obligatorios</h3>
+            <p class="text-gray-400 text-sm mb-4">Por favor, completa los siguientes campos para continuar:</p>
+            
+            <ul id="lista-errores" class="text-left w-full bg-red-500/10 border border-red-500/20 rounded-lg p-3 space-y-1 mb-6 list-disc list-inside text-red-200 text-sm">
+            </ul>
+
+            <button type="button" onclick="document.getElementById('modal-errores').close()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer">
+                Entendido
+            </button>
+        </div>
+    </dialog>
 </Layout>
 
 <style>
-    /* Estilos inputs */
-    input[type="date"]::-webkit-calendar-picker-indicator,
-    input[type="time"]::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+        20%, 40%, 60%, 80% { transform: translateX(4px); }
     }
-    
-    /* Animación para mostrar campos condicionales */
+    .animate-shake {
+        animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
     @keyframes fadeInDown {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -646,18 +712,22 @@ if (Astro.request.method === "POST") {
 </style>
 
 <script>
-    function initRegistro() {
-        // --- 1. Lógica Condicional (Sí/No) ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // ==========================================
+        // 1. LÓGICA DE INTERFAZ
+        // ==========================================
+        
+        // A. Lógica Condicional (Sí/No)
         const triggers = document.querySelectorAll('.trigger-condicional');
         triggers.forEach(trigger => {
             trigger.addEventListener('change', (e) => {
                 const target = e.target as HTMLInputElement; 
                 const targetId = target.dataset.target;
-                const valor = target.value;
                 if (!targetId) return;
+                
                 const targetDiv = document.getElementById(targetId);
                 if (targetDiv) {
-                    if (valor === 'si') {
+                    if (target.value === 'si') {
                         targetDiv.classList.remove('hidden');
                         targetDiv.querySelectorAll('input').forEach(i => i.removeAttribute('disabled'));
                     } else {
@@ -671,19 +741,17 @@ if (Astro.request.method === "POST") {
             });
         });
 
-        // --- 2. Lógica Dinámica de Síntomas ---
+        // B. Síntomas Dinámicos
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
 
-        // Función para configurar el botón de eliminar de una tarjeta
-        const setupDeleteButton = (card: HTMLElement) => {
+        // Función auxiliar para configurar botón eliminar
+        const setupDeleteSintoma = (card: HTMLElement) => {
             const btnDelete = card.querySelector('.btn-delete-sintoma');
             if (btnDelete) {
-                // Hacemos visible el botón (solo para los clones)
                 btnDelete.classList.remove('hidden');
-                
                 btnDelete.addEventListener('click', () => {
-                    // Verificar si está vacío
+                    // Verificar si está vacío antes de borrar
                     const inputs = card.querySelectorAll('input');
                     let estaVacio = true;
                     inputs.forEach(input => {
@@ -692,9 +760,8 @@ if (Astro.request.method === "POST") {
 
                     if (estaVacio) {
                         card.remove();
-                        // Re-numerar los títulos
-                        const grupos = document.querySelectorAll('.sintoma-group');
-                        grupos.forEach((grupo, index) => {
+                        // Re-numerar Títulos
+                        document.querySelectorAll('.sintoma-group').forEach((grupo, index) => {
                             const titulo = grupo.querySelector('.sintoma-titulo');
                             if (titulo) titulo.textContent = `Síntoma ${index + 1}`;
                         });
@@ -707,21 +774,14 @@ if (Astro.request.method === "POST") {
 
         if (btnAddSintoma && listaSintomas) {
             btnAddSintoma.addEventListener('click', () => {
-                // Clonar el primer grupo (plantilla)
                 const original = listaSintomas.querySelector('.sintoma-group');
                 if (!original) return;
 
                 const clone = original.cloneNode(true) as HTMLElement;
+                clone.querySelectorAll('input').forEach((i: HTMLInputElement) => i.value = '');
                 
-                // Limpiar valores del clon
-                clone.querySelectorAll('input').forEach((input: HTMLInputElement) => {
-                    input.value = '';
-                });
+                setupDeleteSintoma(clone);
 
-                // Configurar botón eliminar para el nuevo clon
-                setupDeleteButton(clone);
-
-                // Actualizar título y añadir
                 const totalSintomas = listaSintomas.querySelectorAll('.sintoma-group').length + 1;
                 const titulo = clone.querySelector('.sintoma-titulo');
                 if (titulo) titulo.textContent = `Síntoma ${totalSintomas}`;
@@ -729,15 +789,93 @@ if (Astro.request.method === "POST") {
                 listaSintomas.appendChild(clone);
             });
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', initRegistro);
-    
-    // Redirección segura
-    const modalExito = document.querySelector('.success-checkmark');
-    if (modalExito) {
-        setTimeout(() => {
-            window.location.replace("/lista");
-        }, 2500);
-    }
+        // C. Puntajes Extra
+        const btnAddPuntaje = document.getElementById('btn-add-puntaje');
+        const listaPuntajes = document.getElementById('lista-puntajes-extra');
+        const templatePuntaje = document.querySelector('.puntaje-extra-template');
+
+        if (btnAddPuntaje && listaPuntajes && templatePuntaje) {
+            btnAddPuntaje.addEventListener('click', () => {
+                const clone = templatePuntaje.cloneNode(true) as HTMLElement;
+                
+                clone.classList.remove('hidden', 'puntaje-extra-template');
+                clone.classList.add('puntaje-extra-item');
+                clone.querySelectorAll('input').forEach((i: HTMLInputElement) => i.value = '');
+
+                const btnDelete = clone.querySelector('.btn-delete-puntaje');
+                if (btnDelete) {
+                    btnDelete.classList.remove('hidden');
+                    btnDelete.addEventListener('click', () => clone.remove());
+                }
+
+                listaPuntajes.appendChild(clone);
+            });
+        }
+
+        // ==========================================
+        // 2. LÓGICA DE VALIDACIÓN
+        // ==========================================
+        const form = document.getElementById('form-registro') as HTMLFormElement;
+        const modalErrores = document.getElementById('modal-errores') as HTMLDialogElement;
+        const listaErrores = document.getElementById('lista-errores');
+
+        if (form && modalErrores && listaErrores) {
+            form.addEventListener('submit', (e) => {
+                const camposFaltantes: string[] = [];
+                const inputsRequeridos = form.querySelectorAll('input[required], select[required], textarea[required]');
+                
+                inputsRequeridos.forEach((input) => {
+                    const el = input as HTMLInputElement;
+                    if (!el.validity.valid) {
+                        let nombreCampo = el.name;
+                        const id = el.id;
+                        if (id) {
+                            const label = document.querySelector(`label[for="${id}"]`);
+                            if (label && label.textContent) {
+                                nombreCampo = label.textContent.replace(/[:*]/g, '').trim();
+                            }
+                        }
+                        camposFaltantes.push(nombreCampo);
+                        
+                        // Resaltar visualmente
+                        el.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        el.addEventListener('input', () => {
+                            el.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+                        }, { once: true });
+                    }
+                });
+
+                if (camposFaltantes.length > 0) {
+                    e.preventDefault();
+                    listaErrores.innerHTML = '';
+                    
+                    camposFaltantes.slice(0, 7).forEach(campo => {
+                        const li = document.createElement('li');
+                        li.textContent = campo;
+                        listaErrores.appendChild(li);
+                    });
+                    
+                    if (camposFaltantes.length > 7) {
+                        const li = document.createElement('li');
+                        li.textContent = `...y ${camposFaltantes.length - 7} campos más.`;
+                        li.className = "list-none italic opacity-70 mt-1";
+                        listaErrores.appendChild(li);
+                    }
+
+                    modalErrores.showModal();
+                }
+            });
+        }
+
+        // ==========================================
+        // 3. REDIRECCIÓN SEGURA
+        // ==========================================
+        const modalExito = document.querySelector('.success-checkmark');
+        if (modalExito) {
+            setTimeout(() => {
+                window.location.replace("/lista");
+            }, 2500);
+        }
+    });
 </script>

@@ -13,19 +13,34 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// --- LÓGICA DE ACTUALIZACIÓN DE PUNTAJES ---
+// LÓGICA DE ACCIONES
 if (Astro.request.method === "POST") {
     try {
         const formData = await Astro.request.formData();
         const action = formData.get("action");
 
+        // CASO A: ELIMINAR PACIENTE
+        if (action === "delete_patient") {
+            const { error: deleteError } = await supabase
+                .from('pacientes')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) throw deleteError;
+
+            // Redirigir a la lista tras eliminar
+            return Astro.redirect("/lista?mensaje=eliminado");
+        }
+
+        // CASO B: ACTUALIZAR PUNTAJES (Tu lógica existente)
         if (action === "update_scores") {
+            // ... (Tu código de actualización de puntajes se mantiene igual) ...
             const getInt = (key: string) => {
                 const val = formData.get(key);
-                return val ? parseInt(val as string) : null;
+                return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
             };
 
-            const puntajes = {
+            const puntajesActualizados = {
                 epworth: getInt("epworth"),
                 dbi: getInt("dbi"),
                 hamilton_d: getInt("hamilton_d"),
@@ -39,45 +54,50 @@ if (Astro.request.method === "POST") {
 
             const { error: updateError } = await supabase
                 .from('pacientes')
-                .update(puntajes)
+                .update(puntajesActualizados)
                 .eq('id', id);
 
             if (updateError) throw updateError;
+
+            // Actualizar Extras (Borrar y Recrear)
+            await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
+            
+            const extraNombres = formData.getAll('extra_prueba_nombre');
+            const extraValores = formData.getAll('extra_prueba_valor');
+            const extrasAInsertar = extraNombres.map((nombre, index) => ({
+                paciente_id: id,
+                nombre_prueba: nombre.toString(),
+                puntaje: extraValores[index] ? parseInt(extraValores[index].toString()) : null
+            })).filter(item => item.nombre_prueba.trim() !== '');
+
+            if (extrasAInsertar.length > 0) {
+                await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
+            }
         }
     } catch (error) {
-        console.error("Error actualizando puntajes:", error);
+        console.error("Error en acción:", error);
     }
 }
 
-// --- CONSULTA DE DATOS ---
-// Usamos select('*, pacientes_sintomas(*)') para traer los síntomas relacionados
+// --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*)')
     .eq('id', id)
     .single();
 
 if (error || !paciente) {
-    console.error("Error:", error);
     return Astro.redirect("/lista");
 }
 
-// Helpers para formato
-const formatDate = (dateString: string) => {
-    if (!dateString) return "No registrado";
-    return new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
+// Helpers
+const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
 const formatTime = (timeString: string) => {
     if (!timeString) return "—";
-    // Si viene como "HH:MM:SS"
     const [hours, minutes] = timeString.split(':');
     return `${hours}:${minutes}`;
 };
-
-// Cálculo de edad si no existe, o uso de la guardada
 const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
-
 ---
 
 <Layout title={`Expediente: ${paciente.nombre}`}>
@@ -87,12 +107,18 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         
         <div class="border-b-2 border-white/10 pb-6 mb-10 flex flex-col md:flex-row justify-between items-end gap-4">
             <div>
+                
                 <p class="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente Clínico</p>
                 <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
-                <div class="flex gap-4 mt-2 text-gray-400 text-sm">
+                <div class="flex gap-4 mt-2 text-gray-400 text-sm items-center">
                     <span>ID: #{paciente.id}</span>
                     <span>•</span>
                     <span>Registrado: {formatDate(paciente.created_at)}</span>
+                    <span>•</span>
+                    <a href={`/editar-paciente/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                        Editar Expediente Completo
+                    </a>
                 </div>
             </div>
             <div class="text-right">
@@ -107,26 +133,11 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
             <InfoCard title="SocioDemográficos">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <span class="label">Fecha de Nacimiento</span>
-                        <p class="value">{formatDate(paciente.fecha_nacimiento)} <span class="text-gray-500 text-sm">({edadDisplay} años)</span></p>
-                    </div>
-                    <div>
-                        <span class="label">Género</span>
-                        <p class="value capitalize">{paciente.genero}</p>
-                    </div>
-                    <div>
-                        <span class="label">Ocupación</span>
-                        <p class="value">{paciente.ocupacion || "—"}</p>
-                    </div>
-                    <div>
-                        <span class="label">Escolaridad</span>
-                        <p class="value">{paciente.escolaridad || "—"}</p>
-                    </div>
-                    <div>
-                        <span class="label">Referido por</span>
-                        <p class="value">{paciente.referencia}</p>
-                    </div>
+                    <div><span class="label">Fecha de Nacimiento</span><p class="value">{formatDate(paciente.fecha_nacimiento)} <span class="text-gray-500 text-sm">({edadDisplay} años)</span></p></div>
+                    <div><span class="label">Género</span><p class="value capitalize">{paciente.genero}</p></div>
+                    <div><span class="label">Ocupación</span><p class="value">{paciente.ocupacion || "—"}</p></div>
+                    <div><span class="label">Escolaridad</span><p class="value">{paciente.escolaridad || "—"}</p></div>
+                    <div><span class="label">Referido por</span><p class="value">{paciente.referencia}</p></div>
                     <div class="md:col-span-3 bg-gray-800/30 p-4 rounded-lg border border-gray-700/50">
                         <span class="label mb-1 block">Motivo de consulta</span>
                         <p class="text-white leading-relaxed">{paciente.motivo}</p>
@@ -137,92 +148,34 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <InfoCard title="Antropométricos">
                     <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <span class="label">Peso</span>
-                            <p class="value">{paciente.peso ? `${paciente.peso} kg` : "—"}</p>
-                        </div>
-                        <div>
-                            <span class="label">Altura</span>
-                            <p class="value">{paciente.altura ? `${paciente.altura} m` : "—"}</p>
-                        </div>
-                        <div>
-                            <span class="label">Lateralidad</span>
-                            <p class="value capitalize">{paciente.lateralidad || "—"}</p>
-                        </div>
-                        <div>
-                            <span class="label">IMC (Estimado)</span>
-                            <p class="value text-blue-300">
-                                {paciente.peso && paciente.altura 
-                                    ? (paciente.peso / (paciente.altura * paciente.altura)).toFixed(1) 
-                                    : "—"}
-                            </p>
-                        </div>
+                        <div><span class="label">Peso</span><p class="value">{paciente.peso ? `${paciente.peso} kg` : "—"}</p></div>
+                        <div><span class="label">Altura</span><p class="value">{paciente.altura ? `${paciente.altura} m` : "—"}</p></div>
+                        <div><span class="label">Lateralidad</span><p class="value capitalize">{paciente.lateralidad || "—"}</p></div>
+                        <div><span class="label">IMC</span><p class="value text-blue-300">{paciente.peso && paciente.altura ? (paciente.peso / (paciente.altura * paciente.altura)).toFixed(1) : "—"}</p></div>
                     </div>
                 </InfoCard>
 
                 <InfoCard title="Consumo de Sustancias">
                     <ul class="space-y-3">
-                        <li class="flex justify-between border-b border-gray-800 pb-2">
-                            <span class="text-gray-400">Tabaco</span>
-                            <span class="text-white font-medium">{paciente.fuma === 'si' ? `${paciente.cigarros_semana} / semana` : 'No'}</span>
-                        </li>
-                        <li class="flex justify-between border-b border-gray-800 pb-2">
-                            <span class="text-gray-400">Alcohol</span>
-                            <span class="text-white font-medium">{paciente.alcohol === 'si' ? `${paciente.cervezas_semana} / semana` : 'No'}</span>
-                        </li>
-                        <li class="flex justify-between border-b border-gray-800 pb-2">
-                            <span class="text-gray-400">Café</span>
-                            <span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span>
-                        </li>
-                        <li class="flex justify-between pb-1">
-                            <span class="text-gray-400">Té</span>
-                            <span class="text-white font-medium">{paciente.te === 'si' ? `${paciente.tazas_te_semana} tazas/sem` : 'No'}</span>
-                        </li>
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Tabaco</span><span class="text-white font-medium">{paciente.fuma === 'si' ? `${paciente.cigarros_semana} / semana` : 'No'}</span></li>
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Alcohol</span><span class="text-white font-medium">{paciente.alcohol === 'si' ? `${paciente.cervezas_semana} / semana` : 'No'}</span></li>
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Café</span><span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span></li>
+                        <li class="flex justify-between pb-1"><span class="text-gray-400">Té</span><span class="text-white font-medium">{paciente.te === 'si' ? `${paciente.tazas_te_semana} tazas/sem` : 'No'}</span></li>
                     </ul>
                 </InfoCard>
             </div>
 
             <InfoCard title="Hábitos y Patrones de Sueño">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center">
-                        <span class="label block">Horario Sueño</span>
-                        <p class="text-xl font-mono text-white mt-1">
-                            {formatTime(paciente.hora_dormir)} - {formatTime(paciente.hora_levantarse)}
-                        </p>
-                    </div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center">
-                        <span class="label block">Tiempo en dormir</span>
-                        <p class="text-xl text-white mt-1">{paciente.tiempo_dormir || "—"}</p>
-                    </div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center">
-                        <span class="label block">Lugar</span>
-                        <p class="text-xl text-white mt-1 capitalize">{paciente.donde_duerme || "—"}</p>
-                    </div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Horario Sueño</span><p class="text-xl font-mono text-white mt-1">{formatTime(paciente.hora_dormir)} - {formatTime(paciente.hora_levantarse)}</p></div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Tiempo en dormir</span><p class="text-xl text-white mt-1">{paciente.tiempo_dormir || "—"}</p></div>
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Lugar</span><p class="text-xl text-white mt-1 capitalize">{paciente.donde_duerme || "—"}</p></div>
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div>
-                        <span class="label">Despertares nocturnos</span>
-                        <p class="value capitalize">
-                            {paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}
-                        </p>
-                    </div>
-                    <div>
-                        <span class="label">Somnolencia diurna</span>
-                        <p class="value capitalize">{paciente.somnolencia || "No"}</p>
-                    </div>
-                    <div>
-                        <span class="label">Siestas</span>
-                        <p class="value capitalize">
-                            {paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}
-                        </p>
-                    </div>
-                    <div>
-                        <span class="label">Ejercicio</span>
-                        <p class="value capitalize">
-                            {paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}
-                        </p>
-                    </div>
+                    <div><span class="label">Despertares nocturnos</span><p class="value capitalize">{paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}</p></div>
+                    <div><span class="label">Somnolencia diurna</span><p class="value capitalize">{paciente.somnolencia || "No"}</p></div>
+                    <div><span class="label">Siestas</span><p class="value capitalize">{paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}</p></div>
+                    <div><span class="label">Ejercicio</span><p class="value capitalize">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}</p></div>
                 </div>
             </InfoCard>
 
@@ -231,9 +184,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {paciente.pacientes_sintomas.map((s: any, index: number) => (
                             <div class="bg-gray-800/40 border border-gray-700 p-4 rounded-xl relative group hover:border-blue-500/50 transition-colors">
-                                <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
-                                    #{index + 1}
-                                </div>
+                                <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
                                 <h4 class="text-lg font-bold text-white mb-2 capitalize">{s.sintoma}</h4>
                                 <div class="space-y-1 text-sm">
                                     <p><span class="text-gray-500">Temporalidad:</span> <span class="text-gray-300">{s.temporalidad}</span></p>
@@ -244,15 +195,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         ))}
                     </div>
                 ) : (
-                    // Fallback para pacientes viejos que tienen el síntoma en la tabla principal
-                    <div class="bg-gray-800/40 border border-gray-700 p-4 rounded-xl">
-                        <h4 class="text-lg font-bold text-white mb-2 capitalize">{paciente.sintoma}</h4>
-                        <div class="space-y-1 text-sm">
-                            <p><span class="text-gray-500">Temporalidad:</span> <span class="text-gray-300">{paciente.temporalidad}</span></p>
-                            <p><span class="text-gray-500">Frecuencia:</span> <span class="text-gray-300">{paciente.frecuencia}</span></p>
-                            <p><span class="text-gray-500">Gravedad:</span> <span class="text-gray-300">{paciente.gravedad}</span></p>
-                        </div>
-                    </div>
+                    <div class="text-gray-500 italic">No hay síntomas registrados.</div>
                 )}
             </InfoCard>
 
@@ -260,26 +203,14 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 <InfoCard title="Alteraciones del Sueño">
                     <div class="flex items-center gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
                         <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
                         </div>
-                        <div>
-                            <span class="label">Diagnóstico Preliminar</span>
-                            <p class="text-xl font-medium text-white capitalize">
-                                {paciente.alteracion_sueno ? paciente.alteracion_sueno.replace('_', ' ') : "Ninguno seleccionado"}
-                            </p>
-                        </div>
+                        <div><span class="label">Diagnóstico Preliminar</span><p class="text-xl font-medium text-white capitalize">{paciente.alteracion_sueno ? paciente.alteracion_sueno.replace(/_/g, ' ') : "Ninguno seleccionado"}</p></div>
                     </div>
                 </InfoCard>
-
                 <InfoCard title="Diagnósticos Previos">
                     <span class="label mb-2 block">Antecedentes Familiares y Personales</span>
-                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]">
-                        <p class="text-gray-300 italic leading-relaxed text-sm">
-                            {paciente.antecedentes || 'No se han registrado antecedentes.'}
-                        </p>
-                    </div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]"><p class="text-gray-300 italic leading-relaxed text-sm">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p></div>
                 </InfoCard>
             </div>
 
@@ -287,9 +218,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 <div class="flex justify-between items-center mb-6">
                     <p class="text-gray-400 text-sm">Resultados de cuestionarios aplicados.</p>
                     <button onclick="document.getElementById('modal-puntajes').showModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                         Gestionar Puntajes
                     </button>
                 </div>
@@ -303,56 +232,106 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     <div class="score-card"><span class="score-label">SPQI</span><span class="score-val">{paciente.spqi ?? "-"}</span></div>
                     <div class="score-card"><span class="score-label">STOP Bang</span><span class="score-val">{paciente.stop_bang ?? "-"}</span></div>
                     <div class="score-card"><span class="score-label">Berlin</span><span class="score-val">{paciente.berlin ?? "-"}</span></div>
-                    <div class="score-card col-span-2 md:col-span-1"><span class="score-label">Cuest. Insomnio (Lab)</span><span class="score-val">{paciente.cuestionario_insomnio ?? "-"}</span></div>
+                    <div class="score-card col-span-2 md:col-span-1"><span class="score-label">Cuest. Insomnio</span><span class="score-val">{paciente.cuestionario_insomnio ?? "-"}</span></div>
                 </div>
+
+                {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.length > 0 && (
+                    <div class="mt-6 pt-6 border-t border-gray-700/50">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Otros Puntajes</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {paciente.pacientes_puntajes_extra.map((extra: any) => (
+                                <div class="score-card bg-blue-900/10 border-blue-500/20">
+                                    <span class="score-label text-blue-300">{extra.nombre_prueba}</span>
+                                    <span class="score-val">{extra.puntaje ?? "-"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </InfoCard>
+
+            <div class="mt-12 border-t border-red-900/30 pt-8 pb-10 flex flex-col items-center">
+                <button onclick="document.getElementById('modal-eliminar').showModal()" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                    Eliminar Expediente Completo
+                </button>
+            </div>
 
         </div>
     </main>
 
-    <dialog id="modal-puntajes" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-lg">
+    <dialog id="modal-puntajes" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-lg text-left">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-white">Actualizar Puntajes</h3>
-            <button onclick="document.getElementById('modal-puntajes').close()" class="text-gray-500 hover:text-white">✕</button>
+            <button onclick="document.getElementById('modal-puntajes').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button>
         </div>
         
-        <form method="POST" class="space-y-4">
+        <form method="POST" class="space-y-6">
             <input type="hidden" name="action" value="update_scores">
             
             <div class="grid grid-cols-2 gap-4">
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Epworth</span>
-                    <input type="number" name="epworth" value={paciente.epworth} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">DBI</span>
-                    <input type="number" name="dbi" value={paciente.dbi} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-D</span>
-                    <input type="number" name="hamilton_d" value={paciente.hamilton_d} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-A</span>
-                    <input type="number" name="hamilton_a" value={paciente.hamilton_a} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">ISI</span>
-                    <input type="number" name="isi" value={paciente.isi} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">SPQI</span>
-                    <input type="number" name="spqi" value={paciente.spqi} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">STOP Bang</span>
-                    <input type="number" name="stop_bang" value={paciente.stop_bang} class="score-input">
-                </label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Berlin</span>
-                    <input type="number" name="berlin" value={paciente.berlin} class="score-input">
-                </label>
-                <label class="flex flex-col col-span-2"><span class="text-xs text-gray-400 mb-1">Cuestionario Insomnio (Lab)</span>
-                    <input type="number" name="cuestionario_insomnio" value={paciente.cuestionario_insomnio} class="score-input">
-                </label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Epworth</span><input type="number" name="epworth" value={paciente.epworth} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">DBI</span><input type="number" name="dbi" value={paciente.dbi} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-D</span><input type="number" name="hamilton_d" value={paciente.hamilton_d} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-A</span><input type="number" name="hamilton_a" value={paciente.hamilton_a} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">ISI</span><input type="number" name="isi" value={paciente.isi} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">SPQI</span><input type="number" name="spqi" value={paciente.spqi} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">STOP Bang</span><input type="number" name="stop_bang" value={paciente.stop_bang} class="score-input"></label>
+                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Berlin</span><input type="number" name="berlin" value={paciente.berlin} class="score-input"></label>
+                <label class="flex flex-col col-span-2"><span class="text-xs text-gray-400 mb-1">Cuestionario Insomnio (Lab)</span><input type="number" name="cuestionario_insomnio" value={paciente.cuestionario_insomnio} class="score-input"></label>
             </div>
 
-            <div class="pt-4 flex gap-3 justify-end">
-                <button type="button" onclick="document.getElementById('modal-puntajes').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white">Cancelar</button>
-                <button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500">Guardar Cambios</button>
+            <div class="border-t border-gray-700 pt-4">
+                <h4 class="text-sm font-bold text-white mb-3">Otros Puntajes</h4>
+                
+                <div id="modal-extras-container" class="space-y-3">
+                    {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
+                        <div class="flex gap-2 items-center extra-row">
+                            <input type="text" name="extra_prueba_nombre" value={extra.nombre_prueba} placeholder="Nombre prueba" class="score-input text-left w-full text-sm" />
+                            
+                            <input type="number" name="extra_prueba_valor" value={extra.puntaje} placeholder="Ptos" class="score-input w-24 text-sm" />
+                            
+                            <button type="button" class="text-red-400 hover:text-red-300 p-2 btn-remove-extra">✕</button>
+                        </div>
+                    ))}
+                </div>
+
+                <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300">
+                    <span class="text-lg leading-none">+</span> Agregar otro
+                </button>
             </div>
+
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50">
+                <button type="button" onclick="document.getElementById('modal-puntajes').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer">Cancelar</button>
+                <button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 cursor-pointer">Guardar Cambios</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-eliminar" class="m-auto bg-gray-900 border border-red-600 rounded-2xl p-8 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-center">
+        <div class="mb-4 text-red-500 flex justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-12 h-12 animate-pulse">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-white mb-2">¿Eliminar Expediente?</h3>
+        <p class="text-gray-300 mb-6 text-sm">
+            Estás a punto de eliminar el expediente de <span class="text-white font-bold">{paciente.nombre}</span>. 
+            <br/><br/>
+            <span class="text-red-400 bg-red-900/20 px-2 py-1 rounded">Esta acción es irreversible</span>
+            <br/>Se perderán todos los datos, citas, síntomas y puntajes asociados.
+        </p>
+        
+        <form method="POST" class="flex gap-4 justify-center">
+            <input type="hidden" name="action" value="delete_patient">
+            <button type="button" onclick="document.getElementById('modal-eliminar').close()" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:text-white cursor-pointer hover:bg-gray-800 transition-colors">
+                Cancelar
+            </button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer shadow-lg shadow-red-900/20 transition-all hover:scale-105">
+                Sí, Eliminar
+            </button>
         </form>
     </dialog>
 
@@ -360,6 +339,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
 <style>
     @reference "../../styles/global.css";
+
     .label {
         @apply block text-gray-500 text-xs uppercase tracking-wider font-bold mb-1;
     }
@@ -379,9 +359,44 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         @apply bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-center;
     }
     
-    /* Estilos para el modal nativo */
     dialog::backdrop {
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(4px);
     }
 </style>
+
+<script>
+    // Lógica para el modal de extras (Agregar / Eliminar filas)
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('modal-extras-container');
+        const btnAdd = document.getElementById('btn-add-extra-modal');
+
+        // Función para eliminar fila
+        const setupRemoveBtn = (btn: Element) => {
+            btn.addEventListener('click', (e) => {
+                (e.target as HTMLElement).closest('.extra-row')?.remove();
+            });
+        };
+
+        // Configurar botones existentes (los que vienen del servidor)
+        document.querySelectorAll('.btn-remove-extra').forEach(setupRemoveBtn);
+
+        // Agregar nueva fila
+        if (btnAdd && container) {
+            btnAdd.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'flex gap-2 items-center extra-row';
+                row.innerHTML = `
+                    <input type="text" name="extra_prueba_nombre" placeholder="Nombre prueba" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-left w-full text-sm">
+                    <input type="number" name="extra_prueba_valor" placeholder="Ptos" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-center w-24 text-sm">
+                    <button type="button" class="text-red-400 hover:text-red-300 p-2 btn-remove-extra">✕</button>
+                `;
+                container.appendChild(row);
+                
+                // Activar el botón de eliminar del nuevo elemento
+                const newBtn = row.querySelector('.btn-remove-extra');
+                if(newBtn) setupRemoveBtn(newBtn);
+            });
+        }
+    });
+</script>
