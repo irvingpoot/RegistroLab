@@ -58,42 +58,40 @@ if (Astro.request.method === "POST") {
             return Astro.redirect("/lista?mensaje=eliminado");
         }
 
-        // CASO B: ACTUALIZAR PUNTAJES (Tu lógica existente)
+        // CASO B: ACTUALIZAR PUNTAJES
         if (action === "update_scores") {
-            // ... (Tu código de actualización de puntajes se mantiene igual) ...
             const getInt = (key: string) => {
                 const val = formData.get(key);
                 return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
             };
 
-            const puntajesActualizados = {
-                epworth: getInt("epworth"),
-                dbi: getInt("dbi"),
-                hamilton_d: getInt("hamilton_d"),
-                hamilton_a: getInt("hamilton_a"),
-                isi: getInt("isi"),
-                spqi: getInt("spqi"),
-                stop_bang: getInt("stop_bang"),
-                berlin: getInt("berlin"),
-                cuestionario_insomnio: getInt("cuestionario_insomnio"),
-            };
+            // 1. Actualizar Puntajes Estándar (3 fases)
+            const scoresList = ['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'];
+            let puntajesActualizados: any = {};
+            
+            scoresList.forEach(score => {
+                puntajesActualizados[`${score}_pre`] = getInt(`${score}_pre`);
+                puntajesActualizados[`${score}_inter`] = getInt(`${score}_inter`);
+                puntajesActualizados[`${score}_post`] = getInt(`${score}_post`);
+            });
 
-            const { error: updateError } = await supabase
-                .from('pacientes')
-                .update(puntajesActualizados)
-                .eq('id', id);
-
+            const { error: updateError } = await supabase.from('pacientes').update(puntajesActualizados).eq('id', id);
             if (updateError) throw updateError;
 
-            // Actualizar Extras (Borrar y Recrear)
+            // 2. Actualizar Extras (Borrar y Recrear con 3 fases)
             await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
             
             const extraNombres = formData.getAll('extra_prueba_nombre');
-            const extraValores = formData.getAll('extra_prueba_valor');
+            const extraPre = formData.getAll('extra_prueba_pre');
+            const extraInter = formData.getAll('extra_prueba_inter');
+            const extraPost = formData.getAll('extra_prueba_post');
+            
             const extrasAInsertar = extraNombres.map((nombre, index) => ({
                 paciente_id: id,
                 nombre_prueba: nombre.toString(),
-                puntaje: extraValores[index] ? parseInt(extraValores[index].toString()) : null
+                puntaje_pre: extraPre[index] ? parseInt(extraPre[index].toString()) : null,
+                puntaje_inter: extraInter[index] ? parseInt(extraInter[index].toString()) : null,
+                puntaje_post: extraPost[index] ? parseInt(extraPost[index].toString()) : null
             })).filter(item => item.nombre_prueba.trim() !== '');
 
             if (extrasAInsertar.length > 0) {
@@ -249,38 +247,43 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
             <InfoCard title="Puntajes y Escalas">
                 <div class="flex justify-between items-center mb-6">
-                    <p class="text-gray-400 text-sm">Resultados de cuestionarios aplicados.</p>
+                    <p class="text-gray-400 text-sm">Resultados comparativos.</p>
                     <button onclick="document.getElementById('modal-puntajes').showModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                         Gestionar Puntajes
                     </button>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <div class="score-card"><span class="score-label">Epworth</span><span class="score-val">{paciente.epworth ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">DBI</span><span class="score-val">{paciente.dbi ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">Hamilton-D</span><span class="score-val">{paciente.hamilton_d ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">Hamilton-A</span><span class="score-val">{paciente.hamilton_a ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">ISI</span><span class="score-val">{paciente.isi ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">SPQI</span><span class="score-val">{paciente.spqi ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">STOP Bang</span><span class="score-val">{paciente.stop_bang ?? "-"}</span></div>
-                    <div class="score-card"><span class="score-label">Berlin</span><span class="score-val">{paciente.berlin ?? "-"}</span></div>
-                    <div class="score-card col-span-2 md:col-span-1"><span class="score-label">Cuest. Insomnio</span><span class="score-val">{paciente.cuestionario_insomnio ?? "-"}</span></div>
-                </div>
-
-                {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.length > 0 && (
-                    <div class="mt-6 pt-6 border-t border-gray-700/50">
-                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Otros Puntajes</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {paciente.pacientes_puntajes_extra.map((extra: any) => (
-                                <div class="score-card bg-blue-900/10 border-blue-500/20">
-                                    <span class="score-label text-blue-300">{extra.nombre_prueba}</span>
-                                    <span class="score-val">{extra.puntaje ?? "-"}</span>
-                                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="text-gray-500 text-xs uppercase border-b border-gray-700/50">
+                                <th class="pb-2 font-medium">Prueba</th>
+                                <th class="pb-2 text-center text-blue-400">Pre</th>
+                                <th class="pb-2 text-center text-purple-400">Inter</th>
+                                <th class="pb-2 text-center text-emerald-400">Post</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map(score => (
+                                <tr>
+                                    <td class="py-2 pr-4 font-medium text-gray-300 capitalize">{score.replace(/_/g, ' ')}</td>
+                                    <td class="py-2 text-center font-mono text-blue-200">{paciente[`${score}_pre`] ?? "-"}</td>
+                                    <td class="py-2 text-center font-mono text-purple-200">{paciente[`${score}_inter`] ?? "-"}</td>
+                                    <td class="py-2 text-center font-mono text-emerald-200">{paciente[`${score}_post`] ?? "-"}</td>
+                                </tr>
                             ))}
-                        </div>
-                    </div>
-                )}
+                            {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
+                                <tr class="bg-blue-900/10">
+                                    <td class="py-2 pr-4 font-medium text-blue-300">{extra.nombre_prueba} <span class="text-[10px] text-gray-500 uppercase">(Extra)</span></td>
+                                    <td class="py-2 text-center font-mono text-blue-200">{extra.puntaje_pre ?? "-"}</td>
+                                    <td class="py-2 text-center font-mono text-purple-200">{extra.puntaje_inter ?? "-"}</td>
+                                    <td class="py-2 text-center font-mono text-emerald-200">{extra.puntaje_post ?? "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </InfoCard>
 
             <InfoCard title="Seguimiento y Evolución">
@@ -371,45 +374,56 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         </form>
     </dialog>
 
-    <dialog id="modal-puntajes" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-lg text-left">
+    <dialog id="modal-puntajes" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-4xl text-left">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-white">Actualizar Puntajes</h3>
+            <h3 class="text-xl font-bold text-white">Actualizar Puntajes (Pre / Inter / Post)</h3>
             <button onclick="document.getElementById('modal-puntajes').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button>
         </div>
         
         <form method="POST" class="space-y-6">
-            <input type="hidden" name="action" value="update_scores">
+            <input type="hidden" name="action" value="update_scores" />
             
-            <div class="grid grid-cols-2 gap-4">
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Epworth</span><input type="number" name="epworth" value={paciente.epworth} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">DBI</span><input type="number" name="dbi" value={paciente.dbi} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-D</span><input type="number" name="hamilton_d" value={paciente.hamilton_d} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Hamilton-A</span><input type="number" name="hamilton_a" value={paciente.hamilton_a} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">ISI</span><input type="number" name="isi" value={paciente.isi} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">SPQI</span><input type="number" name="spqi" value={paciente.spqi} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">STOP Bang</span><input type="number" name="stop_bang" value={paciente.stop_bang} class="score-input"></label>
-                <label class="flex flex-col"><span class="text-xs text-gray-400 mb-1">Berlin</span><input type="number" name="berlin" value={paciente.berlin} class="score-input"></label>
-                <label class="flex flex-col col-span-2"><span class="text-xs text-gray-400 mb-1">Cuestionario Insomnio (Lab)</span><input type="number" name="cuestionario_insomnio" value={paciente.cuestionario_insomnio} class="score-input"></label>
-            </div>
+            <div class="overflow-x-auto max-h-[60vh] overflow-y-auto pr-2">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 bg-gray-900 z-10">
+                        <tr class="text-gray-400 text-xs uppercase border-b border-gray-700">
+                            <th class="py-2">Prueba</th>
+                            <th class="py-2 text-center w-24 text-blue-400">Pre</th>
+                            <th class="py-2 text-center w-24 text-purple-400">Inter</th>
+                            <th class="py-2 text-center w-24 text-emerald-400">Post</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map(score => (
+                            <tr>
+                                <td class="py-3 font-medium text-gray-300 capitalize text-sm">{score.replace(/_/g, ' ')}</td>
+                                <td class="p-2"><input type="number" name={`${score}_pre`} value={paciente[`${score}_pre`]} class="score-input w-full" /></td>
+                                <td class="p-2"><input type="number" name={`${score}_inter`} value={paciente[`${score}_inter`]} class="score-input w-full" /></td>
+                                <td class="p-2"><input type="number" name={`${score}_post`} value={paciente[`${score}_post`]} class="score-input w-full" /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
 
-            <div class="border-t border-gray-700 pt-4">
-                <h4 class="text-sm font-bold text-white mb-3">Otros Puntajes</h4>
-                
-                <div id="modal-extras-container" class="space-y-3">
-                    {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
-                        <div class="flex gap-2 items-center extra-row">
-                            <input type="text" name="extra_prueba_nombre" value={extra.nombre_prueba} placeholder="Nombre prueba" class="score-input text-left w-full text-sm" />
-                            
-                            <input type="number" name="extra_prueba_valor" value={extra.puntaje} placeholder="Ptos" class="score-input w-24 text-sm" />
-                            
-                            <button type="button" class="text-red-400 hover:text-red-300 p-2 btn-remove-extra">✕</button>
-                        </div>
-                    ))}
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <h4 class="text-sm font-bold text-white mb-3">Puntajes Extra</h4>
+                    <div id="modal-extras-container" class="space-y-2">
+                        {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
+                            <div class="grid grid-cols-12 gap-2 items-center extra-row bg-gray-800/30 p-2 rounded">
+                                <div class="col-span-3">
+                                    <input type="text" name="extra_prueba_nombre" value={extra.nombre_prueba} placeholder="Nombre" class="bg-transparent border-b border-gray-600 text-white w-full text-sm focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div class="col-span-3"><input type="number" name="extra_prueba_pre" value={extra.puntaje_pre} placeholder="Pre" class="score-input w-full" /></div>
+                                <div class="col-span-3"><input type="number" name="extra_prueba_inter" value={extra.puntaje_inter} placeholder="Inter" class="score-input w-full" /></div>
+                                <div class="col-span-2"><input type="number" name="extra_prueba_post" value={extra.puntaje_post} placeholder="Post" class="score-input w-full" /></div>
+                                <div class="col-span-1 text-center"><button type="button" class="text-red-400 hover:text-red-300 btn-remove-extra">✕</button></div>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300">
+                        <span class="text-lg leading-none">+</span> Agregar prueba extra
+                    </button>
                 </div>
-
-                <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300">
-                    <span class="text-lg leading-none">+</span> Agregar otro
-                </button>
             </div>
 
             <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50">
@@ -548,15 +562,17 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         if (btnAdd && container) {
             btnAdd.addEventListener('click', () => {
                 const row = document.createElement('div');
-                row.className = 'flex gap-2 items-center extra-row';
+                row.className = 'grid grid-cols-12 gap-2 items-center extra-row bg-gray-800/30 p-2 rounded';
                 row.innerHTML = `
-                    <input type="text" name="extra_prueba_nombre" placeholder="Nombre prueba" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-left w-full text-sm">
-                    <input type="number" name="extra_prueba_valor" placeholder="Ptos" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-center w-24 text-sm">
-                    <button type="button" class="text-red-400 hover:text-red-300 p-2 btn-remove-extra">✕</button>
+                    <div class="col-span-3">
+                        <input type="text" name="extra_prueba_nombre" placeholder="Nombre" class="bg-transparent border-b border-gray-600 text-white w-full text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="col-span-3"><input type="number" name="extra_prueba_pre" placeholder="Pre" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-3"><input type="number" name="extra_prueba_inter" placeholder="Inter" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-2"><input type="number" name="extra_prueba_post" placeholder="Post" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-1 text-center"><button type="button" class="text-red-400 btn-remove-extra">✕</button></div>
                 `;
                 container.appendChild(row);
-                
-                // Activar el botón de eliminar del nuevo elemento
                 const newBtn = row.querySelector('.btn-remove-extra');
                 if(newBtn) setupRemoveBtn(newBtn);
             });

@@ -90,15 +90,15 @@ if (Astro.request.method === "POST") {
 
             alteracion_sueno: data.get("alteracion_sueno"),
 
-            epworth: getInt("epworth"),
-            dbi: getInt("dbi"),
-            hamilton_d: getInt("hamilton_d"),
-            hamilton_a: getInt("hamilton_a"),
-            isi: getInt("isi"),
-            spqi: getInt("spqi"),
-            stop_bang: getInt("stop_bang"),
-            berlin: getInt("berlin"),
-            cuestionario_insomnio: getInt("cuestionario_insomnio"),
+            epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
+            dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
+            hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
+            hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
+            isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
+            spqi_pre: getInt("spqi_pre"), spqi_inter: getInt("spqi_inter"), spqi_post: getInt("spqi_post"),
+            stop_bang_pre: getInt("stop_bang_pre"), stop_bang_inter: getInt("stop_bang_inter"), stop_bang_post: getInt("stop_bang_post"),
+            berlin_pre: getInt("berlin_pre"), berlin_inter: getInt("berlin_inter"), berlin_post: getInt("berlin_post"),
+            cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
             
             registrado_por: nombreRegistrador
         };
@@ -484,70 +484,38 @@ if (Astro.request.method === "POST") {
                     </div>
                 </section>
 
-                <section class="w-full max-w-4xl px-2 md:px-0">
-                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Puntajes</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">Epworth</label>
-                            <input type="number" name="epworth" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">DBI</label>
-                            <input type="number" name="dbi" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">Hamilton-D</label>
-                            <input type="number" name="hamilton_d" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">Hamilton-A</label>
-                            <input type="number" name="hamilton_a" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">ISI</label>
-                            <input type="number" name="isi" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">SPQI</label>
-                            <input type="number" name="spqi" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">STOP Bang</label>
-                            <input type="number" name="stop_bang" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col">
-                            <label class="text-sm font-medium text-gray-400 mb-1">Berlin</label>
-                            <input type="number" name="berlin" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-
-                        <div class="flex flex-col col-span-2">
-                            <label class="text-sm font-medium text-gray-400 mb-1">Cuestionario de Insomnio</label>
-                            <input type="number" name="cuestionario_insomnio" min="0" class="p-2 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white text-center font-mono">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
-
-                    <div class="border-t border-gray-800 pt-6">
-                        <h3 class="text-lg font-medium text-gray-300 mb-4">Otros Puntajes</h3>
-                        
-                        <div id="lista-puntajes-extra" class="space-y-4">
-                            <PuntajeExtraGroup className="puntaje-extra-template hidden" />
-                        </div>
-
-                        <div class="mt-4">
-                            <button type="button" id="btn-add-puntaje" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-white transition-colors border border-blue-500/30 hover:bg-blue-600/20 px-4 py-2 rounded-lg cursor-pointer">
-                                <span class="text-xl leading-none">+</span> Agregar otro puntaje
-                            </button>
-                        </div>
+                <section class="w-full max-w-5xl px-2 md:px-0">
+                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Puntajes y Escalas</h2>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-gray-400 text-xs uppercase border-b border-gray-700">
+                                    <th class="py-3 font-medium">Prueba / Escala</th>
+                                    <th class="py-3 font-medium text-center text-blue-400">Pre</th>
+                                    <th class="py-3 font-medium text-center text-purple-400">Inter</th>
+                                    <th class="py-3 font-medium text-center text-emerald-400">Post</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-gray-800">
+                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
+                                    <tr class="hover:bg-gray-800/30 transition-colors">
+                                        <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
+                                            {score.replace(/_/g, ' ')}
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_pre`} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-blue-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_inter`} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-purple-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_post`} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-emerald-500 focus:outline-none" />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
