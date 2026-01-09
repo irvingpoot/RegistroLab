@@ -89,7 +89,7 @@ if (Astro.request.method === "POST") {
             hamilton_d: getInt("hamilton_d"),
             hamilton_a: getInt("hamilton_a"),
             isi: getInt("isi"),
-            spqi: getInt("spqi"),
+            psqi: getInt("psqi"),
             stop_bang: getInt("stop_bang"),
             berlin: getInt("berlin"),
             cuestionario_insomnio: getInt("cuestionario_insomnio"),
@@ -371,7 +371,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Análisis de síntomas</h2>
                     <div id="lista-sintomas" class="space-y-8">
-                        {listaSintomas.map((s, idx) => (
+                        {listaSintomas.map((s:any, idx:any) => (
                             <SintomaGroup numero={idx + 1} data={s} />
                         ))}
                     </div>
@@ -387,7 +387,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
                         {['insomnio', 'respiracion', 'ritmo_circadiano', 'movimiento', 'parasomnia', 'hipersomnia', 'medicas_psiquiatricas', 'sustancias'].map(val => (
                             <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value={val} checked={p.alteracion_sueno === val} class="accent-blue-500 w-4 h-4">
+                                <input type="radio" name="alteracion_sueno" value={val} checked={p.alteracion_sueno === val} class="accent-blue-500 w-4 h-4"/>
                                 <span class="capitalize">{val.replace('_', ' ')}</span>
                             </label>
                         ))}
@@ -397,15 +397,15 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Puntajes</h2>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin'].map(score => (
+                        {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin'].map(score => (
                             <div class="flex flex-col">
                                 <label class="label capitalize">{score.replace('_', '-')}</label>
-                                <input type="number" name={score} value={p[score]} class="input text-center font-mono">
+                                <input type="number" name={score} value={p[score]} class="input text-center font-mono"/>
                             </div>
                         ))}
                         <div class="flex flex-col col-span-2">
                             <label class="label">Cuest. Insomnio</label>
-                            <input type="number" name="cuestionario_insomnio" value={p.cuestionario_insomnio} class="input text-center font-mono">
+                            <input type="number" name="cuestionario_insomnio" value={p.cuestionario_insomnio} class="input text-center font-mono"/>
                         </div>
                     </div>
 
@@ -413,7 +413,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                         <h3 class="text-lg font-medium text-gray-300 mb-4">Otros Puntajes</h3>
                         <div id="lista-puntajes-extra" class="space-y-4">
                             <PuntajeExtraGroup className="puntaje-extra-template hidden" />
-                            {listaExtras.map(extra => (
+                            {listaExtras.map((extra: any) => (
                                 <PuntajeExtraGroup className="puntaje-extra-item" data={extra} />
                             ))}
                         </div>
