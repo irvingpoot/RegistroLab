@@ -3,7 +3,6 @@ import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import SintomaGroup from "../components/SintomaGroup.astro"
-import PuntajeExtraGroup from "../components/PuntajeExtraGroup.astro" 
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -95,7 +94,7 @@ if (Astro.request.method === "POST") {
             hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
             hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
             isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
-            spqi_pre: getInt("spqi_pre"), spqi_inter: getInt("spqi_inter"), spqi_post: getInt("spqi_post"),
+            psqi_pre: getInt("psqi_pre"), psqi_inter: getInt("psqi_inter"), psqi_post: getInt("psqi_post"),
             stop_bang_pre: getInt("stop_bang_pre"), stop_bang_inter: getInt("stop_bang_inter"), stop_bang_post: getInt("stop_bang_post"),
             berlin_pre: getInt("berlin_pre"), berlin_inter: getInt("berlin_inter"), berlin_post: getInt("berlin_post"),
             cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
@@ -170,7 +169,7 @@ if (Astro.request.method === "POST") {
 
 <Layout title="Registro de Pacientes">
     <Icon />
-    <ReturnButton href="/lista" text="Volver a la lista" />
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
 
     {registroExitoso && (
         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300 px-4">
@@ -498,7 +497,7 @@ if (Astro.request.method === "POST") {
                                 </tr>
                             </thead>
                             <tbody class="text-sm divide-y divide-gray-800">
-                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
+                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
                                     <tr class="hover:bg-gray-800/30 transition-colors">
                                         <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
                                             {score.replace(/_/g, ' ')}

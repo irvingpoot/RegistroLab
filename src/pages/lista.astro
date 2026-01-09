@@ -2,37 +2,84 @@
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
-	import.meta.env.PUBLIC_SUPABASE_URL,
-	import.meta.env.SUPABASE_KEY
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
 );
 
-// Recuperamos lo que el usuario escribió en la URL
-const busqueda = Astro.url.searchParams.get('q') || '';
+// 1. RECUPERAR PARÁMETROS (Búsqueda y Paginación)
+const busqueda = Astro.url.searchParams.get('q') || ''; // <--- ¡Aquí está la variable que faltaba!
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const PAGE_SIZE = 50;
+const from = (page - 1) * PAGE_SIZE;
+const to = from + PAGE_SIZE - 1;
 
-// Construimos la consulta base
-let consulta = supabase
+// 2. CONSTRUIR CONSULTA
+// Iniciamos la consulta base con el conteo exacto
+let queryBuilder = supabase
     .from('pacientes')
-    .select('id, nombre, edad, referencia, registrado_por, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
+    .select(`
+        *,
+        pacientes_seguimiento (
+            registrado_por,
+            fecha
+        )
+    `, { count: 'exact' })
+    .order('created_at', { ascending: false });
 
-// Si hay algo escrito, filtramos por nombre (insensible a mayúsculas/minúsculas)
+// Si hay búsqueda, filtramos ANTES de paginar
 if (busqueda) {
-	consulta = consulta.ilike('nombre', `%${busqueda}%`);
+    queryBuilder = queryBuilder.ilike('nombre', `%${busqueda}%`);
 }
 
-// Ejecutamos la consulta final
-const { data: pacientes, error } = await consulta;
+// Finalmente aplicamos el rango (paginación) y ejecutamos
+const { data: pacientesRaw, count, error } = await queryBuilder.range(from, to);
 
 if (error) console.error("Error cargando pacientes:", error);
+
+// 3. PROCESAR DATOS (Último seguimiento)
+const pacientes = pacientesRaw?.map((p: any) => {
+    let ultimoAutor = null;
+    let fechaUltimo = null;
+
+    if (p.pacientes_seguimiento && p.pacientes_seguimiento.length > 0) {
+        const ultimo = p.pacientes_seguimiento.sort((a: any, b: any) => 
+            new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+        )[0];
+        ultimoAutor = ultimo.registrado_por;
+        fechaUltimo = ultimo.fecha;
+    }
+
+    return { ...p, ultimo_seguimiento_por: ultimoAutor, fecha_ultimo_seguimiento: fechaUltimo };
+}) || [];
+
+// Helpers
+const formatDate = (dateString: string) => {
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+// 4. CALCULOS DE PAGINACIÓN UI
+const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
+const hasPrev = page > 1;
+const hasNext = page < totalPages;
+const startItem = (count === 0) ? 0 : from + 1;
+const endItem = Math.min(to + 1, count || 0);
+
+// Helper para mantener la búsqueda en los links de paginación
+const getPageLink = (pageNum: number) => {
+    const params = new URLSearchParams();
+    if (busqueda) params.set('q', busqueda);
+    params.set('page', pageNum.toString());
+    return `?${params.toString()}`;
+};
 ---
 
 <Layout title="Pacientes - Laboratorio del Sueño">
 	<Icon />
-	<ReturnButton href="/citas" text="Volver a la agenda" />
+	<ReturnButton href="/dashboard" text="Volver al dashboard" />
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
 		<div class="flex flex-col items-center justify-center mb-10">
             <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Laboratorio del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
@@ -95,6 +142,7 @@ if (error) console.error("Error cargando pacientes:", error);
 						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Edad</th>
 						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Referencia</th>
 						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider">Registró</th>
+						<th class="px-6 py-4 text-center">Último Seguimiento</th>
 						<th class="px-6 py-4 text-gray-400 font-semibold text-sm uppercase tracking-wider text-right">Fecha</th>
 					</tr>
 				</thead>
@@ -118,6 +166,20 @@ if (error) console.error("Error cargando pacientes:", error);
 							<td class="px-6 py-5 text-gray-400 align-middle">
 								{paciente.registrado_por || "—"}
 							</td>
+							<td class="px-6 py-4 text-center">
+								{paciente.ultimo_seguimiento_por ? (
+									<div class="flex flex-col items-center">
+										<span class="text-white font-medium text-xs bg-blue-600/30 text-blue-600 px-2 py-0.5 rounded border border-blue-500/20">
+											{paciente.ultimo_seguimiento_por}
+										</span>
+										<span class="text-[10px] text-white mt-1">
+											{formatDate(paciente.fecha_ultimo_seguimiento)}
+										</span>
+									</div>
+								) : (
+									<span class="text-gray-600 text-xs">—</span>
+								)}
+							</td>
 							<td class="px-6 py-5 text-gray-500 font-mono text-sm align-middle text-right">
 								{new Date(paciente.created_at).toLocaleDateString('es-MX', {
                                     year: '2-digit', month: 'short', day: 'numeric'
@@ -128,6 +190,40 @@ if (error) console.error("Error cargando pacientes:", error);
 				</tbody>
 			</table>
 		</div>
+
+		<div class="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
+            <div class="text-sm text-gray-400">
+                Mostrando desde <span class="font-bold text-white">{startItem}</span> a <span class="font-bold text-white">{endItem}</span> de <span class="font-bold text-blue-400">{count}</span> resultados
+            </div>
+
+            <div class="flex gap-2">
+                <a 
+                    href={hasPrev ? getPageLink(page - 1) : '#'} 
+                    class={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-700 ${
+                        hasPrev 
+                        ? 'bg-gray-800 text-white hover:bg-gray-700 hover:border-gray-600' 
+                        : 'bg-gray-900/50 text-gray-600 cursor-not-allowed pointer-events-none'
+                    }`}
+                >
+                    ← Anterior
+                </a>
+
+                <div class="px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 font-mono">
+                    Pág {page} / {totalPages || 1}
+                </div>
+
+                <a 
+                    href={hasNext ? getPageLink(page + 1) : '#'} 
+                    class={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-700 ${
+                        hasNext 
+                        ? 'bg-gray-800 text-white hover:bg-gray-700 hover:border-gray-600' 
+                        : 'bg-gray-900/50 text-gray-600 cursor-not-allowed pointer-events-none'
+                    }`}
+                >
+                    Siguiente →
+                </a>
+            </div>
+        </div>
 		
 	</main>
 </Layout>

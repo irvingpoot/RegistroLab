@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 
-const isProtectedRoute = createRouteMatcher(["/lista", "/registro", "/paciente/:id", "/editar-cita/:id", "/citas", "/nueva-cita", "/404"]);
+const isProtectedRoute = createRouteMatcher(["/lista", "/registro", "/paciente/:id", "/editar-cita/:id", "/citas", "/nueva-cita", "/dashboard", "/404"]);
 
 export const onRequest = clerkMiddleware((auth, context) => {
     const { userId } = auth()
@@ -10,6 +10,6 @@ export const onRequest = clerkMiddleware((auth, context) => {
     }
 
     if (userId && context.url.pathname === "/login") {
-        return context.redirect("/citas");
+        return context.redirect("/dashboard");
     }
 });
