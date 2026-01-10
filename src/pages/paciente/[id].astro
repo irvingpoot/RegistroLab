@@ -104,6 +104,25 @@ if (Astro.request.method === "POST") {
                 await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
             }
         }
+
+        if (action === "add_pago") {
+            const nuevoPago = {
+                paciente_id: id,
+                monto: parseFloat(formData.get("monto") as string),
+                concepto: formData.get("concepto"),
+                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
+                registrado_por: nombreAutor
+            };
+            const { error } = await supabase.from('pacientes_pagos').insert([nuevoPago]);
+            if (error) throw error;
+        }
+        if (action === "delete_pago") {
+            const idPago = formData.get("id_pago");
+            const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
+            if (error) throw error;
+        }
+
+
     } catch (error) {
         console.error("Error en acción:", error);
     }
@@ -112,7 +131,7 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), pacientes_pagos(*)')
     .eq('id', id)
     .single();
 
@@ -123,6 +142,13 @@ if (error || !paciente) {
 if (paciente.pacientes_seguimiento) {
     paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 }
+
+if (paciente.pacientes_pagos) {
+    paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+}
+const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
+// Formateador de moneda
+const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
 // Helpers
 const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
@@ -414,6 +440,61 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
+            <InfoCard title="Historial de Pagos y Gastos">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+                    <div>
+                        <p class="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Total Acumulado</p>
+                        <p class="text-3xl font-mono font-bold text-emerald-400">{formatMoney(totalPagado)}</p>
+                    </div>
+                    <button onclick="document.getElementById('modal-pago').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/20 font-medium text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Registrar Nuevo Pago
+                    </button>
+                </div>
+
+                <div class="overflow-hidden rounded-xl border border-gray-800">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-gray-400 text-xs uppercase font-bold">
+                            <tr>
+                                <th class="p-4">Fecha</th>
+                                <th class="p-4">Concepto</th>
+                                <th class="p-4">Registrado por</th> <th class="p-4 text-right">Monto</th>
+                                <th class="p-4 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800 bg-gray-900/50">
+                            {paciente.pacientes_pagos && paciente.pacientes_pagos.length > 0 ? (
+                                paciente.pacientes_pagos.map((pago: any) => (
+                                    <tr class="hover:bg-gray-800/50 transition-colors group">
+                                        <td class="p-4 text-gray-300 font-mono">{formatDateShort(pago.fecha)}</td>
+                                        <td class="p-4 text-white font-medium">{pago.concepto}</td>
+                                        
+                                        <td class="p-4 text-gray-400 text-sm">
+                                            {pago.registrado_por || "Sistema"}
+                                        </td>
+
+                                        <td class="p-4 text-right text-emerald-300 font-mono font-bold">{formatMoney(pago.monto)}</td>
+                                        <td class="p-4 text-center">
+                                            <button class="text-gray-500 hover:text-red-400 transition-colors btn-borrar-pago cursor-pointer" data-id={pago.id} title="Eliminar registro">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colspan="5" class="p-8 text-center text-gray-500 italic">No hay pagos registrados aún.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </InfoCard>
+
             <div class="mt-12 border-t border-red-900/30 pt-8 pb-10 flex flex-col items-center">
                 <button onclick="document.getElementById('modal-eliminar').showModal()" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform">
@@ -425,6 +506,59 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
         </div>
     </main>
+
+    <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <span class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </span>
+                Registrar Pago
+            </h3>
+            <button onclick="document.getElementById('modal-pago').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button>
+        </div>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="add_pago">
+            
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Monto ($)</label>
+                <input type="number" step="0.01" name="monto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none text-lg font-mono" placeholder="0.00" required>
+            </div>
+            
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Concepto</label>
+                <input type="text" name="concepto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej: Consulta Inicial, Estudio de Sueño..." required>
+            </div>
+
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Fecha</label>
+                <input type="date" name="fecha" id="pago-fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-emerald-500 focus:outline-none" required style="color-scheme: dark;">
+            </div>
+
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50 mt-2">
+                <button type="button" onclick="document.getElementById('modal-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
+                <button type="submit" class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 cursor-pointer text-sm shadow-lg shadow-emerald-900/20">Guardar Pago</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-eliminar-pago" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
+        <div class="mb-4 text-red-500 flex justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-bold text-white mb-2">¿Eliminar este registro?</h3>
+        <p class="text-gray-400 text-xs mb-6">El monto se restará del total acumulado.</p>
+        
+        <form method="POST" class="flex gap-3 justify-center">
+            <input type="hidden" name="action" value="delete_pago" />
+            <input type="hidden" name="id_pago" id="input-id-borrar-pago" />
+            
+            <button type="button" onclick="document.getElementById('modal-eliminar-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer text-sm">Sí, Borrar</button>
+        </form>
+    </dialog>
 
     <dialog id="modal-ver-respuestas" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl backdrop:backdrop-blur-sm w-full max-w-2xl text-left p-0 overflow-hidden">
         
@@ -856,6 +990,28 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         parent.classList.add('bg-blue-900/30', 'border-blue-500');
         setTimeout(() => parent.classList.remove('bg-blue-900/30', 'border-blue-500'), 200);
     }
+
+    const inputFechaPago = document.getElementById('pago-fecha');
+    // Pre-llenar fecha de hoy al abrir modal (opcional, o hacerlo al cargar)
+    if (inputFechaPago) {
+        inputFechaPago.valueAsDate = new Date();
+    }
+
+    // Manejar borrado de pagos
+    const modalBorrarPago = document.getElementById('modal-eliminar-pago');
+    const inputIdBorrarPago = document.getElementById('input-id-borrar-pago');
+
+    document.addEventListener('click', (e) => {
+        // ... (Tu código existente para btn-editar-nota, etc)
+
+        // Botón Borrar Pago
+        const btnBorrarPago = (e.target).closest('.btn-borrar-pago');
+        if (btnBorrarPago && modalBorrarPago && inputIdBorrarPago) {
+            const id = btnBorrarPago.getAttribute('data-id');
+            inputIdBorrarPago.value = id;
+            modalBorrarPago.showModal();
+        }
+    });
 
     // Inicializar
     setFase('pre');
