@@ -5,8 +5,9 @@ import RadioGroup from "../../../components/RadioGroup.astro"
 import ExpandableSection from "../../../components/ExpandableSection.astro"
 import { createClient } from "@supabase/supabase-js"
 
-const MODO_DISENO = false;
+const MODO_DISENO = false; // Cambiar a false para producción
 
+// Usamos SERVICE_ROLE_KEY para saltarnos RLS y poder escribir sin que el paciente esté logueado
 const supabaseAdmin = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_SERVICE_ROLE_KEY
@@ -23,45 +24,61 @@ if (!MODO_DISENO) {
         return Astro.redirect('/404');
     }
 
-    // 2. LECTURA
+    // 1. Obtener Paciente
     const { data, error } = await supabaseAdmin
         .from('pacientes')
         .select('id, nombre')
         .eq('token_cuestionarios', token)
         .single();
 
-    if (error || !data) {
-        console.error("Error:", error);
-        return Astro.redirect('/404');
-    }
-
+    if (error || !data) return Astro.redirect('/404');
     paciente = data;
 
-    // 3. GUARDADO
+    // 2. GUARDAR RESPUESTAS (POST)
     if (Astro.request.method === "POST") {
-        const formData = await Astro.request.formData();
-        const puntaje = formData.get("puntaje");
-
-        if (puntaje) {
-            const columnaDestino = `berlin_${faseUrl}`;
+        try {
+            const formData = await Astro.request.formData();
             
-            const { error: updateError } = await supabaseAdmin
-                .from('pacientes')
-                .update({ [columnaDestino]: parseInt(puntaje.toString()) })
-                .eq('id', paciente.id);
+            // CONVERTIMOS EL FORMULARIO A UN OBJETO JSON
+            // Esto toma todos los 'name' de tus inputs y sus valores
+            const respuestas = Object.fromEntries(formData);
+            
+            // Opcional: Limpiar datos técnicos si se colaron (ej: tokens de viewstate de Astro si los hubiera)
+            // delete respuestas.algun_campo_innecesario;
 
-            if (!updateError) {
-                mensaje = "¡Resultados guardados correctamente!";
+            // INSERTAR / ACTUALIZAR EN LA NUEVA TABLA
+            const { error: saveError } = await supabaseAdmin
+                .from('respuestas_cuestionarios')
+                .upsert({
+                    paciente_id: paciente.id,
+                    fase: faseUrl,
+                    cuestionario: 'berlin', // <--- IMPORTANTE: CAMBIAR ESTO SEGÚN EL ARCHIVO (berlin, pittsburgh)
+                    datos: respuestas,
+                    updated_at: new Date()
+                }, { 
+                    onConflict: 'paciente_id, fase, cuestionario' // Usa la restricción única que creamos
+                });
+
+            if (saveError) {
+                console.error("Error Supabase:", saveError);
+                mensaje = "Error al guardar las respuestas.";
             } else {
-                console.error("Error al guardar:", updateError);
-                mensaje = "Error al guardar.";
+                mensaje = "¡Respuestas guardadas correctamente!";
+                // Opcional: Redirigir a una página de agradecimiento
+                // return Astro.redirect('/gracias');
             }
+
+        } catch (e) {
+            console.error("Error procesando:", e);
+            mensaje = "Ocurrió un error inesperado.";
         }
     }
 } else {
-    paciente = { id: 999, nombre: "Paciente Prueba" };
-    if (Astro.request.method === "POST") mensaje = "Guardado simulado.";
+    paciente = { id: 0, nombre: "Paciente Simulado" };
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
 }
+
+const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
 const optionsRonca = [
     { label: 'Sí', value: 'si' },
@@ -97,7 +114,56 @@ const optionsSexo = [
 ---
 <LayoutCuestionario title="Cuestionario">
 
-    <form action="" method="post">
+    <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-emerald-900/5 border border-emerald-100 p-6 md:p-8 mb-10">
+        
+        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-teal-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+            <div class="flex items-start gap-5">
+                <div class="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg shadow-emerald-500/30 text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider border border-emerald-200">
+                            {textoFase}
+                        </span>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Cuestionario de Berlín</h1>
+                    <p class="text-gray-500 font-medium">Paciente: <span class="text-gray-900">{paciente.nombre}</span></p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 min-w-[100px] text-center">
+                    <p class="text-xs text-gray-400 uppercase font-bold">Tiempo</p>
+                    <p class="text-lg font-bold text-gray-800">~3 min</p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 min-w-[120px] text-center">
+                    <p class="text-xs text-emerald-600 uppercase font-bold">Enfoque</p>
+                    <p class="text-lg font-bold text-emerald-700">Apnea / SAOS</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-gray-100">
+            <div class="flex gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-gray-600 text-sm leading-relaxed">
+                    Este cuestionario identifica factores de riesgo para la <strong>apnea del sueño</strong>. 
+                    Le preguntaremos sobre ronquidos, pausas al respirar y fatiga.
+                    <span class="block mt-2 text-emerald-600 font-medium italic">Sea muy honesto, sus respuestas son clave para el diagnóstico.</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
         <InputNumber 
             label="Edad" 
             name="edad" 
@@ -203,6 +269,7 @@ const optionsSexo = [
                 required={true}
         />
 
+        <button type="submit">Guardar y Finalizar</button>
     </form>
 
 </LayoutCuestionario>

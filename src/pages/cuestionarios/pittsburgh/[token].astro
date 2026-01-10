@@ -7,8 +7,9 @@ import InputNumber from "../../../components/InputNumber.astro"
 import InputText from "../../../components/InputText.astro"
 import RadioGroup from "../../../components/RadioGroup.astro"
 
-const MODO_DISENO = false;
+const MODO_DISENO = false; // Cambiar a false para producción
 
+// Usamos SERVICE_ROLE_KEY para saltarnos RLS y poder escribir sin que el paciente esté logueado
 const supabaseAdmin = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_SERVICE_ROLE_KEY
@@ -25,46 +26,61 @@ if (!MODO_DISENO) {
         return Astro.redirect('/404');
     }
 
-    // 2. LECTURA NORMAL
+    // 1. Obtener Paciente
     const { data, error } = await supabaseAdmin
         .from('pacientes')
         .select('id, nombre')
         .eq('token_cuestionarios', token)
         .single();
 
-    if (error || !data) {
-        console.error("Error:", error);
-        return Astro.redirect('/404');
-    }
-
+    if (error || !data) return Astro.redirect('/404');
     paciente = data;
 
-    // 3. GUARDADO NORMAL
+    // 2. GUARDAR RESPUESTAS (POST)
     if (Astro.request.method === "POST") {
-        const formData = await Astro.request.formData();
-        const puntaje = formData.get("puntaje");
-
-        if (puntaje) {
-            const columnaDestino = `pittsburgh_${faseUrl}`;
+        try {
+            const formData = await Astro.request.formData();
             
-            // Update directo, sin funciones SQL complejas
-            const { error: updateError } = await supabaseAdmin
-                .from('pacientes')
-                .update({ [columnaDestino]: parseInt(puntaje.toString()) })
-                .eq('id', paciente.id);
+            // CONVERTIMOS EL FORMULARIO A UN OBJETO JSON
+            // Esto toma todos los 'name' de tus inputs y sus valores
+            const respuestas = Object.fromEntries(formData);
+            
+            // Opcional: Limpiar datos técnicos si se colaron (ej: tokens de viewstate de Astro si los hubiera)
+            // delete respuestas.algun_campo_innecesario;
 
-            if (!updateError) {
-                mensaje = "¡Resultados guardados correctamente!";
+            // INSERTAR / ACTUALIZAR EN LA NUEVA TABLA
+            const { error: saveError } = await supabaseAdmin
+                .from('respuestas_cuestionarios')
+                .upsert({
+                    paciente_id: paciente.id,
+                    fase: faseUrl,
+                    cuestionario: 'pittsburgh', // <--- IMPORTANTE: CAMBIAR ESTO SEGÚN EL ARCHIVO (berlin, pittsburgh)
+                    datos: respuestas,
+                    updated_at: new Date()
+                }, { 
+                    onConflict: 'paciente_id, fase, cuestionario' // Usa la restricción única que creamos
+                });
+
+            if (saveError) {
+                console.error("Error Supabase:", saveError);
+                mensaje = "Error al guardar las respuestas.";
             } else {
-                console.error("Error al guardar:", updateError);
-                mensaje = "Error al guardar.";
+                mensaje = "¡Respuestas guardadas correctamente!";
+                // Opcional: Redirigir a una página de agradecimiento
+                // return Astro.redirect('/gracias');
             }
+
+        } catch (e) {
+            console.error("Error procesando:", e);
+            mensaje = "Ocurrió un error inesperado.";
         }
     }
 } else {
-    paciente = { id: 999, nombre: "Paciente Prueba" };
-    if (Astro.request.method === "POST") mensaje = "Guardado simulado.";
+    paciente = { id: 0, nombre: "Paciente Simulado" };
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
 }
+
+const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
 const alteracionOptions = [
     { label: 'No me ha ocurrido durante el ultimo mes', value: 0 },
@@ -125,105 +141,157 @@ const optionsCompañero = [
 
 <LayoutCuestionario title="Cuestionario">
 
-    <TimePicker 
-        label="Durante el último mes, ¿a qué hora solías acostarte por la noche?"
-        subLabel="Hora habitual de acostarse:"
-        name="hora_acostarse"
-        required={true}
-    />
+    <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-purple-900/5 border border-purple-100 p-6 md:p-8 mb-10">
+        
+        <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-fuchsia-400/10 rounded-full blur-2xl pointer-events-none"></div>
 
-    <InputNumber 
-        label="Durante el último mes, ¿cuánto tiempo (en minutos) te ha costado quedarte dormido después de acostarte por las noches?" 
-        subLabel="Número de minutos para conciliar el sueño"
-        name="tiempo_dormir" 
-        placeholder="Ej. 40" 
-        min={0}
-        max={1000} 
-        required={true}
-    />
+        <div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+            <div class="flex items-start gap-5">
+                <div class="p-4 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-2xl shadow-lg shadow-purple-500/30 text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold uppercase tracking-wider border border-purple-200">
+                            {textoFase}
+                        </span>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Índice de Pittsburgh</h1>
+                    <p class="text-gray-500 font-medium">Paciente: <span class="text-gray-900">{paciente.nombre}</span></p>
+                </div>
+            </div>
 
-    <TimePicker 
-        label="Durante el último mes, ¿a qué hora te has levantado habitualmente por la mañana?"
-        subLabel="Hora habitual de levantarse:"
-        name="hora_levantarse"
-        required={true}
-    />
+            <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 min-w-[100px] text-center">
+                    <p class="text-xs text-gray-400 uppercase font-bold">Tiempo</p>
+                    <p class="text-lg font-bold text-gray-800">~5 min</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 min-w-[120px] text-center">
+                    <p class="text-xs text-purple-600 uppercase font-bold">Periodo</p>
+                    <p class="text-lg font-bold text-purple-700">Último Mes</p>
+                </div>
+            </div>
+        </div>
 
-    <InputNumber 
-        label="Durante el último mes, ¿cuántas horas de sueño real has mantenido por las noches? (puede ser diferente del numero de horas que estuviste acostado)" 
-        subLabel="Horas de sueño por noche:"
-        name="horas_sueno" 
-        placeholder="Ej. 6" 
-        min={0}
-        max={1000} 
-        required={true}
-    />
+        <div class="mt-6 pt-6 border-t border-gray-100">
+            <div class="flex gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p class="text-gray-600 text-sm leading-relaxed">
+                    Evaluaremos la <strong>calidad de su sueño</strong> y sus hábitos específicamente durante el <strong class="text-purple-700">último mes</strong>. 
+                    Trate de recordar sus horarios reales y cualquier dificultad que haya tenido la mayoría de las noches.
+                </p>
+            </div>
+        </div>
+    </div>
 
-    <MatrixScale 
-        instruction="Durante el último mes, ¿con qué frecuencia has tenido un sueño alterado a consecuencia de....?"
-        scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
-        options={alteracionOptions}
-        questions={alteracionQuestions}
-    />
+    <form method="post">
+        <TimePicker 
+            label="Durante el último mes, ¿a qué hora solías acostarte por la noche?"
+            subLabel="Hora habitual de acostarse:"
+            name="hora_acostarse"
+            required={true}
+        />
 
-    <InputText
-        label="Otra causa(s), describir:" 
-        name="otra_causa" 
-        placeholder="Escriba su respuesta aquí"
-    />
+        <InputNumber 
+            label="Durante el último mes, ¿cuánto tiempo (en minutos) te ha costado quedarte dormido después de acostarte por las noches?" 
+            subLabel="Número de minutos para conciliar el sueño"
+            name="tiempo_dormir" 
+            placeholder="Ej. 40" 
+            min={0}
+            max={1000} 
+            required={true}
+        />
 
-    <RadioGroup 
-        label="¿Con qué frecuencia ha tenido un sueño alterado a consecuencia de este problema?"
-        name="se_quedo_dormido"
-        options={optionsFrecuencia}
-    />
+        <TimePicker 
+            label="Durante el último mes, ¿a qué hora te has levantado habitualmente por la mañana?"
+            subLabel="Hora habitual de levantarse:"
+            name="hora_levantarse"
+            required={true}
+        />
 
-    <RadioGroup 
-        label="Durante el último mes, ¿cómo calificarías, en general, la calidad de tu sueño?"
-        name="calidad_sueno"
-        options={optionsCalidad}
-        required={true}
-    />
+        <InputNumber 
+            label="Durante el último mes, ¿cuántas horas de sueño real has mantenido por las noches? (puede ser diferente del numero de horas que estuviste acostado)" 
+            subLabel="Horas de sueño por noche:"
+            name="horas_sueno" 
+            placeholder="Ej. 6" 
+            min={0}
+            max={1000} 
+            required={true}
+        />
 
-    <RadioGroup 
-        label="Durante el último mes, ¿con que frecuencia tuviste que tomar medicinas (prescritas o automedicadas) para poder dormir?"
-        name="tomo_medicinas"
-        options={optionsFrecuencia}
-        required={true}
-    />
+        <MatrixScale 
+            instruction="Durante el último mes, ¿con qué frecuencia has tenido un sueño alterado a consecuencia de....?"
+            scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
+            options={alteracionOptions}
+            questions={alteracionQuestions}
+        />
 
-    <RadioGroup 
-        label="Durante el último mes, ¿con que frecuencia tuviste dificultad para mantenerte despierto mientras conducías, comías o desarrollabas alguna actividad social?"
-        name="dificultad_despierto"
-        options={optionsFrecuencia}
-        required={true}
-    />
+        <InputText
+            label="Otra causa(s), describir:" 
+            name="otra_causa" 
+            placeholder="Escriba su respuesta aquí"
+        />
 
-    <RadioGroup 
-        label="Durante el último mes, ¿cómo de problemático ha resultado para ti el mantener el entusiasmo por hacer las cosas?"
-        name="problema_entusiasmo"
-        options={optionsFrecuencia}
-        required={true}
-    />
+        <RadioGroup 
+            label="¿Con qué frecuencia ha tenido un sueño alterado a consecuencia de este problema?"
+            name="se_quedo_dormido"
+            options={optionsFrecuencia}
+        />
 
-    <RadioGroup 
-        label="¿Tienes pareja o compañero/a de habitación?"
-        name="pareja_companero"
-        options={optionsCompañero}
-        required={true}
-    />
+        <RadioGroup 
+            label="Durante el último mes, ¿cómo calificarías, en general, la calidad de tu sueño?"
+            name="calidad_sueno"
+            options={optionsCalidad}
+            required={true}
+        />
 
-    <MatrixScale 
-        instruction="Si tienes pareja o compañero/a de habitación con el que duermes, con qué frecuencia, durante el último mes, te ha dicho que has tenido..."
-        scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
-        options={compañeroOptions}
-        questions={compañeroQuestions}
-    />
+        <RadioGroup 
+            label="Durante el último mes, ¿con que frecuencia tuviste que tomar medicinas (prescritas o automedicadas) para poder dormir?"
+            name="tomo_medicinas"
+            options={optionsFrecuencia}
+            required={true}
+        />
 
-    <InputText
-        label="Otra transtorno, describir:" 
-        name="otra_transtorno" 
-        placeholder="Escriba su respuesta aquí"
-    />
+        <RadioGroup 
+            label="Durante el último mes, ¿con que frecuencia tuviste dificultad para mantenerte despierto mientras conducías, comías o desarrollabas alguna actividad social?"
+            name="dificultad_despierto"
+            options={optionsFrecuencia}
+            required={true}
+        />
+
+        <RadioGroup 
+            label="Durante el último mes, ¿cómo de problemático ha resultado para ti el mantener el entusiasmo por hacer las cosas?"
+            name="problema_entusiasmo"
+            options={optionsFrecuencia}
+            required={true}
+        />
+
+        <RadioGroup 
+            label="¿Tienes pareja o compañero/a de habitación?"
+            name="pareja_companero"
+            options={optionsCompañero}
+            required={true}
+        />
+
+        <MatrixScale 
+            instruction="Si tienes pareja o compañero/a de habitación con el que duermes, con qué frecuencia, durante el último mes, te ha dicho que has tenido..."
+            scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
+            options={compañeroOptions}
+            questions={compañeroQuestions}
+        />
+
+        <InputText
+            label="Otra transtorno, describir:" 
+            name="otra_transtorno" 
+            placeholder="Escriba su respuesta aquí"
+        />
+
+        <button type="submit">Guardar y Finalizar</button>
+    </form>
 
 </LayoutCuestionario>
