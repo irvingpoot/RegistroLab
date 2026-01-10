@@ -1,0 +1,25 @@
+---                            
+import '../styles/global.css'
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/logo.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body class="font-sans bg-slate-50 p-4">
+		<div class="flex flex-col items-center justify-center p-8 md:py-8">
+			<h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
+		</div>
+
+		<div class="p-10 max-w-5xl mx-auto shadow-2xl rounded-xl bg-white">
+			<slot />
+		</div>
+	</body>
+</html>

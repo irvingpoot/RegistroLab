@@ -1,36 +1,273 @@
 ---
-// LÓGICA DEL SERVIDOR (Igual para todos, solo cambia el nombre de la prueba abajo)
+import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
+import InputNumber from "../../../components/InputNumber.astro"
+import RadioGroup from "../../../components/RadioGroup.astro"
+import ExpandableSection from "../../../components/ExpandableSection.astro"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(import.meta.env.PUBLIC_SUPABASE_URL, import.meta.env.SUPABASE_KEY);
+const MODO_DISENO = false;
+
+const supabaseAdmin = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const { token } = Astro.params;
 const faseUrl = Astro.url.searchParams.get('fase');
 
-if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) return Astro.redirect('/404');
-
-const { data: paciente, error } = await supabase.from('pacientes').select('id, nombre').eq('token_encuesta', token).single();
-if (error || !paciente) return Astro.redirect('/404');
-
-// LÓGICA DE GUARDADO
+let paciente = { id: 0, nombre: "" };
 let mensaje = "";
-if (Astro.request.method === "POST") {
-    const formData = await Astro.request.formData();
-    const puntaje = formData.get("puntaje");
 
-    if (puntaje) {
-        // AQUÍ EL CAMBIO: Ya sabemos que es 'epworth', lo ponemos fijo en el código
-        const columnaDestino = `epworth_${faseUrl}`; 
-        
-        const { error: updateError } = await supabase.from('pacientes').update({ [columnaDestino]: parseInt(puntaje.toString()) }).eq('id', paciente.id);
-        if (!updateError) mensaje = "¡Resultados guardados!";
+if (!MODO_DISENO) {
+    if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) {
+        return Astro.redirect('/404');
     }
+
+    // 2. LECTURA
+    const { data, error } = await supabaseAdmin
+        .from('pacientes')
+        .select('id, nombre')
+        .eq('token_cuestionarios', token)
+        .single();
+
+    if (error || !data) {
+        console.error("Error:", error);
+        return Astro.redirect('/404');
+    }
+
+    paciente = data;
+
+    // 3. GUARDADO
+    if (Astro.request.method === "POST") {
+        const formData = await Astro.request.formData();
+        const puntaje = formData.get("puntaje");
+
+        if (puntaje) {
+            const columnaDestino = `berlin_${faseUrl}`;
+            
+            const { error: updateError } = await supabaseAdmin
+                .from('pacientes')
+                .update({ [columnaDestino]: parseInt(puntaje.toString()) })
+                .eq('id', paciente.id);
+
+            if (!updateError) {
+                mensaje = "¡Resultados guardados correctamente!";
+            } else {
+                console.error("Error al guardar:", updateError);
+                mensaje = "Error al guardar.";
+            }
+        }
+    }
+} else {
+    paciente = { id: 999, nombre: "Paciente Prueba" };
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado.";
 }
+
+const optionsRonca = [
+    { label: 'Sí', value: 'si' },
+    { label: 'No', value: 'no' },
+    { label: 'No lo sé', value: 'unknown' }
+];
+
+const optionsFrecuencia = [
+    { label: 'Casi todos los días', value: 'si' },
+    { label: '3-4 veces por semana', value: 'no' },
+    { label: '1-2 veces por semana', value: 'unknown' },
+    { label: '1-2 veces por mes', value: 'no' },
+    { label: 'Casi nunca o nunca', value: 'no' }
+];
+
+const optionsVolumen = [
+    { label: 'Como una respiración fuerte', value: 'si' },
+    { label: 'Tan alto como una conversación', value: 'no' },
+    { label: 'Más alto que una conversación', value: 'unknown' },
+    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 'no' }
+];
+
+const optionsSiNo = [
+    { label: 'Si', value: 'si' },
+    { label: 'No', value: 'no' }
+];
+
+const optionsSexo = [
+    { label: 'Masculino', value: 'male' },
+    { label: 'Femenino', value: 'female' }
+];
+
 ---
+<LayoutCuestionario title="Cuestionario">
 
-<h1>Test de Epworth para {paciente.nombre}</h1>
+    <form action="" method="post">
+        <InputNumber 
+            label="Edad" 
+            name="edad" 
+            placeholder="Ej. 40" 
+            min={0}
+            max={120} 
+            required={true}
+        />
 
-<form method="POST">
-    <input type="hidden" name="puntaje" id="puntaje-final">
-    
-    <button type="submit">Enviar</button>
-</form>
+        <InputNumber 
+            label="Altura (cm)" 
+            name="altura" 
+            placeholder="Ej. 175" 
+            min={0} 
+            max={250} 
+            required={true}
+        />
+
+        <InputNumber 
+            label="Peso" 
+            name="peso" 
+            placeholder="Ej. 70" 
+            min={0} 
+            max={300} 
+            required={true}
+        />
+
+        <RadioGroup 
+            label="Sexo"
+            name="sexo"
+            options={optionsSexo}
+            required={true}
+        />
+
+        <RadioGroup 
+            label="¿Ronca?"
+            name="ronca"
+            options={optionsRonca}
+            required={true}
+        />
+        <ExpandableSection id="extra-ronca">
+
+            <h3 class="text-blue-600 font-bold mb-4 tracking-wider">Detalles sobre el ronquido:</h3>
+                
+            <RadioGroup 
+                label="¿Cómo es el volumen del ronquido?"
+                name="ronca_volumen"
+                options={optionsVolumen} 
+            />
+            
+            <RadioGroup 
+                label="¿Con qué frecuencia ronca?"
+                name="ronca_frecuencia"
+                options={optionsFrecuencia} 
+            />
+            
+            <RadioGroup 
+                label="¿Su ronquido molesta a otras personas?"
+                name="ronca_molesta"
+                options={optionsSiNo} 
+            />
+
+            <RadioGroup 
+                label="¿Alguien advirtió que usted deja de respirar durante el sueño?"
+                name="ronca_deja_de_respirar"
+                options={optionsFrecuencia} 
+            />
+
+        </ExpandableSection>
+
+        <RadioGroup 
+            label="¿Con qué frecuencia se despierta cansado después de dormir?"
+            name="despierta_cansado"
+            options={optionsFrecuencia}
+            required={true}
+        />
+
+        <RadioGroup 
+            label="Durante el día, ¿se siente mal, cansado o fatigado?"
+            name="se_siente_mal"
+            options={optionsFrecuencia}
+            required={true}
+        />
+
+        <RadioGroup 
+                label="¿Alguna vez se quedó dormido mientras conducía?"
+                name="se_quedo_dormido"
+                options={optionsSiNo}
+                required={true}
+        />
+        <ExpandableSection id="extra-se_quedo_dormido">
+            <RadioGroup 
+                label="¿Con qué frecuencia ocurre esto?"
+                name="se_quedo_dormido_frecuencia"
+                options={optionsFrecuencia}
+            />
+        </ExpandableSection>
+
+        <RadioGroup 
+                label="¿Sufre de hipertensión?"
+                name="hipertension"
+                options={optionsSiNo}
+                required={true}
+        />
+
+    </form>
+
+</LayoutCuestionario>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // 1. CONFIGURACIÓN: Aquí defines todas tus reglas
+        // Solo agregas líneas aquí si tienes nuevas preguntas condicionales
+        const reglas = [
+            { 
+                triggerName: 'ronca',       // El 'name' del RadioGroup
+                triggerValue: 'si',        // El valor que activa la sección
+                targetId: 'extra-ronca'     // El ID del ExpandableSection
+            },
+            { 
+                triggerName: 'se_quedo_dormido', 
+                triggerValue: 'si', 
+                targetId: 'extra-se_quedo_dormido' 
+            }
+        ];
+
+        // 2. LÓGICA
+        reglas.forEach(regla => {
+            const inputs = document.querySelectorAll(`input[name="${regla.triggerName}"]`);
+            const target = document.getElementById(regla.targetId);
+            
+            if (!target) return; // Seguridad por si el ID no existe
+
+            const inputsInternos = target.querySelectorAll('input, select, textarea');
+
+            const actualizarEstado = () => {
+                const seleccionado = document.querySelector(`input[name="${regla.triggerName}"]:checked`);
+                const valor = seleccionado ? (seleccionado as HTMLInputElement).value : null;
+
+                if (valor === regla.triggerValue) {
+                    // MOSTRAR
+                    target.classList.remove('grid-rows-[0fr]', 'opacity-0');
+                    target.classList.add('grid-rows-[1fr]', 'opacity-100');
+                    inputsInternos.forEach(i => i.removeAttribute('disabled'));
+                } else {
+                    // OCULTAR
+                    target.classList.remove('grid-rows-[1fr]', 'opacity-100');
+                    target.classList.add('grid-rows-[0fr]', 'opacity-0');
+                    inputsInternos.forEach(i => i.setAttribute('disabled', 'true'));
+                }
+            };
+
+            // Escuchar cambios
+            inputs.forEach(input => {
+                input.addEventListener('change', actualizarEstado);
+            });
+
+            // Ejecutar al inicio (por si recargas la página y ya había datos)
+            actualizarEstado();
+        });
+    });
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+</style>

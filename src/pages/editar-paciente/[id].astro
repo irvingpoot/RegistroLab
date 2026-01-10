@@ -76,7 +76,6 @@ if (Astro.request.method === "POST") {
 
             antecedentes: data.get("antecedentes"),
             
-            // Campos legacy del síntoma principal
             sintoma: data.getAll('sintoma')[0]?.toString(),
             temporalidad: data.getAll('temporalidad')[0]?.toString(),
             frecuencia: data.getAll('frecuencia')[0]?.toString(),
@@ -84,15 +83,15 @@ if (Astro.request.method === "POST") {
 
             alteracion_sueno: data.get("alteracion_sueno"),
 
-            epworth: getInt("epworth"),
-            dbi: getInt("dbi"),
-            hamilton_d: getInt("hamilton_d"),
-            hamilton_a: getInt("hamilton_a"),
-            isi: getInt("isi"),
-            psqi: getInt("psqi"),
-            stop_bang: getInt("stop_bang"),
-            berlin: getInt("berlin"),
-            cuestionario_insomnio: getInt("cuestionario_insomnio"),
+            epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
+            dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
+            hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
+            hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
+            isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
+            spqi_pre: getInt("spqi_pre"), spqi_inter: getInt("spqi_inter"), spqi_post: getInt("spqi_post"),
+            stop_bang_pre: getInt("stop_bang_pre"), stop_bang_inter: getInt("stop_bang_inter"), stop_bang_post: getInt("stop_bang_post"),
+            berlin_pre: getInt("berlin_pre"), berlin_inter: getInt("berlin_inter"), berlin_post: getInt("berlin_post"),
+            cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
         };
 
         // 2. Actualizar Tabla Principal
@@ -256,7 +255,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             <div class="flex flex-wrap gap-6 p-3 border border-gray-700 bg-gray-900/50 rounded-lg">
                                 {['cama', 'hamaca', 'ambas'].map(val => (
                                     <label class="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
-                                        <input type="radio" name="donde_duerme" value={val} checked={p.donde_duerme === val} class="accent-blue-500 w-4 h-4 uppercase"> <span class="capitalize">{val}</span>
+                                        <input type="radio" name="donde_duerme" value={val} checked={p.donde_duerme === val} class="accent-blue-500 w-4 h-4 uppercase"/> <span class="capitalize">{val}</span>
                                     </label>
                                 ))}
                             </div>
@@ -396,17 +395,35 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Puntajes</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin'].map(score => (
-                            <div class="flex flex-col">
-                                <label class="label capitalize">{score.replace('_', '-')}</label>
-                                <input type="number" name={score} value={p[score]} class="input text-center font-mono"/>
-                            </div>
-                        ))}
-                        <div class="flex flex-col col-span-2">
-                            <label class="label">Cuest. Insomnio</label>
-                            <input type="number" name="cuestionario_insomnio" value={p.cuestionario_insomnio} class="input text-center font-mono"/>
-                        </div>
+                    <div class="overflow-x-auto mb-8">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-gray-400 text-xs uppercase border-b border-gray-700">
+                                    <th class="py-3 font-medium">Prueba / Escala</th>
+                                    <th class="py-3 font-medium text-center text-blue-400">Pre</th>
+                                    <th class="py-3 font-medium text-center text-purple-400">Inter</th>
+                                    <th class="py-3 font-medium text-center text-emerald-400">Post</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-gray-800">
+                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
+                                    <tr class="hover:bg-gray-800/30 transition-colors">
+                                        <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
+                                            {score.replace(/_/g, ' ')}
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_pre`} value={p[`${score}_pre`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-blue-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_inter`} value={p[`${score}_inter`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-purple-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_post`} value={p[`${score}_post`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-emerald-500 focus:outline-none" />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
 
                     <div class="border-t border-gray-800 pt-6">

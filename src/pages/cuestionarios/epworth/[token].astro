@@ -1,36 +1,97 @@
 ---
-// LÓGICA DEL SERVIDOR (Igual para todos, solo cambia el nombre de la prueba abajo)
+import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
+import MatrixScale from "../../../components/MatrixScale.astro"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(import.meta.env.PUBLIC_SUPABASE_URL, import.meta.env.SUPABASE_KEY);
+const MODO_DISENO = false;
+
+const supabaseAdmin = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const { token } = Astro.params;
 const faseUrl = Astro.url.searchParams.get('fase');
 
-if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) return Astro.redirect('/404');
-
-const { data: paciente, error } = await supabase.from('pacientes').select('id, nombre').eq('token_encuesta', token).single();
-if (error || !paciente) return Astro.redirect('/404');
-
-// LÓGICA DE GUARDADO
+let paciente = { id: 0, nombre: "" };
 let mensaje = "";
-if (Astro.request.method === "POST") {
-    const formData = await Astro.request.formData();
-    const puntaje = formData.get("puntaje");
 
-    if (puntaje) {
-        // AQUÍ EL CAMBIO: Ya sabemos que es 'epworth', lo ponemos fijo en el código
-        const columnaDestino = `epworth_${faseUrl}`; 
-        
-        const { error: updateError } = await supabase.from('pacientes').update({ [columnaDestino]: parseInt(puntaje.toString()) }).eq('id', paciente.id);
-        if (!updateError) mensaje = "¡Resultados guardados!";
+if (!MODO_DISENO) {
+    if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) {
+        return Astro.redirect('/404');
     }
+
+    // 2. LECTURA NORMAL
+    const { data, error } = await supabaseAdmin
+        .from('pacientes')
+        .select('id, nombre')
+        .eq('token_cuestionarios', token)
+        .single();
+
+    if (error || !data) {
+        console.error("Error:", error);
+        return Astro.redirect('/404');
+    }
+
+    paciente = data;
+
+    // 3. GUARDADO NORMAL
+    if (Astro.request.method === "POST") {
+        const formData = await Astro.request.formData();
+        const puntaje = formData.get("puntaje");
+
+        if (puntaje) {
+            const columnaDestino = `epworth_${faseUrl}`;
+            
+            const { error: updateError } = await supabaseAdmin
+                .from('pacientes')
+                .update({ [columnaDestino]: parseInt(puntaje.toString()) })
+                .eq('id', paciente.id);
+
+            if (!updateError) {
+                mensaje = "¡Resultados guardados correctamente!";
+            } else {
+                console.error("Error al guardar:", updateError);
+                mensaje = "Error al guardar.";
+            }
+        }
+    }
+} else {
+    paciente = { id: 999, nombre: "Paciente Prueba" };
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado.";
 }
+
+const epworthOptions = [
+    { label: 'Nunca', value: 0 },
+    { label: 'Ligera', value: 1 },
+    { label: 'Moderada', value: 2 },
+    { label: 'Alta', value: 3 },
+];
+
+const epworthQuestions = [
+    { id: 'epworth_1', text: 'Al estar sentado leyendo' },
+    { id: 'epworth_2', text: 'Viendo T.V.' },
+    { id: 'epworth_3', text: 'Sentado inactivo en un lugar público (por ejemplo una sala de espera, cine, etc.)' },
+    { id: 'epworth_4', text: 'Como pasajero en un auto durante una hora ininterrumpida' },
+    { id: 'epworth_5', text: 'Recostado y descansando por la tarde, cuando las circunstancias lo permiten' },
+    { id: 'epworth_6', text: 'Sentado, hablando con alguien' },
+    { id: 'epworth_7', text: 'Sentado tranquilamente, después de una comida sin haber ingerido alcohol.' },
+    { id: 'epworth_8', text: 'En un auto que se encuentra detenido por algunos minutos debido al tráfico' },
+];
 ---
 
-<h1>Test de Epworth para {paciente.nombre}</h1>
-
-<form method="POST">
-    <input type="hidden" name="puntaje" id="puntaje-final">
+<LayoutCuestionario title="Cuestionario">
     
-    <button type="submit">Enviar</button>
-</form>
+    <div class="mb-4 text-gray-800 text-xl text-center">
+        <p class="mb-2">Estas situaciones se refieren a su estilo de vida durante los últimos siete días.</p>
+    </div>
+
+    <MatrixScale 
+        instruction="Use la siguiente escala para escoger el número más apropiado para cada situación:"
+        scaleLabel="PROBABILIDAD DE QUEDAR DORMIDO"
+        options={epworthOptions}
+        questions={epworthQuestions}
+    />
+
+
+</LayoutCuestionario>
