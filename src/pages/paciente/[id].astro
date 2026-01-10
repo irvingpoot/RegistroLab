@@ -112,7 +112,7 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*)')
     .eq('id', id)
     .single();
 
@@ -292,7 +292,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
-            <div class="mt-8 bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
+            <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-xl">
                 <div class="mb-6">
                     <h3 class="text-white font-bold text-lg flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
@@ -309,29 +309,65 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
 
                 <div class="grid gap-3">
-                    <div class="flex items-center gap-2 bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-blue-500/50 transition-colors">
-                        <div class="bg-blue-900/20 text-blue-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Epworth</div>
-                        <input type="text" readonly id="link-epworth" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
-                        <button onclick="copiarLink('link-epworth')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
-                        </button>
+                    
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-blue-500/50 transition-colors" id="row-epworth">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-blue-900/20 text-blue-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Epworth</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-epworth" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-epworth')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('epworth')" class="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-100 text-xs font-bold py-2 px-4 rounded border border-blue-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2 bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors">
-                        <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Berlin</div>
-                        <input type="text" readonly id="link-berlin" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
-                        <button onclick="copiarLink('link-berlin')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
-                        </button>
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-berlin">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Berlin</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-berlin" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-berlin')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('berlin')" class="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-4 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2 bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-emerald-500/50 transition-colors">
-                        <div class="bg-emerald-900/20 text-emerald-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
-                        <input type="text" readonly id="link-pittsburgh" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
-                        <button onclick="copiarLink('link-pittsburgh')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
-                        </button>
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-emerald-500/50 transition-colors" id="row-pittsburgh">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-emerald-900/20 text-emerald-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-pittsburgh" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-pittsburgh')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('pittsburgh')" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 text-xs font-bold py-2 px-4 rounded border border-emerald-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
 
@@ -389,6 +425,35 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
         </div>
     </main>
+
+    <dialog id="modal-ver-respuestas" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl backdrop:backdrop-blur-sm w-full max-w-2xl text-left p-0 overflow-hidden">
+        
+        <div class="bg-gray-800 border-b border-gray-700 p-5 flex justify-between items-center sticky top-0 z-10">
+            <div>
+                <h3 class="text-xl font-bold text-white capitalize flex items-center gap-3">
+                    <span id="titulo-ver-respuestas">Resultados</span>
+                    <span id="badge-fase" class="text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider"></span>
+                </h3>
+                <p class="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                    <span id="subtitulo-ver-respuestas">Fecha</span>
+                </p>
+            </div>
+            <button onclick="document.getElementById('modal-ver-respuestas').close()" class="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-lg p-2 transition-colors cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="max-h-[70vh] overflow-y-auto bg-gray-900">
+            <div id="contenido-respuestas" class="divide-y divide-gray-800"></div>
+        </div>
+        
+        <div class="bg-gray-800/30 border-t border-gray-800 p-2 text-center">
+            <span class="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Fin del reporte</span>
+        </div>
+    </dialog>
 
     <dialog id="modal-eliminar-observacion" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
         <div class="mb-4 text-red-500 flex justify-center">
@@ -545,7 +610,28 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
     }
 </style>
 
-<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios }}>
+<script define:vars={{ 
+    baseUrl: Astro.url.origin, 
+    token: paciente.token_cuestionarios,
+    // [NUEVO] Pasamos las respuestas de la BD al cliente
+    respuestasGuardadas: paciente.respuestas_cuestionarios || [] 
+}}>
+    // [NUEVO] DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
+    const DICCIONARIOS = {
+        epworth: {
+            epworth_1: "Al estar sentado leyendo",
+            epworth_2: "Viendo T.V.",
+            epworth_3: "Sentado inactivo en un lugar público",
+            epworth_4: "Como pasajero en un auto (1 hora)",
+            epworth_5: "Recostado descansando por la tarde",
+            epworth_6: "Sentado, hablando con alguien",
+            epworth_7: "Sentado tranquilamente tras comer",
+            epworth_8: "En un auto detenido por tráfico"
+        },
+        berlin: {}, // Aquí puedes agregar las preguntas de Berlin después
+        pittsburgh: {} // Aquí puedes agregar las de Pittsburgh después
+    };
+
     // Lógica para el modal de extras (Agregar / Eliminar filas)
     document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('modal-extras-container');
@@ -602,7 +688,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     (modalBorrarObs).showModal();
                 }
             }
-
         });
 
         // Función para eliminar fila
@@ -637,26 +722,128 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
     });
 
     let currentFase = 'pre';
+    
+    // Referencias a los inputs de links
     const inputs = {
         epworth: document.getElementById('link-epworth'),
         berlin: document.getElementById('link-berlin'),
         pittsburgh: document.getElementById('link-pittsburgh'),
     };
+
+    // Referencias a las filas completas (para ocultar link y mostrar botón)
+    const rows = {
+        epworth: document.getElementById('row-epworth'),
+        berlin: document.getElementById('row-berlin'),
+        pittsburgh: document.getElementById('row-pittsburgh'),
+    };
     
+    // [MODIFICADO] Función setFase ahora gestiona la visibilidad
     window.setFase = (fase) => {
         currentFase = fase;
-        // Generamos los 3 links dinámicamente
+
+        // 1. Generamos los 3 links dinámicamente (por si se necesitan)
         inputs.epworth.value = `${baseUrl}/cuestionarios/epworth/${token}?fase=${fase}`;
         inputs.berlin.value = `${baseUrl}/cuestionarios/berlin/${token}?fase=${fase}`;
         inputs.pittsburgh.value = `${baseUrl}/cuestionarios/pittsburgh/${token}?fase=${fase}`;
 
-        // Actualizamos botones visualmente
+        // 2. Actualizamos estilos de botones de fase
         ['pre', 'inter', 'post'].forEach(f => {
             const btn = document.getElementById(`btn-${f}`);
             btn.className = f === fase 
                 ? "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow"
                 : "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
         });
+
+        // 3. [NUEVO] Verificamos si ya hay respuesta para mostrar Botón o Link
+        ['epworth', 'berlin', 'pittsburgh'].forEach(cuestionario => {
+            const row = rows[cuestionario];
+            // Buscamos los contenedores dentro de la fila
+            const containerLink = row.querySelector('.container-link');
+            const containerBtn = row.querySelector('.container-btn');
+
+            // Buscar si existe respuesta en la BD para este cuestionario y la fase actual
+            const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === fase);
+
+            if (respuesta) {
+                // SÍ HAY RESPUESTA: Ocultar link, mostrar botón "Ver Respuestas"
+                containerLink.classList.add('hidden');
+                containerBtn.classList.remove('hidden');
+            } else {
+                // NO HAY RESPUESTA: Mostrar link, ocultar botón
+                containerLink.classList.remove('hidden');
+                containerBtn.classList.add('hidden');
+            }
+        });
+    }
+
+    // [NUEVO] Función para abrir el modal con los datos
+    window.verRespuestas = (cuestionario) => {
+        const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === currentFase);
+        if (!respuesta || !respuesta.datos) return;
+
+        const modal = document.getElementById('modal-ver-respuestas');
+        const titulo = document.getElementById('titulo-ver-respuestas');
+        const subtitulo = document.getElementById('subtitulo-ver-respuestas');
+        const badgeFase = document.getElementById('badge-fase');
+        const contenido = document.getElementById('contenido-respuestas');
+
+        // Configuración de Textos y Colores
+        titulo.textContent = cuestionario.charAt(0).toUpperCase() + cuestionario.slice(1);
+        subtitulo.textContent = new Date(respuesta.updated_at).toLocaleDateString('es-MX', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+        });
+
+        const colorMap = { pre: 'blue', inter: 'purple', post: 'emerald' };
+        const color = colorMap[currentFase] || 'gray';
+        
+        badgeFase.textContent = currentFase.toUpperCase();
+        badgeFase.className = `text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider font-bold bg-${color}-500/10 text-${color}-400 border-${color}-500/20`;
+
+        let html = '';
+        const datos = respuesta.datos;
+        const preguntas = DICCIONARIOS[cuestionario] || {};
+
+        // 1. SECCIÓN DE PUNTAJE (Banner Superior)
+        if (datos.puntaje) {
+            html += `
+                <div class="px-6 py-5 bg-gradient-to-r from-gray-800/50 to-gray-900 border-b border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Puntaje Total</p>
+                        <p class="text-gray-500 text-xs">Cálculo automático</p>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-3xl font-mono font-bold text-white">${datos.puntaje}</span>
+                        <span class="text-xs text-gray-500 font-medium uppercase">pts</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. LISTA DE PREGUNTAS (Diseño de Filas)
+        for (const key in datos) {
+            if (key === 'puntaje') continue;
+
+            const textoPregunta = preguntas[key] || key;
+            const valorRespuesta = datos[key];
+
+            html += `
+                <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/5 transition-colors group">
+                    <div class="md:w-3/4">
+                        <p class="text-gray-300 text-sm font-medium leading-snug group-hover:text-white transition-colors">
+                            ${textoPregunta}
+                        </p>
+                    </div>
+                    <div class="md:w-1/4 flex justify-end">
+                        <span class="inline-block bg-gray-900 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs font-mono font-bold text-center min-w-[3rem]">
+                            ${valorRespuesta}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
+        contenido.innerHTML = html;
+        modal.showModal();
     }
 
     window.copiarLink = (inputId) => {
