@@ -88,7 +88,7 @@ if (Astro.request.method === "POST") {
             hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
             hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
             isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
-            spqi_pre: getInt("spqi_pre"), spqi_inter: getInt("spqi_inter"), spqi_post: getInt("spqi_post"),
+            psqi_pre: getInt("psqi_pre"), psqi_inter: getInt("psqi_inter"), psqi_post: getInt("psqi_post"),
             stop_bang_pre: getInt("stop_bang_pre"), stop_bang_inter: getInt("stop_bang_inter"), stop_bang_post: getInt("stop_bang_post"),
             berlin_pre: getInt("berlin_pre"), berlin_inter: getInt("berlin_inter"), berlin_post: getInt("berlin_post"),
             cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
@@ -213,9 +213,33 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                         </div>
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
-                            <div class="flex grow flex-col md:w-1/3">
-                                <label class="label">¿Quién lo refiere?</label>
-                                <input type="text" name="referencia" value={p.referencia} required class="input">
+                            <div class="flex grow flex-col gap-2">
+                                <label class="text-sm font-medium text-gray-300">
+                                    Referencia (Referido por)
+                                </label>
+                                <div class="relative">
+                                    <select 
+                                        name="referencia" 
+                                        required
+                                        class="w-full bg-gray-900/50 border border-gray-600 text-white p-3 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none transition-all cursor-pointer"
+                                    >
+                                        <option value="" disabled>Selecciona una opción</option>
+                                        
+                                        <option value="Servicio Medico" selected={p.referencia === 'Servicio Medico'}>
+                                            Servicio Médico
+                                        </option>
+                                        
+                                        <option value="Privado" selected={p.referencia === 'Privado'}>
+                                            Privado
+                                        </option>
+                                    </select>
+
+                                    <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
                             <div class="flex grow flex-col">
                                 <label class="label">Motivo de la consulta</label>
@@ -406,7 +430,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                                 </tr>
                             </thead>
                             <tbody class="text-sm divide-y divide-gray-800">
-                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'spqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
+                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
                                     <tr class="hover:bg-gray-800/30 transition-colors">
                                         <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
                                             {score.replace(/_/g, ' ')}

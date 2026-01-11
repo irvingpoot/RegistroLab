@@ -8,9 +8,9 @@ interface Props {
     min?: number;
     max?: number;
     step?: number;
+    // 1. Agregamos prop
+    color?: 'blue' | 'purple' | 'emerald';
 }
-
-
 
 const { 
     label, 
@@ -20,8 +20,18 @@ const {
     required = false,
     min,
     max,
-    step
+    step,
+    color = 'blue' // Default
 } = Astro.props;
+
+// 2. Mapa de clases para el texto
+const textColors = {
+    blue: "text-blue-600",
+    purple: "text-purple-600",
+    emerald: "text-emerald-600"
+};
+
+const textColorClass = textColors[color] || textColors.blue;
 ---
 
 <div class="flex flex-col w-full mb-4">
@@ -29,8 +39,9 @@ const {
         {label} {required && <span class="text-red-600">*</span>}
     </label>
 
+    {/* Usamos la clase dinámica */}
     {subLabel && (
-        <p class="text-md text-blue-600 italic mb-3">{subLabel}</p>
+        <p class={`text-md italic mb-3 ${textColorClass}`}>{subLabel}</p>
     )}
 
     <input
@@ -42,14 +53,6 @@ const {
         min={min}
         max={max}
         step={step}
-        class="
-        bg-gray-50 
-        border border-gray-300 
-        text-gray-900 text-sm 
-        rounded-lg 
-        focus:ring-2 focus:ring-gray-200 focus:border-gray-800 
-        block w-full p-2.5 
-        outline-none transition-colors
-        "
+        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-2 focus:ring-gray-200 focus:border-gray-800 block w-full p-2.5 outline-none transition-colors"
     />
 </div>

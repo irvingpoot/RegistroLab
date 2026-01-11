@@ -147,7 +147,7 @@ const optionsCompañero = [
 
 ---
 
-<LayoutCuestionario title="Cuestionario">
+<LayoutCuestionario title="Cuestionario Pittsburgh" tipo="pittsburgh">
 
     {yaContestado ? (
             <div class="max-w-xl mx-auto mt-12 relative px-4">
@@ -240,6 +240,7 @@ const optionsCompañero = [
                         subLabel="Hora habitual de acostarse:"
                         name="hora_acostarse"
                         required={true}
+                        color="purple"
                     />
 
                     <InputNumber 
@@ -250,6 +251,7 @@ const optionsCompañero = [
                         min={0}
                         max={1000} 
                         required={true}
+                        color="purple"
                     />
 
                     <TimePicker 
@@ -257,6 +259,7 @@ const optionsCompañero = [
                         subLabel="Hora habitual de levantarse:"
                         name="hora_levantarse"
                         required={true}
+                        color="purple"
                     />
 
                     <InputNumber 
@@ -267,6 +270,7 @@ const optionsCompañero = [
                         min={0}
                         max={1000} 
                         required={true}
+                        color="purple"
                     />
 
                     <MatrixScale 
@@ -274,6 +278,7 @@ const optionsCompañero = [
                         scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
                         options={alteracionOptions}
                         questions={alteracionQuestions}
+                        color="purple"
                     />
 
                     <InputText
@@ -328,6 +333,7 @@ const optionsCompañero = [
                         scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
                         options={compañeroOptions}
                         questions={compañeroQuestions}
+                        color="purple"
                     />
 
                     <InputText
@@ -337,7 +343,7 @@ const optionsCompañero = [
                     />
 
                     <div class="pt-10">
-                        <button type="button" id="btn-pre-submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
+                        <button type="button" id="btn-pre-submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-purple-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
                             Guardar y Finalizar
                         </button>
                     </div>

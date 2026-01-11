@@ -2,27 +2,34 @@
 interface Props {
     label: string;
     subLabel?: string;
-    name: string;      // El nombre que se enviará al backend
+    name: string;
     required?: boolean;
+    color?: 'blue' | 'purple' | 'emerald';
 }
 
-const { label, subLabel, name, required = false } = Astro.props;
+const { label, subLabel, name, required = false, color = 'blue' } = Astro.props;
 
-// Generamos los arrays para las opciones (00-23 y 00-59)
 const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+// Mapa de colores
+const textColors = {
+    blue: "text-blue-600",
+    purple: "text-purple-600",
+    emerald: "text-emerald-600"
+};
+const textColorClass = textColors[color] || textColors.blue;
 ---
 
 <div class="mb-6 time-picker-component" data-name={name}>
     
-    {/* Etiqueta Principal */}
     <label class="block mb-1 text-lg font-medium text-gray-900">
         {label} {required && <span class="text-red-600">*</span>}
     </label>
 
-    {/* Subtítulo */}
+    {/* Color dinámico */}
     {subLabel && (
-        <p class="text-sm text-blue-600 italic mb-3">{subLabel}</p>
+        <p class={`text-sm italic mb-3 ${textColorClass}`}>{subLabel}</p>
     )}
 
     <div class="flex items-center gap-2">

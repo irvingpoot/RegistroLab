@@ -1,7 +1,7 @@
 ---
 interface Option {
-    label: string; // Ej: "Nunca"
-    value: number; // Ej: 0
+    label: string;
+    value: number;
 }
 
 interface Question {
@@ -10,26 +10,52 @@ interface Question {
 }
 
 interface Props {
-    instruction?: string; // Ej: "2) Use la siguiente escala..."
-    scaleLabel?: string; // Ej: "PROBABILIDAD DE QUEDAR DORMIDO"
+    instruction?: string;
+    scaleLabel?: string;
     questions: Question[];
     options: Option[];
+    // 1. Agregamos la prop de color
+    color?: 'blue' | 'purple' | 'emerald'; 
 }
 
-const { instruction, scaleLabel, questions, options } = Astro.props;
+const { 
+    instruction, 
+    scaleLabel, 
+    questions, 
+    options,
+    color = 'blue' // Valor por defecto
+} = Astro.props;
+
+// 2. Definimos los estilos según el color seleccionado
+const themeStyles = {
+    blue: {
+        label: "text-blue-600",
+        active: "peer-checked:border-blue-600 peer-checked:text-blue-600 peer-checked:bg-blue-50",
+    },
+    purple: {
+        label: "text-purple-600",
+        active: "peer-checked:border-purple-600 peer-checked:text-purple-600 peer-checked:bg-purple-50",
+    },
+    emerald: {
+        label: "text-emerald-600",
+        active: "peer-checked:border-emerald-600 peer-checked:text-emerald-600 peer-checked:bg-emerald-50",
+    }
+};
+
+const currentTheme = themeStyles[color] || themeStyles.blue;
 ---
 
 <div class="w-full font-sans text-gray-700">
-    {/* 1. Instrucciones superiores */}
+    {/* Instrucciones */}
     {instruction && (
         <div class="mb-4 text-lg text-center px-4">
         <p>{instruction}</p>
         </div>
     )}
 
-    {/* 2. Etiqueta de la escala */}
+    {/* Etiqueta de la escala (Usamos el color dinámico) */}
     {scaleLabel && (
-        <div class="mb-6 text-blue-600 uppercase text-sm font-semibold tracking-wide text-center px-4">
+        <div class={`mb-6 uppercase text-sm font-semibold tracking-wide text-center px-4 ${currentTheme.label}`}>
         {scaleLabel}
         </div>
     )}
@@ -81,46 +107,39 @@ const { instruction, scaleLabel, questions, options } = Astro.props;
     {/* ========================================= */}
     {/* VISTA MÓVIL (Lista de Tarjetas) - Se muestra solo en móviles */}
     {/* ========================================= */}
-    <div class="md:hidden flex flex-col">
+    <div class="md:hidden space-y-4">
         {questions.map((question, index) => (
-        <div
-            class={`p-4 border-t border-gray-100 ${
-            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-            }`}
-        >
-            {/* Texto de la Pregunta */}
-            <p class="text-base font-medium text-gray-900 mb-4 leading-snug">
-            {question.text}
-            </p>
+            <div class={`p-4 border-t border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                <p class="text-base font-medium text-gray-900 mb-4 leading-snug">
+                {question.text}
+                </p>
 
-            {/* Opciones como Botones */}
-            <div class="flex flex-wrap gap-2">
-            {options.map((option) => (
-                <label class="flex-1 min-w-[80px] relative cursor-pointer">
-                <input
-                    type="radio"
-                    name={`${question.id}`}
-                    value={option.value}
-                    class="peer sr-only"
-                    required
-                />
-                <div
-                    class="
-                    flex items-center justify-center 
-                    py-2 px-3 text-sm text-center
-                    bg-white border border-gray-300 rounded-md
-                    text-gray-700 transition-all
-                    hover:bg-gray-50 hover:border-gray-400
-                    peer-checked:border-blue-600 peer-checked:text-blue-600 peer-checked:bg-blue-50 peer-checked:font-medium
-                    select-none
-                    "
-                >
-                    {option.label} {option.value}
+                <div class="flex flex-wrap gap-2">
+                {options.map((option) => (
+                    <label class="flex-1 min-w-[80px] relative cursor-pointer">
+                    <input
+                        type="radio"
+                        name={`${question.id}`}
+                        value={option.value}
+                        class="peer sr-only"
+                        required
+                    />
+                    {/* APLICAMOS LAS CLASES DINÁMICAS AQUÍ */}
+                    <div class={`
+                        flex items-center justify-center 
+                        py-2 px-3 text-sm text-center
+                        bg-white border border-gray-300 rounded-md
+                        text-gray-700 transition-all
+                        hover:bg-gray-50 hover:border-gray-400
+                        peer-checked:font-medium select-none
+                        ${currentTheme.active}
+                    `}>
+                        {option.label}
+                    </div>
+                    </label>
+                ))}
                 </div>
-                </label>
-            ))}
             </div>
-        </div>
         ))}
     </div>
 </div>

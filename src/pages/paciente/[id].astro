@@ -356,9 +356,9 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         </div>
                     </div>
 
-                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-berlin">
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-emerald-500/50 transition-colors" id="row-berlin">
                         <div class="flex items-center gap-2">
-                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Berlin</div>
+                            <div class="bg-emerald-900/20 text-emerald-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Berlin</div>
                             
                             <div class="container-link flex items-center gap-2 w-full">
                                 <input type="text" readonly id="link-berlin" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
@@ -367,7 +367,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                                 </button>
                             </div>
                             <div class="container-btn hidden w-full">
-                                <button onclick="verRespuestas('berlin')" class="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-4 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
+                                <button onclick="verRespuestas('berlin')" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 text-xs font-bold py-2 px-4 rounded border border-emerald-500/30 flex items-center justify-center gap-2 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                     Ver Respuestas del Paciente
                                 </button>
@@ -375,9 +375,9 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         </div>
                     </div>
 
-                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-emerald-500/50 transition-colors" id="row-pittsburgh">
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-pittsburgh">
                         <div class="flex items-center gap-2">
-                            <div class="bg-emerald-900/20 text-emerald-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
+                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
                             
                             <div class="container-link flex items-center gap-2 w-full">
                                 <input type="text" readonly id="link-pittsburgh" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
@@ -386,7 +386,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                                 </button>
                             </div>
                             <div class="container-btn hidden w-full">
-                                <button onclick="verRespuestas('pittsburgh')" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 text-xs font-bold py-2 px-4 rounded border border-emerald-500/30 flex items-center justify-center gap-2 transition-all">
+                                <button onclick="verRespuestas('pittsburgh')" class="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-4 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                     Ver Respuestas del Paciente
                                 </button>
@@ -562,25 +562,37 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
     <dialog id="modal-ver-respuestas" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl backdrop:backdrop-blur-sm w-full max-w-2xl text-left p-0 overflow-hidden">
         
-        <div class="bg-gray-800 border-b border-gray-700 p-5 flex justify-between items-center sticky top-0 z-10">
-            <div>
-                <h3 class="text-xl font-bold text-white capitalize flex items-center gap-3">
-                    <span id="titulo-ver-respuestas">Resultados</span>
-                    <span id="badge-fase" class="text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider"></span>
-                </h3>
-                <p class="text-sm text-gray-400 mt-1 flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
-                    <span id="subtitulo-ver-respuestas">Fecha</span>
-                </p>
+        <div class="bg-gray-800 border-b border-gray-700 p-5 sticky top-0 z-10">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="text-xl font-bold text-white capitalize flex items-center gap-3">
+                        <span id="titulo-ver-respuestas">Resultados</span>
+                        <span id="badge-fase" class="text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider"></span>
+                    </h3>
+                    <p class="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                        <span id="subtitulo-ver-respuestas">Fecha</span>
+                    </p>
+                </div>
+                <button onclick="document.getElementById('modal-ver-respuestas').close()" class="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-lg p-2 transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
             </div>
-            <button onclick="document.getElementById('modal-ver-respuestas').close()" class="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-lg p-2 transition-colors cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-            </button>
+
+            <div class="flex items-center gap-2 bg-gray-900/50 border border-gray-700/50 rounded-lg p-2">
+                <div class="bg-gray-800 p-1.5 rounded text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                </div>
+                <input type="text" id="modal-link-input" readonly class="bg-transparent border-none text-xs text-blue-400 font-mono w-full focus:ring-0 px-0" />
+                <button onclick="copiarLinkModal()" class="text-xs font-bold text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap" id="btn-copiar-modal">
+                    Copiar
+                </button>
+            </div>
         </div>
 
-        <div class="max-h-[70vh] overflow-y-auto bg-gray-900">
+        <div class="max-h-[60vh] overflow-y-auto bg-gray-900">
             <div id="contenido-respuestas" class="divide-y divide-gray-800"></div>
         </div>
         
@@ -920,6 +932,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         const subtitulo = document.getElementById('subtitulo-ver-respuestas');
         const badgeFase = document.getElementById('badge-fase');
         const contenido = document.getElementById('contenido-respuestas');
+        const modalLinkInput = document.getElementById('modal-link-input');
 
         // Configuración de Textos y Colores
         titulo.textContent = cuestionario.charAt(0).toUpperCase() + cuestionario.slice(1);
@@ -932,6 +945,9 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         
         badgeFase.textContent = currentFase.toUpperCase();
         badgeFase.className = `text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider font-bold bg-${color}-500/10 text-${color}-400 border-${color}-500/20`;
+
+        const fullLink = `${baseUrl}/cuestionarios/${cuestionario}/${token}?fase=${currentFase}`;
+        if(modalLinkInput) modalLinkInput.value = fullLink;
 
         let html = '';
         const datos = respuesta.datos;
@@ -989,6 +1005,24 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         const parent = input.parentElement;
         parent.classList.add('bg-blue-900/30', 'border-blue-500');
         setTimeout(() => parent.classList.remove('bg-blue-900/30', 'border-blue-500'), 200);
+    }
+
+    window.copiarLinkModal = () => {
+        const input = document.getElementById('modal-link-input');
+        const btn = document.getElementById('btn-copiar-modal');
+        
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        
+        // Feedback visual en el botón
+        const textoOriginal = btn.innerText;
+        btn.innerText = "¡Copiado!";
+        btn.classList.add('text-green-400');
+        
+        setTimeout(() => {
+            btn.innerText = textoOriginal;
+            btn.classList.remove('text-green-400');
+        }, 1500);
     }
 
     const inputFechaPago = document.getElementById('pago-fecha');

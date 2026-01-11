@@ -119,7 +119,7 @@ const optionsSexo = [
 ];
 
 ---
-<LayoutCuestionario title="Cuestionario">
+<LayoutCuestionario title="Cuestionario Berlin" tipo="berlin">
 
     {yaContestado ? (
             <div class="max-w-xl mx-auto mt-12 relative px-4">
@@ -214,6 +214,7 @@ const optionsSexo = [
                         min={0}
                         max={120} 
                         required={true}
+                        color="emerald"
                     />
 
                     <InputNumber 
@@ -223,6 +224,7 @@ const optionsSexo = [
                         min={0} 
                         max={250} 
                         required={true}
+                        color="emerald"
                     />
 
                     <InputNumber 
@@ -313,7 +315,7 @@ const optionsSexo = [
                     />
 
                     <div class="pt-10">
-                        <button type="button" id="btn-pre-submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
+                        <button type="button" id="btn-pre-submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
                             Guardar y Finalizar
                         </button>
                     </div>
