@@ -22,10 +22,7 @@ let queryBuilder = supabase
     .from('pacientes')
     .select(`
         *,
-        pacientes_seguimiento (
-            registrado_por,
-            fecha
-        )
+        pacientes_seguimiento ( registrado_por, fecha ).order('fecha', { ascending: false }).limit(1)
     `, { count: 'exact' })
     .order('created_at', { ascending: false });
 
