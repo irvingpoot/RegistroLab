@@ -246,17 +246,67 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             </div>
 
             <InfoCard title="Hábitos y Patrones de Sueño">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Horario Sueño</span><p class="text-xl font-mono text-white mt-1">{formatTime(paciente.hora_dormir)} - {formatTime(paciente.hora_levantarse)}</p></div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Tiempo en dormir</span><p class="text-xl text-white mt-1">{paciente.tiempo_dormir || "—"}</p></div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Lugar</span><p class="text-xl text-white mt-1 capitalize">{paciente.donde_duerme || "—"}</p></div>
+    
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 border-b border-gray-700/50 pb-8">
+                    
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-blue-300 text-[10px] mb-1">Se acuesta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_acostarse)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-indigo-300 text-[10px] mb-1">Se duerme</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_dormir)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-emerald-300 text-[10px] mb-1">Se despierta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_despertar)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-teal-300 text-[10px] mb-1">Se levanta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_levantarse)}</p>
+                    </div>
+
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div><span class="label">Despertares nocturnos</span><p class="value capitalize">{paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}</p></div>
-                    <div><span class="label">Somnolencia diurna</span><p class="value capitalize">{paciente.somnolencia || "No"}</p></div>
-                    <div><span class="label">Siestas</span><p class="value capitalize">{paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}</p></div>
-                    <div><span class="label">Ejercicio</span><p class="value capitalize">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}</p></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+
+                    <div>
+                        <span class="label mb-0">Lugar habitual de sueño</span>
+                        <p class="text-lg text-white font-medium capitalize">{paciente.donde_duerme || "—"}</p>
+                    </div>
+
+                    <div>
+                        <span class="label">Despertares nocturnos</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Somnolencia diurna</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.somnolencia || "No"}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Siestas</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Ejercicio físico</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}
+                        </p>
+                    </div>
                 </div>
+
             </InfoCard>
 
             <InfoCard title="Análisis de Síntomas">

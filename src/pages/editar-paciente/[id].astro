@@ -72,9 +72,10 @@ if (Astro.request.method === "POST") {
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
 
             donde_duerme: data.get("donde_duerme"),
+            hora_acostarse: data.get("hora_acostarse"), 
             hora_dormir: data.get("hora_dormir"),
+            hora_despertar: data.get("hora_despertar"), // Nuevo
             hora_levantarse: data.get("hora_levantarse"),
-            tiempo_dormir: data.get("tiempo_dormir"),
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
             somnolencia: data.get("somnolencia"),
@@ -303,18 +304,25 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                                 ))}
                             </div>
                         </div>
-                        <div class="flex flex-col md:flex-row gap-4 md:gap-7">
-                            <div class="flex grow flex-col">
-                                <label class="label">Hora de dormir:</label>
-                                <input type="time" name="hora_dormir" value={p.hora_dormir} class="input" style="color-scheme: dark;">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se acuesta</label>
+                                <input type="time" name="hora_acostarse" value={p.hora_acostarse} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
-                            <div class="flex grow flex-col">
-                                <label class="label">Hora de levantarse:</label>
-                                <input type="time" name="hora_levantarse" value={p.hora_levantarse} class="input" style="color-scheme: dark;">
+                            
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se duerme</label>
+                                <input type="time" name="hora_dormir" value={p.hora_dormir} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
-                            <div class="flex grow flex-col">
-                                <label class="label">Tiempo en dormir:</label>
-                                <input type="text" name="tiempo_dormir" value={p.tiempo_dormir} class="input">
+
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que despierta</label>
+                                <input type="time" name="hora_despertar" value={p.hora_despertar} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
+                            </div>
+
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se levanta</label>
+                                <input type="time" name="hora_levantarse" value={p.hora_levantarse} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
                         </div>
 

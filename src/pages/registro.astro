@@ -76,9 +76,10 @@ if (Astro.request.method === "POST") {
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
 
             donde_duerme: data.get("donde_duerme"),
-            hora_dormir: data.get("hora_dormir"),
-            hora_levantarse: data.get("hora_levantarse"),
-            tiempo_dormir: data.get("tiempo_dormir"),
+            hora_acostarse: data.get("hora_acostarse"), // Ya existía en tu tabla
+            hora_dormir: data.get("hora_dormir"),       // Existente
+            hora_despertar: data.get("hora_despertar"), // NUEVO
+            hora_levantarse: data.get("hora_levantarse"), // Existente
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
             somnolencia: data.get("somnolencia"),
@@ -332,17 +333,30 @@ if (Astro.request.method === "POST") {
                         </div>
 
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
-                            <div class="flex grow flex-col">
-                                <label for="hora_dormir" class="text-lg font-medium text-gray-300">Hora de dormir:</label>
-                                <input type="time" id="hora_dormir" name="hora_dormir" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
-                            </div>
-                            <div class="flex grow flex-col">
-                                <label for="hora_levantarse" class="text-lg font-medium text-gray-300">Hora de levantarse:</label>
-                                <input type="time" id="hora_levantarse" name="hora_levantarse" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
-                            </div>
-                            <div class="flex grow flex-col">
-                                <label for="tiempo_dormir" class="text-lg font-medium text-gray-300">Tiempo promedio en quedarse dormido (min):</label>
-                                <input type="text" id="tiempo_dormir" name="tiempo_dormir" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" placeholder="Ej. 30">
+                            <div class="flex flex-col gap-4">
+                                <label class="text-lg font-medium text-gray-300 border-b border-gray-700 pb-1">Ciclo de Sueño</label>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div class="flex flex-col">
+                                        <label for="hora_acostarse" class="text-xs text-gray-400 mb-1">Hora que se acuesta</label>
+                                        <input type="time" id="hora_acostarse" name="hora_acostarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                    </div>
+
+                                    <div class="flex flex-col">
+                                        <label for="hora_dormir" class="text-xs text-gray-400 mb-1">Hora que se duerme</label>
+                                        <input type="time" id="hora_dormir" name="hora_dormir" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                    </div>
+
+                                    <div class="flex flex-col">
+                                        <label for="hora_despertar" class="text-xs text-gray-400 mb-1">Hora que despierta</label>
+                                        <input type="time" id="hora_despertar" name="hora_despertar" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                    </div>
+
+                                    <div class="flex flex-col">
+                                        <label for="hora_levantarse" class="text-xs text-gray-400 mb-1">Hora que se levanta</label>
+                                        <input type="time" id="hora_levantarse" name="hora_levantarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
