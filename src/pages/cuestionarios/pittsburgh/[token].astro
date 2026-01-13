@@ -1,0 +1,427 @@
+---
+import { createClient } from "@supabase/supabase-js"
+import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
+import MatrixScale from "../../../components/MatrixScale.astro"
+import TimePicker from "../../../components/TimePicker.astro"
+import InputNumber from "../../../components/InputNumber.astro"
+import InputText from "../../../components/InputText.astro"
+import RadioGroup from "../../../components/RadioGroup.astro"
+
+const MODO_DISENO = false; // Cambiar a false para producción
+
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+const { token } = Astro.params;
+const faseUrl = Astro.url.searchParams.get('fase');
+
+const nombreCuestionario = 'pittsburgh'; 
+
+let paciente = { id: 0, nombre: "" };
+let mensaje = "";
+let yaContestado = false;
+
+if (!MODO_DISENO) {
+    if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) {
+        return Astro.redirect('/404');
+    }
+
+    // 1. VALIDAR ACCESO Y ESTADO (Usando la función segura RPC)
+    const { data: infoAcceso, error: errorAcceso } = await supabase
+        .rpc('validar_acceso_cuestionario', {
+            token_input: token,
+            cuestionario_input: nombreCuestionario,
+            fase_input: faseUrl
+        });
+
+    // Si devuelve array vacío o error, es que el token no existe
+    if (errorAcceso || !infoAcceso || infoAcceso.length === 0) {
+        console.error("Error acceso:", errorAcceso);
+        return Astro.redirect('/404');
+    }
+
+    // Mapeamos los datos recibidos de la función SQL
+    paciente = { 
+        id: infoAcceso[0].paciente_id, 
+        nombre: infoAcceso[0].nombre 
+    };
+    yaContestado = infoAcceso[0].ya_contestado;
+
+    // 2. PROCESAR FORMULARIO (POST)
+    if (Astro.request.method === "POST" && !yaContestado) {
+        try {
+            const formData = await Astro.request.formData();
+            const respuestas = Object.fromEntries(formData);
+
+            // Guardar usando la función RPC segura
+            const { error: saveError } = await supabase
+                .rpc('guardar_respuesta_segura', {
+                    token_input: token,
+                    fase_input: faseUrl,
+                    cuestionario_input: nombreCuestionario,
+                    datos_input: respuestas
+                });
+
+            if (saveError) {
+                console.error("Error Supabase RPC:", saveError);
+                mensaje = "Error al guardar las respuestas.";
+            } else {
+                // ÉXITO: Recargamos para mostrar la pantalla de "Gracias"
+                return Astro.redirect(Astro.url.pathname + Astro.url.search);
+            }
+
+        } catch (e) {
+            console.error("Error procesando:", e);
+            mensaje = "Ocurrió un error inesperado.";
+        }
+    }
+} else {
+    // Modo diseño
+    paciente = { id: 0, nombre: "Paciente Simulado" };
+    yaContestado = false; 
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
+}
+
+const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
+
+
+const alteracionOptions = [
+    { label: 'No me ha ocurrido durante el ultimo mes', value: 0 },
+    { label: 'Menos de una vez a la semana', value: 1 },
+    { label: 'Una o dos veces a la semana', value: 2 },
+    { label: 'Tres o más veces a la semana', value: 3 },
+];
+
+const alteracionQuestions = [
+    { id: 'alteracion_1', text: 'No poder conciliar el sueño después de 30 minutos de intentarlo' },
+    { id: 'alteracion_2', text: 'Despertarse en mitad de la noche o de madrugada' },
+    { id: 'alteracion_3', text: 'Tener que ir al baño' },
+    { id: 'alteracion_4', text: 'No poder respirar adecuadamente' },
+    { id: 'alteracion_5', text: 'Tos o ronquidos' },
+    { id: 'alteracion_6', text: 'Sensación de frío' },
+    { id: 'alteracion_7', text: 'Sensación de calor' },
+    { id: 'alteracion_8', text: 'Pesadillas' },
+    { id: 'alteracion_9', text: 'Sentir dolor' }
+];
+
+const compañeroOptions = [
+    { label: 'No me ha ocurrido durante el ultimo mes', value: 0 },
+    { label: 'Menos de una vez a la semana', value: 1 },
+    { label: 'Una o dos veces a la semana', value: 2 },
+    { label: 'Tres o más veces a la semana', value: 3 },
+];
+
+const compañeroQuestions = [
+    { id: 'compañero_1', text: 'Ronquidos fuertes' },
+    { id: 'compañero_2', text: 'Largas pausas entre respiraciones mientras dormía' },
+    { id: 'compañero_3', text: 'Temblor o sacudidas de las piernas mientras dormía' },
+    { id: 'compañero_4', text: 'Episodios de desorientación o confusión durante el sueño' },
+    { id: 'compañero_5', text: 'Otro tipo de transtorno mientras dormía, por favor describa' }
+];
+
+const optionsFrecuencia = [
+    { label: 'No me ha ocurrido durante el último mes', value: 'si' },
+    { label: 'Menos de una vez a la semana', value: 'no' },
+    { label: 'Una o dos veces a la semana', value: 'unknown' },
+    { label: 'Tres o más veces a ala semana', value: 'no' }
+];
+
+const optionsCalidad = [
+    { label: 'Muy buena', value: 'si' },
+    { label: 'Bastante buena', value: 'no' },
+    { label: 'Bastante mala', value: 'unknown' },
+    { label: 'Muy mala', value: 'no' }
+];
+
+const optionsCompañero = [
+    { label: 'No tengo pareja ni compañero/a de habitación', value: 'si' },
+    { label: 'Si tengo pero duerme en otra habitación', value: 'no' },
+    { label: 'Si tengo, pero duerme en la misma habitación y distinta cama', value: 'unknown' },
+    { label: 'Si tengo y duerme en la misma cama', value: 'no' }
+];
+
+---
+
+<LayoutCuestionario title="Cuestionario Pittsburgh" tipo="pittsburgh">
+
+    {yaContestado ? (
+            <div class="max-w-xl mx-auto mt-12 relative px-4">
+    
+                <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl blur-2xl opacity-20 transform scale-95 translate-y-4 pointer-events-none"></div>
+
+                <div class="relative bg-white border border-emerald-100 rounded-3xl p-8 md:p-12 text-center shadow-2xl shadow-emerald-900/5 overflow-hidden">
+                    
+                    <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none"></div>
+                    
+                    <div class="relative w-24 h-24 mx-auto mb-8">
+                        <div class="absolute inset-0 bg-emerald-200 rounded-full animate-ping opacity-25"></div>
+                        <div class="relative w-full h-full bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <h2 class="text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">¡Cuestionario Completado!</h2>
+                    
+                    <div class="bg-emerald-50/50 rounded-2xl p-6 mb-8 border border-emerald-100/50">
+                        <p class="text-gray-600 text-lg leading-relaxed">
+                            Hemos recibido correctamente tus respuestas para la fase de <span class="font-bold text-emerald-700">{textoFase}</span>.
+                        </p>
+                        <p class="text-sm text-emerald-600/70 mt-2 font-medium">No es necesario realizar ninguna otra acción.</p>
+                    </div>
+
+                    <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-gray-400 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Registrado el: {new Date().toLocaleDateString()}
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <>
+                <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-purple-900/5 border border-purple-100 p-6 md:p-8 mb-10">
+        
+                    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-fuchsia-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                        <div class="flex items-start gap-5">
+                            <div class="p-4 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-2xl shadow-lg shadow-purple-500/30 text-white shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold uppercase tracking-wider border border-purple-200">
+                                        {textoFase}
+                                    </span>
+                                </div>
+                                <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Índice de Pittsburgh</h1>
+                                <p class="text-gray-500 font-medium">Paciente: <span class="text-gray-900">{paciente.nombre}</span></p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                            <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 min-w-[100px] text-center">
+                                <p class="text-xs text-gray-400 uppercase font-bold">Tiempo</p>
+                                <p class="text-lg font-bold text-gray-800">~5 min</p>
+                            </div>
+                            <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 min-w-[120px] text-center">
+                                <p class="text-xs text-purple-600 uppercase font-bold">Periodo</p>
+                                <p class="text-lg font-bold text-purple-700">Último Mes</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100">
+                        <div class="flex gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <p class="text-gray-600 text-sm leading-relaxed">
+                                Evaluaremos la <strong>calidad de su sueño</strong> y sus hábitos específicamente durante el <strong class="text-purple-700">último mes</strong>. 
+                                Trate de recordar sus horarios reales y cualquier dificultad que haya tenido la mayoría de las noches.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <form method="POST" id="cuestionario-form">
+                    
+                    <TimePicker 
+                        label="Durante el último mes, ¿a qué hora solías acostarte por la noche?"
+                        subLabel="Hora habitual de acostarse:"
+                        name="hora_acostarse"
+                        required={true}
+                        color="purple"
+                    />
+
+                    <InputNumber 
+                        label="Durante el último mes, ¿cuánto tiempo (en minutos) te ha costado quedarte dormido después de acostarte por las noches?" 
+                        subLabel="Número de minutos para conciliar el sueño"
+                        name="tiempo_dormir" 
+                        placeholder="Ej. 40" 
+                        min={0}
+                        max={1000} 
+                        required={true}
+                        color="purple"
+                    />
+
+                    <TimePicker 
+                        label="Durante el último mes, ¿a qué hora te has levantado habitualmente por la mañana?"
+                        subLabel="Hora habitual de levantarse:"
+                        name="hora_levantarse"
+                        required={true}
+                        color="purple"
+                    />
+
+                    <InputNumber 
+                        label="Durante el último mes, ¿cuántas horas de sueño real has mantenido por las noches? (puede ser diferente del numero de horas que estuviste acostado)" 
+                        subLabel="Horas de sueño por noche:"
+                        name="horas_sueno" 
+                        placeholder="Ej. 6" 
+                        min={0}
+                        max={1000} 
+                        required={true}
+                        color="purple"
+                    />
+
+                    <MatrixScale 
+                        instruction="Durante el último mes, ¿con qué frecuencia has tenido un sueño alterado a consecuencia de....?"
+                        scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
+                        options={alteracionOptions}
+                        questions={alteracionQuestions}
+                        color="purple"
+                    />
+
+                    <InputText
+                        label="Otra causa(s), describir:" 
+                        name="otra_causa" 
+                        placeholder="Escriba su respuesta aquí"
+                    />
+
+                    <RadioGroup 
+                        label="¿Con qué frecuencia ha tenido un sueño alterado a consecuencia de este problema?"
+                        name="se_quedo_dormido"
+                        options={optionsFrecuencia}
+                    />
+
+                    <RadioGroup 
+                        label="Durante el último mes, ¿cómo calificarías, en general, la calidad de tu sueño?"
+                        name="calidad_sueno"
+                        options={optionsCalidad}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Durante el último mes, ¿con que frecuencia tuviste que tomar medicinas (prescritas o automedicadas) para poder dormir?"
+                        name="tomo_medicinas"
+                        options={optionsFrecuencia}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Durante el último mes, ¿con que frecuencia tuviste dificultad para mantenerte despierto mientras conducías, comías o desarrollabas alguna actividad social?"
+                        name="dificultad_despierto"
+                        options={optionsFrecuencia}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Durante el último mes, ¿cómo de problemático ha resultado para ti el mantener el entusiasmo por hacer las cosas?"
+                        name="problema_entusiasmo"
+                        options={optionsFrecuencia}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="¿Tienes pareja o compañero/a de habitación?"
+                        name="pareja_companero"
+                        options={optionsCompañero}
+                        required={true}
+                    />
+
+                    <MatrixScale 
+                        instruction="Si tienes pareja o compañero/a de habitación con el que duermes, con qué frecuencia, durante el último mes, te ha dicho que has tenido..."
+                        scaleLabel="Para cada una de las cuestiones siguientes, selecciona la respuesta más adecuada a tu situación."
+                        options={compañeroOptions}
+                        questions={compañeroQuestions}
+                        color="purple"
+                    />
+
+                    <InputText
+                        label="Otra transtorno, describir:" 
+                        name="otra_transtorno" 
+                        placeholder="Escriba su respuesta aquí"
+                    />
+
+                    <div class="pt-10">
+                        <button type="button" id="btn-pre-submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-purple-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
+                            Guardar y Finalizar
+                        </button>
+                    </div>
+                </form>
+
+                <dialog id="modal-confirm" class="m-auto p-0 rounded-2xl max-w-md w-full shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm bg-transparent">
+                    <div class="bg-white p-6 w-full"> <div class="text-center">
+                            <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">¿Estás seguro de enviar?</h3>
+                            <p class="text-gray-500 text-sm mb-6">
+                                Una vez enviadas tus respuestas, <strong>no podrás modificarlas ni volver a contestar</strong> este cuestionario.
+                                Por favor verifica que todo esté correcto.
+                            </p>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <button id="btn-cancel" class="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors cursor-pointer">
+                                    Revisar
+                                </button>
+                                <button id="btn-confirm-final" class="py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-colors cursor-pointer">
+                                    Sí, Enviar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </dialog>
+            </>
+        )}
+</LayoutCuestionario>
+
+<script is:inline>
+    const form = document.getElementById('cuestionario-form');
+    const btnPre = document.getElementById('btn-pre-submit');
+    const modal = document.getElementById('modal-confirm'); 
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnConfirmFinal = document.getElementById('btn-confirm-final');
+
+    // 1. ABRIR MODAL
+    if (btnPre) {
+        btnPre.addEventListener('click', () => {
+            if (form.reportValidity()) {
+                // Cálculo de puntaje si aplica...
+                if (typeof calcularPuntaje === 'function') calcularPuntaje();
+                
+                // MÉTODO NATIVO PARA ABRIR
+                modal.showModal(); 
+            }
+        });
+    }
+
+    // 2. CERRAR MODAL (CANCELAR)
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+            // MÉTODO NATIVO PARA CERRAR
+            modal.close(); 
+        });
+    }
+
+    // 3. CONFIRMAR ENVÍO
+    if (btnConfirmFinal) {
+        btnConfirmFinal.addEventListener('click', () => {
+            btnConfirmFinal.innerHTML = '<span class="animate-pulse">Enviando...</span>';
+            btnConfirmFinal.disabled = true;
+            form.submit();
+        });
+    }
+    
+    // 4. (Opcional) CERRAR SI CLICKEA FUERA (BACKDROP)
+    modal.addEventListener('click', (e) => {
+        const dialogDimensions = modal.getBoundingClientRect();
+        if (
+            e.clientX < dialogDimensions.left ||
+            e.clientX > dialogDimensions.right ||
+            e.clientY < dialogDimensions.top ||
+            e.clientY > dialogDimensions.bottom
+        ) {
+            modal.close();
+        }
+    });
+</script>

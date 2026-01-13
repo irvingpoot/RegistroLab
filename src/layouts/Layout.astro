@@ -1,4 +1,16 @@
----                            
+---
+
+/**
+ * @file Layout.astro
+ * @description Estructura base (Shell) para el panel administrativo.
+ * * DISEÑO:
+ * - Tema Oscuro: Fondo con gradiente `from-black via-gray-950 to-black` para reducir fatiga visual.
+ * - Tipografía: Configura la fuente Sans-Serif global.
+ * * FUNCIONALIDAD:
+ * - Importa los estilos globales (`global.css`) y Tailwind.
+ * - Maneja metadatos dinámicos como el `<title>`.
+ */
+
 import '../styles/global.css'
 
 const { title } = Astro.props;

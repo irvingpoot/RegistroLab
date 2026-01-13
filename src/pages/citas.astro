@@ -1,4 +1,16 @@
 ---
+
+/**
+ * @file citas.astro
+ * @description Vista de calendario mensual para la gestión de citas.
+ * * FUNCIONALIDAD:
+ * - Navegación: Permite moverse entre meses usando Query Params (?month=X&year=Y).
+ * - Filtrado: Usa `.gte()` y `.lte()` para descargar estrictamente las citas del mes visible.
+ * - Renderizado: Genera una cuadrícula de días reales + días de relleno (padding)
+ * para alinear correctamente el primer día del mes (Lunes, Martes, etc.).
+ * - Interactividad: Usa <dialog> nativo para ver los detalles de las citas de un día.
+ */
+
 import Layout from "../layouts/Layout.astro"
 import CitaCard from "../components/CitaCard.astro"
 import ReturnButton from "../components/ReturnButton.astro"

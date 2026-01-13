@@ -1,4 +1,23 @@
 ---
+
+/**
+ * @file [id].astro
+ * @description Formulario maestro para la edición del expediente clínico.
+ * * ESTRATEGIA DE ACTUALIZACIÓN (Relaciones 1:N):
+ * - Para las listas dinámicas (Síntomas y Puntajes Extra), se utiliza una estrategia
+ * de "Borrado Total y Reinserción" (Flush & Fill) en cada guardado.
+ * Esto garantiza que los elementos eliminados visualmente por el usuario desaparezcan
+ * realmente de la base de datos sin necesidad de lógica compleja de comparación.
+ * * LÓGICA DE NEGOCIO:
+ * - Recálculo automático de `edad`: Se actualiza en el servidor basado en la fecha de nacimiento.
+ * - Formularios Dinámicos: Utiliza JavaScript (cliente) para clonar templates HTML
+ * y permitir agregar 'N' cantidad de síntomas o puntajes.
+ * * CARGA DE DATOS:
+ * - Ejecuta 3 consultas en paralelo (`Promise.all`) para reconstruir el estado completo
+ * del paciente antes de renderizar.
+ */
+
+
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import SintomaGroup from "../../components/SintomaGroup.astro"
@@ -53,9 +72,10 @@ if (Astro.request.method === "POST") {
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
 
             donde_duerme: data.get("donde_duerme"),
+            hora_acostarse: data.get("hora_acostarse"), 
             hora_dormir: data.get("hora_dormir"),
+            hora_despertar: data.get("hora_despertar"), // Nuevo
             hora_levantarse: data.get("hora_levantarse"),
-            tiempo_dormir: data.get("tiempo_dormir"),
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
             somnolencia: data.get("somnolencia"),
@@ -76,7 +96,6 @@ if (Astro.request.method === "POST") {
 
             antecedentes: data.get("antecedentes"),
             
-            // Campos legacy del síntoma principal
             sintoma: data.getAll('sintoma')[0]?.toString(),
             temporalidad: data.getAll('temporalidad')[0]?.toString(),
             frecuencia: data.getAll('frecuencia')[0]?.toString(),
@@ -84,15 +103,15 @@ if (Astro.request.method === "POST") {
 
             alteracion_sueno: data.get("alteracion_sueno"),
 
-            epworth: getInt("epworth"),
-            dbi: getInt("dbi"),
-            hamilton_d: getInt("hamilton_d"),
-            hamilton_a: getInt("hamilton_a"),
-            isi: getInt("isi"),
-            psqi: getInt("psqi"),
-            stop_bang: getInt("stop_bang"),
-            berlin: getInt("berlin"),
-            cuestionario_insomnio: getInt("cuestionario_insomnio"),
+            epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
+            dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
+            hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
+            hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
+            isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
+            psqi_pre: getInt("psqi_pre"), psqi_inter: getInt("psqi_inter"), psqi_post: getInt("psqi_post"),
+            stop_bang_pre: getInt("stop_bang_pre"), stop_bang_inter: getInt("stop_bang_inter"), stop_bang_post: getInt("stop_bang_post"),
+            berlin_pre: getInt("berlin_pre"), berlin_inter: getInt("berlin_inter"), berlin_post: getInt("berlin_post"),
+            cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
         };
 
         // 2. Actualizar Tabla Principal
@@ -214,9 +233,33 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                         </div>
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
-                            <div class="flex grow flex-col md:w-1/3">
-                                <label class="label">¿Quién lo refiere?</label>
-                                <input type="text" name="referencia" value={p.referencia} required class="input">
+                            <div class="flex grow flex-col gap-2">
+                                <label class="text-sm font-medium text-gray-300">
+                                    Referencia (Referido por)
+                                </label>
+                                <div class="relative">
+                                    <select 
+                                        name="referencia" 
+                                        required
+                                        class="w-full bg-gray-900/50 border border-gray-600 text-white p-3 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none transition-all cursor-pointer"
+                                    >
+                                        <option value="" disabled>Selecciona una opción</option>
+                                        
+                                        <option value="Servicio Medico" selected={p.referencia === 'Servicio Medico'}>
+                                            Servicio Médico
+                                        </option>
+                                        
+                                        <option value="Privado" selected={p.referencia === 'Privado'}>
+                                            Privado
+                                        </option>
+                                    </select>
+
+                                    <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
                             <div class="flex grow flex-col">
                                 <label class="label">Motivo de la consulta</label>
@@ -256,23 +299,30 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             <div class="flex flex-wrap gap-6 p-3 border border-gray-700 bg-gray-900/50 rounded-lg">
                                 {['cama', 'hamaca', 'ambas'].map(val => (
                                     <label class="flex items-center gap-2 cursor-pointer hover:text-blue-400 transition">
-                                        <input type="radio" name="donde_duerme" value={val} checked={p.donde_duerme === val} class="accent-blue-500 w-4 h-4 uppercase"> <span class="capitalize">{val}</span>
+                                        <input type="radio" name="donde_duerme" value={val} checked={p.donde_duerme === val} class="accent-blue-500 w-4 h-4 uppercase"/> <span class="capitalize">{val}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
-                        <div class="flex flex-col md:flex-row gap-4 md:gap-7">
-                            <div class="flex grow flex-col">
-                                <label class="label">Hora de dormir:</label>
-                                <input type="time" name="hora_dormir" value={p.hora_dormir} class="input" style="color-scheme: dark;">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se acuesta</label>
+                                <input type="time" name="hora_acostarse" value={p.hora_acostarse} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
-                            <div class="flex grow flex-col">
-                                <label class="label">Hora de levantarse:</label>
-                                <input type="time" name="hora_levantarse" value={p.hora_levantarse} class="input" style="color-scheme: dark;">
+                            
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se duerme</label>
+                                <input type="time" name="hora_dormir" value={p.hora_dormir} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
-                            <div class="flex grow flex-col">
-                                <label class="label">Tiempo en dormir:</label>
-                                <input type="text" name="tiempo_dormir" value={p.tiempo_dormir} class="input">
+
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que despierta</label>
+                                <input type="time" name="hora_despertar" value={p.hora_despertar} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
+                            </div>
+
+                            <div class="flex flex-col">
+                                <label class="text-xs text-gray-400 mb-1">Hora que se levanta</label>
+                                <input type="time" name="hora_levantarse" value={p.hora_levantarse} class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" style="color-scheme: dark;">
                             </div>
                         </div>
 
@@ -333,7 +383,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_fuma" class={p.fuma === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Cigarros/semana</label><input type="number" name="cigarros_semana" value={p.cigarros_semana} class="input-sub"></div>
                         </div>
-                        {/* Alcohol */}
                         <div class="cond-block">
                             <label class="label">¿Alcohol?</label>
                             <div class="flex gap-6">
@@ -342,7 +391,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_alcohol" class={p.alcohol === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Cervezas/semana</label><input type="number" name="cervezas_semana" value={p.cervezas_semana} class="input-sub"></div>
                         </div>
-                        {/* Cafe */}
                         <div class="cond-block">
                             <label class="label">¿Café?</label>
                             <div class="flex gap-6">
@@ -351,7 +399,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_cafe" class={p.cafe === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Tazas/semana</label><input type="number" name="tazas_cafe_semana" value={p.tazas_cafe_semana} class="input-sub"></div>
                         </div>
-                        {/* Te */}
                         <div class="cond-block">
                             <label class="label">¿Té?</label>
                             <div class="flex gap-6">
@@ -396,17 +443,35 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Puntajes</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin'].map(score => (
-                            <div class="flex flex-col">
-                                <label class="label capitalize">{score.replace('_', '-')}</label>
-                                <input type="number" name={score} value={p[score]} class="input text-center font-mono"/>
-                            </div>
-                        ))}
-                        <div class="flex flex-col col-span-2">
-                            <label class="label">Cuest. Insomnio</label>
-                            <input type="number" name="cuestionario_insomnio" value={p.cuestionario_insomnio} class="input text-center font-mono"/>
-                        </div>
+                    <div class="overflow-x-auto mb-8">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-gray-400 text-xs uppercase border-b border-gray-700">
+                                    <th class="py-3 font-medium">Prueba / Escala</th>
+                                    <th class="py-3 font-medium text-center text-blue-400">Pre</th>
+                                    <th class="py-3 font-medium text-center text-purple-400">Inter</th>
+                                    <th class="py-3 font-medium text-center text-emerald-400">Post</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-gray-800">
+                                {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
+                                    <tr class="hover:bg-gray-800/30 transition-colors">
+                                        <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
+                                            {score.replace(/_/g, ' ')}
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_pre`} value={p[`${score}_pre`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-blue-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_inter`} value={p[`${score}_inter`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-purple-500 focus:outline-none" />
+                                        </td>
+                                        <td class="p-2">
+                                            <input type="number" name={`${score}_post`} value={p[`${score}_post`]} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-emerald-500 focus:outline-none" />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
 
                     <div class="border-t border-gray-800 pt-6">
@@ -470,7 +535,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
             });
         });
 
-        // 2. Síntomas Dinámicos (Clonar solo el primero como template si se necesita más)
+        // 2. Síntomas Dinámicos
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
         

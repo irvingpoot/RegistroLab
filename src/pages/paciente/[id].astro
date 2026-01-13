@@ -1,4 +1,21 @@
 ---
+
+/**
+ * @file [id].astro
+ * @description Vista detallada (Expediente Digital) de un paciente específico.
+ * * CONCEPTO "EXPEDIENTE CENTRAL":
+ * - Agrega toda la información dispersa: Datos personales, Historial Clínico,
+ * Pagos, Citas, Seguimientos y Resultados de Cuestionarios.
+ * * CARACTERÍSTICAS TÉCNICAS:
+ * 1. Acciones Múltiples (Switch): Maneja varias acciones POST en un solo endpoint
+ * ('add_seguimiento', 'delete_pago', 'delete_cita', etc.) identificadas por el campo `action`.
+ * 2. Sistema de Tokens: Genera y visualiza el enlace público único (`token_cuestionarios`)
+ * para que el paciente responda evaluaciones sin iniciar sesión.
+ * 3. Cálculos en Tiempo Real: Suma el total de pagos históricos al cargar la página.
+ * * SEGURIDAD:
+ * - Valida que el ID exista y protege las acciones de borrado y edición.
+ */
+
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import InfoCard from "../../components/InfoCard.astro"
@@ -104,6 +121,25 @@ if (Astro.request.method === "POST") {
                 await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
             }
         }
+
+        if (action === "add_pago") {
+            const nuevoPago = {
+                paciente_id: id,
+                monto: parseFloat(formData.get("monto") as string),
+                concepto: formData.get("concepto"),
+                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
+                registrado_por: nombreAutor
+            };
+            const { error } = await supabase.from('pacientes_pagos').insert([nuevoPago]);
+            if (error) throw error;
+        }
+        if (action === "delete_pago") {
+            const idPago = formData.get("id_pago");
+            const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
+            if (error) throw error;
+        }
+
+
     } catch (error) {
         console.error("Error en acción:", error);
     }
@@ -112,7 +148,7 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), pacientes_pagos(*)')
     .eq('id', id)
     .single();
 
@@ -123,6 +159,13 @@ if (error || !paciente) {
 if (paciente.pacientes_seguimiento) {
     paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 }
+
+if (paciente.pacientes_pagos) {
+    paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+}
+const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
+// Formateador de moneda
+const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
 // Helpers
 const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
@@ -203,17 +246,67 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             </div>
 
             <InfoCard title="Hábitos y Patrones de Sueño">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Horario Sueño</span><p class="text-xl font-mono text-white mt-1">{formatTime(paciente.hora_dormir)} - {formatTime(paciente.hora_levantarse)}</p></div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Tiempo en dormir</span><p class="text-xl text-white mt-1">{paciente.tiempo_dormir || "—"}</p></div>
-                    <div class="bg-gray-800/30 p-3 rounded-lg text-center"><span class="label block">Lugar</span><p class="text-xl text-white mt-1 capitalize">{paciente.donde_duerme || "—"}</p></div>
+    
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 border-b border-gray-700/50 pb-8">
+                    
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-blue-300 text-[10px] mb-1">Se acuesta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_acostarse)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-indigo-300 text-[10px] mb-1">Se duerme</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_dormir)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-emerald-300 text-[10px] mb-1">Se despierta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_despertar)}</p>
+                    </div>
+
+                    <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                        <span class="label block text-teal-300 text-[10px] mb-1">Se levanta</span>
+                        <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_levantarse)}</p>
+                    </div>
+
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div><span class="label">Despertares nocturnos</span><p class="value capitalize">{paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}</p></div>
-                    <div><span class="label">Somnolencia diurna</span><p class="value capitalize">{paciente.somnolencia || "No"}</p></div>
-                    <div><span class="label">Siestas</span><p class="value capitalize">{paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}</p></div>
-                    <div><span class="label">Ejercicio</span><p class="value capitalize">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}</p></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+
+                    <div>
+                        <span class="label mb-0">Lugar habitual de sueño</span>
+                        <p class="text-lg text-white font-medium capitalize">{paciente.donde_duerme || "—"}</p>
+                    </div>
+
+                    <div>
+                        <span class="label">Despertares nocturnos</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Somnolencia diurna</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.somnolencia || "No"}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Siestas</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <span class="label">Ejercicio físico</span>
+                        <p class="value capitalize text-gray-200">
+                            {paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}
+                        </p>
+                    </div>
                 </div>
+
             </InfoCard>
 
             <InfoCard title="Análisis de Síntomas">
@@ -292,6 +385,85 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
+            <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-xl">
+                <div class="mb-6">
+                    <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
+                        Enlaces de Evaluación Remota
+                    </h3>
+                    <p class="text-sm text-gray-400 mt-1">1. Selecciona la fase del tratamiento.</p>
+                    <p class="text-sm text-gray-400">2. Copia el enlace del cuestionario específico que deseas enviar.</p>
+                </div>
+                
+                <div class="flex gap-2 p-1 bg-gray-800 rounded-lg w-fit mb-6">
+                    <button onclick="setFase('pre')" id="btn-pre" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow">Pre-Tratamiento</button>
+                    <button onclick="setFase('inter')" id="btn-inter" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white">Intermedio</button>
+                    <button onclick="setFase('post')" id="btn-post" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white">Post-Tratamiento</button>
+                </div>
+
+                <div class="grid gap-3">
+                    
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-blue-500/50 transition-colors" id="row-epworth">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-blue-900/20 text-blue-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Epworth</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-epworth" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-epworth')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('epworth')" class="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-100 text-xs font-bold py-2 px-4 rounded border border-blue-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-emerald-500/50 transition-colors" id="row-berlin">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-emerald-900/20 text-emerald-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Berlin</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-berlin" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-berlin')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('berlin')" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 text-xs font-bold py-2 px-4 rounded border border-emerald-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-pittsburgh">
+                        <div class="flex items-center gap-2">
+                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
+                            
+                            <div class="container-link flex items-center gap-2 w-full">
+                                <input type="text" readonly id="link-pittsburgh" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-pittsburgh')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                            </div>
+                            <div class="container-btn hidden w-full">
+                                <button onclick="verRespuestas('pittsburgh')" class="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-4 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                    Ver Respuestas del Paciente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
             <InfoCard title="Seguimiento">
                 <div class="flex justify-between items-center mb-6">
                     <p class="text-gray-400 text-sm">Historial de notas posteriores a consulta.</p>
@@ -335,6 +507,61 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
+            <InfoCard title="Historial de Pagos y Gastos">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+                    <div>
+                        <p class="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Total Acumulado</p>
+                        <p class="text-3xl font-mono font-bold text-emerald-400">{formatMoney(totalPagado)}</p>
+                    </div>
+                    <button onclick="document.getElementById('modal-pago').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/20 font-medium text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Registrar Nuevo Pago
+                    </button>
+                </div>
+
+                <div class="overflow-hidden rounded-xl border border-gray-800">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-gray-400 text-xs uppercase font-bold">
+                            <tr>
+                                <th class="p-4">Fecha</th>
+                                <th class="p-4">Concepto</th>
+                                <th class="p-4">Registrado por</th> <th class="p-4 text-right">Monto</th>
+                                <th class="p-4 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800 bg-gray-900/50">
+                            {paciente.pacientes_pagos && paciente.pacientes_pagos.length > 0 ? (
+                                paciente.pacientes_pagos.map((pago: any) => (
+                                    <tr class="hover:bg-gray-800/50 transition-colors group">
+                                        <td class="p-4 text-gray-300 font-mono">{formatDateShort(pago.fecha)}</td>
+                                        <td class="p-4 text-white font-medium">{pago.concepto}</td>
+                                        
+                                        <td class="p-4 text-gray-400 text-sm">
+                                            {pago.registrado_por || "Sistema"}
+                                        </td>
+
+                                        <td class="p-4 text-right text-emerald-300 font-mono font-bold">{formatMoney(pago.monto)}</td>
+                                        <td class="p-4 text-center">
+                                            <button class="text-gray-500 hover:text-red-400 transition-colors btn-borrar-pago cursor-pointer" data-id={pago.id} title="Eliminar registro">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colspan="5" class="p-8 text-center text-gray-500 italic">No hay pagos registrados aún.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </InfoCard>
+
             <div class="mt-12 border-t border-red-900/30 pt-8 pb-10 flex flex-col items-center">
                 <button onclick="document.getElementById('modal-eliminar').showModal()" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform">
@@ -346,6 +573,100 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
         </div>
     </main>
+
+    <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <span class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </span>
+                Registrar Pago
+            </h3>
+            <button onclick="document.getElementById('modal-pago').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button>
+        </div>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="add_pago">
+            
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Monto ($)</label>
+                <input type="number" step="0.01" name="monto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none text-lg font-mono" placeholder="0.00" required>
+            </div>
+            
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Concepto</label>
+                <input type="text" name="concepto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej: Consulta Inicial, Estudio de Sueño..." required>
+            </div>
+
+            <div class="flex flex-col">
+                <label class="text-xs text-gray-400 mb-1">Fecha</label>
+                <input type="date" name="fecha" id="pago-fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-emerald-500 focus:outline-none" required style="color-scheme: dark;">
+            </div>
+
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50 mt-2">
+                <button type="button" onclick="document.getElementById('modal-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
+                <button type="submit" class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 cursor-pointer text-sm shadow-lg shadow-emerald-900/20">Guardar Pago</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-eliminar-pago" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
+        <div class="mb-4 text-red-500 flex justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-bold text-white mb-2">¿Eliminar este registro?</h3>
+        <p class="text-gray-400 text-xs mb-6">El monto se restará del total acumulado.</p>
+        
+        <form method="POST" class="flex gap-3 justify-center">
+            <input type="hidden" name="action" value="delete_pago" />
+            <input type="hidden" name="id_pago" id="input-id-borrar-pago" />
+            
+            <button type="button" onclick="document.getElementById('modal-eliminar-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer text-sm">Sí, Borrar</button>
+        </form>
+    </dialog>
+
+    <dialog id="modal-ver-respuestas" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl backdrop:backdrop-blur-sm w-full max-w-2xl text-left p-0 overflow-hidden">
+        
+        <div class="bg-gray-800 border-b border-gray-700 p-5 sticky top-0 z-10">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="text-xl font-bold text-white capitalize flex items-center gap-3">
+                        <span id="titulo-ver-respuestas">Resultados</span>
+                        <span id="badge-fase" class="text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider"></span>
+                    </h3>
+                    <p class="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                        <span id="subtitulo-ver-respuestas">Fecha</span>
+                    </p>
+                </div>
+                <button onclick="document.getElementById('modal-ver-respuestas').close()" class="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-lg p-2 transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2 bg-gray-900/50 border border-gray-700/50 rounded-lg p-2">
+                <div class="bg-gray-800 p-1.5 rounded text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                </div>
+                <input type="text" id="modal-link-input" readonly class="bg-transparent border-none text-xs text-blue-400 font-mono w-full focus:ring-0 px-0" />
+                <button onclick="copiarLinkModal()" class="text-xs font-bold text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap" id="btn-copiar-modal">
+                    Copiar
+                </button>
+            </div>
+        </div>
+
+        <div class="max-h-[60vh] overflow-y-auto bg-gray-900">
+            <div id="contenido-respuestas" class="divide-y divide-gray-800"></div>
+        </div>
+        
+        <div class="bg-gray-800/30 border-t border-gray-800 p-2 text-center">
+            <span class="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Fin del reporte</span>
+        </div>
+    </dialog>
 
     <dialog id="modal-eliminar-observacion" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
         <div class="mb-4 text-red-500 flex justify-center">
@@ -502,21 +823,42 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
     }
 </style>
 
-<script>
+<script define:vars={{ 
+    baseUrl: Astro.url.origin, 
+    token: paciente.token_cuestionarios,
+    // Pasamos las respuestas de la BD al cliente
+    respuestasGuardadas: paciente.respuestas_cuestionarios || [] 
+}}>
+    // DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
+    const DICCIONARIOS = {
+        epworth: {
+            epworth_1: "Al estar sentado leyendo",
+            epworth_2: "Viendo T.V.",
+            epworth_3: "Sentado inactivo en un lugar público",
+            epworth_4: "Como pasajero en un auto (1 hora)",
+            epworth_5: "Recostado descansando por la tarde",
+            epworth_6: "Sentado, hablando con alguien",
+            epworth_7: "Sentado tranquilamente tras comer",
+            epworth_8: "En un auto detenido por tráfico"
+        },
+        berlin: {}, // Aquí puedes agregar las preguntas de Berlin después
+        pittsburgh: {} // Aquí puedes agregar las de Pittsburgh después
+    };
+
     // Lógica para el modal de extras (Agregar / Eliminar filas)
     document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('modal-extras-container');
         const btnAdd = document.getElementById('btn-add-extra-modal');
 
         // --- Lógica Modal Seguimiento ---
-        const modalSeguimiento = document.getElementById('modal-seguimiento') as HTMLDialogElement;
+        const modalSeguimiento = document.getElementById('modal-seguimiento');
         const btnNuevaNota = document.getElementById('btn-nueva-nota');
         const formSeguimiento = modalSeguimiento?.querySelector('form');
         
-        const inputAction = document.getElementById('seguimiento-action') as HTMLInputElement;
-        const inputId = document.getElementById('seguimiento-id') as HTMLInputElement;
-        const inputFecha = document.getElementById('seguimiento-fecha') as HTMLInputElement;
-        const inputTexto = document.getElementById('seguimiento-texto') as HTMLTextAreaElement;
+        const inputAction = document.getElementById('seguimiento-action');
+        const inputId = document.getElementById('seguimiento-id');
+        const inputFecha = document.getElementById('seguimiento-fecha');
+        const inputTexto = document.getElementById('seguimiento-texto');
         const modalTitulo = document.getElementById('modal-seguimiento-titulo');
         const modalBorrarObs = document.getElementById('modal-eliminar-observacion');
         const inputIdBorrar = document.getElementById('input-id-borrar-observacion');
@@ -527,15 +869,15 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 formSeguimiento?.reset();
                 if(inputAction) inputAction.value = 'add_seguimiento';
                 if(inputId) inputId.value = '';
-                if(inputFecha) (inputFecha as HTMLInputElement).valueAsDate = new Date();
+                if(inputFecha) (inputFecha).valueAsDate = new Date();
                 if(modalTitulo) modalTitulo.textContent = 'Agregar Nota';
-                (modalSeguimiento as HTMLDialogElement).showModal();
+                (modalSeguimiento).showModal();
             });
         }
 
         // Abrir para editar
         document.addEventListener('click', (e) => {
-            const btn = (e.target as HTMLElement).closest('.btn-editar-nota');
+            const btn = (e.target).closest('.btn-editar-nota');
             if (btn && modalSeguimiento) {
                 const id = btn.getAttribute('data-id');
                 const fecha = btn.getAttribute('data-fecha');
@@ -551,21 +893,20 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 }
             }
 
-            const btnBorrar = (e.target as HTMLElement).closest('.btn-borrar-nota');
+            const btnBorrar = (e.target).closest('.btn-borrar-nota');
             if (btnBorrar && modalBorrarObs) {
                 const id = btnBorrar.getAttribute('data-id');
                 if (id && inputIdBorrar) {
-                    (inputIdBorrar as HTMLInputElement).value = id;
-                    (modalBorrarObs as HTMLDialogElement).showModal();
+                    (inputIdBorrar).value = id;
+                    (modalBorrarObs).showModal();
                 }
             }
-
         });
 
         // Función para eliminar fila
-        const setupRemoveBtn = (btn: Element) => {
+        const setupRemoveBtn = (btn) => {
             btn.addEventListener('click', (e) => {
-                (e.target as HTMLElement).closest('.extra-row')?.remove();
+                (e.target).closest('.extra-row')?.remove();
             });
         };
 
@@ -592,4 +933,185 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             });
         }
     });
+
+    let currentFase = 'pre';
+    
+    // Referencias a los inputs de links
+    const inputs = {
+        epworth: document.getElementById('link-epworth'),
+        berlin: document.getElementById('link-berlin'),
+        pittsburgh: document.getElementById('link-pittsburgh'),
+    };
+
+    // Referencias a las filas completas (para ocultar link y mostrar botón)
+    const rows = {
+        epworth: document.getElementById('row-epworth'),
+        berlin: document.getElementById('row-berlin'),
+        pittsburgh: document.getElementById('row-pittsburgh'),
+    };
+    
+    // Función setFase ahora gestiona la visibilidad
+    window.setFase = (fase) => {
+        currentFase = fase;
+
+        // 1. Generamos los 3 links dinámicamente (por si se necesitan)
+        inputs.epworth.value = `${baseUrl}/cuestionarios/epworth/${token}?fase=${fase}`;
+        inputs.berlin.value = `${baseUrl}/cuestionarios/berlin/${token}?fase=${fase}`;
+        inputs.pittsburgh.value = `${baseUrl}/cuestionarios/pittsburgh/${token}?fase=${fase}`;
+
+        // 2. Actualizamos estilos de botones de fase
+        ['pre', 'inter', 'post'].forEach(f => {
+            const btn = document.getElementById(`btn-${f}`);
+            btn.className = f === fase 
+                ? "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow"
+                : "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
+        });
+
+        // 3. Verificamos si ya hay respuesta para mostrar Botón o Link
+        ['epworth', 'berlin', 'pittsburgh'].forEach(cuestionario => {
+            const row = rows[cuestionario];
+            // Buscamos los contenedores dentro de la fila
+            const containerLink = row.querySelector('.container-link');
+            const containerBtn = row.querySelector('.container-btn');
+
+            // Buscar si existe respuesta en la BD para este cuestionario y la fase actual
+            const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === fase);
+
+            if (respuesta) {
+                // SÍ HAY RESPUESTA: Ocultar link, mostrar botón "Ver Respuestas"
+                containerLink.classList.add('hidden');
+                containerBtn.classList.remove('hidden');
+            } else {
+                // NO HAY RESPUESTA: Mostrar link, ocultar botón
+                containerLink.classList.remove('hidden');
+                containerBtn.classList.add('hidden');
+            }
+        });
+    }
+
+    // Función para abrir el modal con los datos
+    window.verRespuestas = (cuestionario) => {
+        const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === currentFase);
+        if (!respuesta || !respuesta.datos) return;
+
+        const modal = document.getElementById('modal-ver-respuestas');
+        const titulo = document.getElementById('titulo-ver-respuestas');
+        const subtitulo = document.getElementById('subtitulo-ver-respuestas');
+        const badgeFase = document.getElementById('badge-fase');
+        const contenido = document.getElementById('contenido-respuestas');
+        const modalLinkInput = document.getElementById('modal-link-input');
+
+        // Configuración de Textos y Colores
+        titulo.textContent = cuestionario.charAt(0).toUpperCase() + cuestionario.slice(1);
+        subtitulo.textContent = new Date(respuesta.updated_at).toLocaleDateString('es-MX', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+        });
+
+        const colorMap = { pre: 'blue', inter: 'purple', post: 'emerald' };
+        const color = colorMap[currentFase] || 'gray';
+        
+        badgeFase.textContent = currentFase.toUpperCase();
+        badgeFase.className = `text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider font-bold bg-${color}-500/10 text-${color}-400 border-${color}-500/20`;
+
+        const fullLink = `${baseUrl}/cuestionarios/${cuestionario}/${token}?fase=${currentFase}`;
+        if(modalLinkInput) modalLinkInput.value = fullLink;
+
+        let html = '';
+        const datos = respuesta.datos;
+        const preguntas = DICCIONARIOS[cuestionario] || {};
+
+        // 1. SECCIÓN DE PUNTAJE (Banner Superior)
+        if (datos.puntaje) {
+            html += `
+                <div class="px-6 py-5 bg-gradient-to-r from-gray-800/50 to-gray-900 border-b border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Puntaje Total</p>
+                        <p class="text-gray-500 text-xs">Cálculo automático</p>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-3xl font-mono font-bold text-white">${datos.puntaje}</span>
+                        <span class="text-xs text-gray-500 font-medium uppercase">pts</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. LISTA DE PREGUNTAS (Diseño de Filas)
+        for (const key in datos) {
+            if (key === 'puntaje') continue;
+
+            const textoPregunta = preguntas[key] || key;
+            const valorRespuesta = datos[key];
+
+            html += `
+                <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/5 transition-colors group">
+                    <div class="md:w-3/4">
+                        <p class="text-gray-300 text-sm font-medium leading-snug group-hover:text-white transition-colors">
+                            ${textoPregunta}
+                        </p>
+                    </div>
+                    <div class="md:w-1/4 flex justify-end">
+                        <span class="inline-block bg-gray-900 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-xs font-mono font-bold text-center min-w-[3rem]">
+                            ${valorRespuesta}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+
+        contenido.innerHTML = html;
+        modal.showModal();
+    }
+
+    window.copiarLink = (inputId) => {
+        const input = document.getElementById(inputId);
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        
+        // Efecto visual de copiado
+        const parent = input.parentElement;
+        parent.classList.add('bg-blue-900/30', 'border-blue-500');
+        setTimeout(() => parent.classList.remove('bg-blue-900/30', 'border-blue-500'), 200);
+    }
+
+    window.copiarLinkModal = () => {
+        const input = document.getElementById('modal-link-input');
+        const btn = document.getElementById('btn-copiar-modal');
+        
+        input.select();
+        navigator.clipboard.writeText(input.value);
+        
+        // Feedback visual en el botón
+        const textoOriginal = btn.innerText;
+        btn.innerText = "¡Copiado!";
+        btn.classList.add('text-green-400');
+        
+        setTimeout(() => {
+            btn.innerText = textoOriginal;
+            btn.classList.remove('text-green-400');
+        }, 1500);
+    }
+
+    const inputFechaPago = document.getElementById('pago-fecha');
+    // Pre-llenar fecha de hoy al abrir modal (opcional, o hacerlo al cargar)
+    if (inputFechaPago) {
+        inputFechaPago.valueAsDate = new Date();
+    }
+
+    // Manejar borrado de pagos
+    const modalBorrarPago = document.getElementById('modal-eliminar-pago');
+    const inputIdBorrarPago = document.getElementById('input-id-borrar-pago');
+
+    document.addEventListener('click', (e) => {
+        // Botón Borrar Pago
+        const btnBorrarPago = (e.target).closest('.btn-borrar-pago');
+        if (btnBorrarPago && modalBorrarPago && inputIdBorrarPago) {
+            const id = btnBorrarPago.getAttribute('data-id');
+            inputIdBorrarPago.value = id;
+            modalBorrarPago.showModal();
+        }
+    });
+
+    // Inicializar
+    setFase('pre');
 </script>

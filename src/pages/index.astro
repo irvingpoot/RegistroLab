@@ -1,4 +1,16 @@
 ---
+
+/**
+ * @file index.astro
+ * @description Página de aterrizaje (Landing Page) y Login.
+ * * AUTENTICACIÓN (Clerk):
+ * - Actúa como el "Gatekeeper" de la aplicación.
+ * - Utiliza componentes de `@clerk/astro` para gestionar el estado de sesión.
+ * * ESTADOS:
+ * 1. No Autenticado (`<SignIn />`): Muestra el formulario de inicio de sesión de Clerk.
+ * 2. Autenticado (`<SignedIn />`): Muestra un mensaje de transición ("Redirigiendo...").
+ */
+
 import Layout from '../layouts/Layout.astro';
 import {
 	SignedIn,
@@ -16,8 +28,28 @@ import {
 		</div>
 		<div>
 			<SignedIn>
-				<div class="pt-15">
-					<p class="text-5xl text-gray-200">Redirigiendo a la lista de pacientes...</p>
+				<div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
+					
+					<div class="relative flex items-center justify-center mb-8">
+						<div class="absolute -inset-4 bg-blue-500/30 rounded-full blur-xl animate-pulse"></div>
+						
+						<div class="w-16 h-16 border-4 border-blue-900 border-t-blue-400 rounded-full animate-spin"></div>
+						
+						<div class="absolute text-blue-400">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+							</svg>
+						</div>
+					</div>
+
+					<h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">
+						Iniciando Sesión
+					</h2>
+					
+					<p class="text-blue-400/80 font-mono text-sm uppercase tracking-widest animate-pulse">
+						Accediendo al sistema...
+					</p>
+
 				</div>
 			</SignedIn>
 		</div>

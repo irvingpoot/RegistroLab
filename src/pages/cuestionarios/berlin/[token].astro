@@ -1,0 +1,479 @@
+---
+
+/**
+ * @file [token].astro
+ * @description Página de captura de cuestionarios públicos (Epworth, Berlin, Pittsburgh).
+ * * * ARQUITECTURA DE SEGURIDAD:
+ * - Utiliza la `ANON_KEY` (pública) y delega la seguridad a **Supabase RPC**.
+ * - Funciones RPC utilizadas:
+ * 1. `validar_acceso_cuestionario`: Verifica token y estado sin exponer datos sensibles.
+ * 2. `guardar_respuesta_cuestionario`: Inserta las respuestas saltándose las reglas RLS de forma controlada desde la BD.
+ * * * FLUJO:
+ * 1. Obtiene el `token` de la URL.
+ * 2. Valida acceso vía RPC (si el token existe y si ya contestó).
+ * 3. Renderiza el formulario correspondiente.
+ * 4. Envía los datos (`datos` JSONB) a través de la función segura en BD.
+ */
+
+import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
+import InputNumber from "../../../components/InputNumber.astro"
+import RadioGroup from "../../../components/RadioGroup.astro"
+import ExpandableSection from "../../../components/ExpandableSection.astro"
+import { createClient } from "@supabase/supabase-js"
+
+const MODO_DISENO = false; // Cambiar a false para producción
+
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+const { token } = Astro.params;
+const faseUrl = Astro.url.searchParams.get('fase');
+
+const nombreCuestionario = 'berlin'; 
+
+let paciente = { id: 0, nombre: "" };
+let mensaje = "";
+let yaContestado = false;
+
+if (!MODO_DISENO) {
+    if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) {
+        return Astro.redirect('/404');
+    }
+
+    // 1. VALIDAR ACCESO Y ESTADO (Usando la función segura RPC)
+    const { data: infoAcceso, error: errorAcceso } = await supabase
+        .rpc('validar_acceso_cuestionario', {
+            token_input: token,
+            cuestionario_input: nombreCuestionario,
+            fase_input: faseUrl
+        });
+
+    // Si devuelve array vacío o error, es que el token no existe
+    if (errorAcceso || !infoAcceso || infoAcceso.length === 0) {
+        console.error("Error acceso:", errorAcceso);
+        return Astro.redirect('/404');
+    }
+
+    // Mapeamos los datos recibidos de la función SQL
+    paciente = { 
+        id: infoAcceso[0].paciente_id, 
+        nombre: infoAcceso[0].nombre 
+    };
+    yaContestado = infoAcceso[0].ya_contestado;
+
+    // 2. PROCESAR FORMULARIO (POST)
+    if (Astro.request.method === "POST" && !yaContestado) {
+        try {
+            const formData = await Astro.request.formData();
+            const respuestas = Object.fromEntries(formData);
+
+            // Guardar usando la función RPC segura
+            const { error: saveError } = await supabase
+                .rpc('guardar_respuesta_segura', {
+                    token_input: token,
+                    fase_input: faseUrl,
+                    cuestionario_input: nombreCuestionario,
+                    datos_input: respuestas
+                });
+
+            if (saveError) {
+                console.error("Error Supabase RPC:", saveError);
+                mensaje = "Error al guardar las respuestas.";
+            } else {
+                // ÉXITO: Recargamos para mostrar la pantalla de "Gracias"
+                return Astro.redirect(Astro.url.pathname + Astro.url.search);
+            }
+
+        } catch (e) {
+            console.error("Error procesando:", e);
+            mensaje = "Ocurrió un error inesperado.";
+        }
+    }
+} else {
+    // Modo diseño
+    paciente = { id: 0, nombre: "Paciente Simulado" };
+    yaContestado = false; 
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
+}
+
+const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
+
+const optionsRonca = [
+    { label: 'Sí', value: 'si' },
+    { label: 'No', value: 'no' },
+    { label: 'No lo sé', value: 'unknown' }
+];
+
+const optionsFrecuencia = [
+    { label: 'Casi todos los días', value: 'si' },
+    { label: '3-4 veces por semana', value: 'no' },
+    { label: '1-2 veces por semana', value: 'unknown' },
+    { label: '1-2 veces por mes', value: 'no' },
+    { label: 'Casi nunca o nunca', value: 'no' }
+];
+
+const optionsVolumen = [
+    { label: 'Como una respiración fuerte', value: 'si' },
+    { label: 'Tan alto como una conversación', value: 'no' },
+    { label: 'Más alto que una conversación', value: 'unknown' },
+    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 'no' }
+];
+
+const optionsSiNo = [
+    { label: 'Si', value: 'si' },
+    { label: 'No', value: 'no' }
+];
+
+const optionsSexo = [
+    { label: 'Masculino', value: 'male' },
+    { label: 'Femenino', value: 'female' }
+];
+
+---
+<LayoutCuestionario title="Cuestionario Berlin" tipo="berlin">
+
+    {yaContestado ? (
+            <div class="max-w-xl mx-auto mt-12 relative px-4">
+    
+                <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl blur-2xl opacity-20 transform scale-95 translate-y-4 pointer-events-none"></div>
+
+                <div class="relative bg-white border border-emerald-100 rounded-3xl p-8 md:p-12 text-center shadow-2xl shadow-emerald-900/5 overflow-hidden">
+                    
+                    <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none"></div>
+                    
+                    <div class="relative w-24 h-24 mx-auto mb-8">
+                        <div class="absolute inset-0 bg-emerald-200 rounded-full animate-ping opacity-25"></div>
+                        <div class="relative w-full h-full bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <h2 class="text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">¡Cuestionario Completado!</h2>
+                    
+                    <div class="bg-emerald-50/50 rounded-2xl p-6 mb-8 border border-emerald-100/50">
+                        <p class="text-gray-600 text-lg leading-relaxed">
+                            Hemos recibido correctamente tus respuestas para la fase de <span class="font-bold text-emerald-700">{textoFase}</span>.
+                        </p>
+                        <p class="text-sm text-emerald-600/70 mt-2 font-medium">No es necesario realizar ninguna otra acción.</p>
+                    </div>
+
+                    <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-gray-400 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Registrado el: {new Date().toLocaleDateString()}
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <>
+                <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-emerald-900/5 border border-emerald-100 p-6 md:p-8 mb-10">
+                
+                    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-teal-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                        <div class="flex items-start gap-5">
+                            <div class="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg shadow-emerald-500/30 text-white shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider border border-emerald-200">
+                                        {textoFase}
+                                    </span>
+                                </div>
+                                <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Cuestionario de Berlín</h1>
+                                <p class="text-gray-500 font-medium">Paciente: <span class="text-gray-900">{paciente.nombre}</span></p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                            <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 min-w-[100px] text-center">
+                                <p class="text-xs text-gray-400 uppercase font-bold">Tiempo</p>
+                                <p class="text-lg font-bold text-gray-800">~3 min</p>
+                            </div>
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 min-w-[120px] text-center">
+                                <p class="text-xs text-emerald-600 uppercase font-bold">Enfoque</p>
+                                <p class="text-lg font-bold text-emerald-700">Apnea / SAOS</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-6 border-t border-gray-100">
+                        <div class="flex gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="text-gray-600 text-sm leading-relaxed">
+                                Este cuestionario identifica factores de riesgo para la <strong>apnea del sueño</strong>. 
+                                Le preguntaremos sobre ronquidos, pausas al respirar y fatiga.
+                                <span class="block mt-2 text-emerald-600 font-medium italic">Sea muy honesto, sus respuestas son clave para el diagnóstico.</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <form method="POST" id="cuestionario-form">
+                    <InputNumber 
+                        label="Edad" 
+                        name="edad" 
+                        placeholder="Ej. 40" 
+                        min={0}
+                        max={120} 
+                        required={true}
+                        color="emerald"
+                    />
+
+                    <InputNumber 
+                        label="Altura (cm)" 
+                        name="altura" 
+                        placeholder="Ej. 175" 
+                        min={0} 
+                        max={250} 
+                        required={true}
+                        color="emerald"
+                    />
+
+                    <InputNumber 
+                        label="Peso" 
+                        name="peso" 
+                        placeholder="Ej. 70" 
+                        min={0} 
+                        max={300} 
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Sexo"
+                        name="sexo"
+                        options={optionsSexo}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="¿Ronca?"
+                        name="ronca"
+                        options={optionsRonca}
+                        required={true}
+                    />
+                    <ExpandableSection id="extra-ronca">
+
+                        <h3 class="text-blue-600 font-bold mb-4 tracking-wider">Detalles sobre el ronquido:</h3>
+                            
+                        <RadioGroup 
+                            label="¿Cómo es el volumen del ronquido?"
+                            name="ronca_volumen"
+                            options={optionsVolumen} 
+                        />
+                        
+                        <RadioGroup 
+                            label="¿Con qué frecuencia ronca?"
+                            name="ronca_frecuencia"
+                            options={optionsFrecuencia} 
+                        />
+                        
+                        <RadioGroup 
+                            label="¿Su ronquido molesta a otras personas?"
+                            name="ronca_molesta"
+                            options={optionsSiNo} 
+                        />
+
+                        <RadioGroup 
+                            label="¿Alguien advirtió que usted deja de respirar durante el sueño?"
+                            name="ronca_deja_de_respirar"
+                            options={optionsFrecuencia} 
+                        />
+
+                    </ExpandableSection>
+
+                    <RadioGroup 
+                        label="¿Con qué frecuencia se despierta cansado después de dormir?"
+                        name="despierta_cansado"
+                        options={optionsFrecuencia}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Durante el día, ¿se siente mal, cansado o fatigado?"
+                        name="se_siente_mal"
+                        options={optionsFrecuencia}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                            label="¿Alguna vez se quedó dormido mientras conducía?"
+                            name="se_quedo_dormido"
+                            options={optionsSiNo}
+                            required={true}
+                    />
+                    <ExpandableSection id="extra-se_quedo_dormido">
+                        <RadioGroup 
+                            label="¿Con qué frecuencia ocurre esto?"
+                            name="se_quedo_dormido_frecuencia"
+                            options={optionsFrecuencia}
+                        />
+                    </ExpandableSection>
+
+                    <RadioGroup 
+                            label="¿Sufre de hipertensión?"
+                            name="hipertension"
+                            options={optionsSiNo}
+                            required={true}
+                    />
+
+                    <div class="pt-10">
+                        <button type="button" id="btn-pre-submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
+                            Guardar y Finalizar
+                        </button>
+                    </div>
+                </form>
+
+                <dialog id="modal-confirm" class="m-auto p-0 rounded-2xl max-w-md w-full shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm bg-transparent">
+                    <div class="bg-white p-6 w-full"> <div class="text-center">
+                            <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">¿Estás seguro de enviar?</h3>
+                            <p class="text-gray-500 text-sm mb-6">
+                                Una vez enviadas tus respuestas, <strong>no podrás modificarlas ni volver a contestar</strong> este cuestionario.
+                                Por favor verifica que todo esté correcto.
+                            </p>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <button id="btn-cancel" class="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors cursor-pointer">
+                                    Revisar
+                                </button>
+                                <button id="btn-confirm-final" class="py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-colors cursor-pointer">
+                                    Sí, Enviar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </dialog>
+            </>
+        )}
+
+</LayoutCuestionario>
+
+<script is:inline>
+    const form = document.getElementById('cuestionario-form');
+    const btnPre = document.getElementById('btn-pre-submit');
+    const modal = document.getElementById('modal-confirm'); 
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnConfirmFinal = document.getElementById('btn-confirm-final');
+
+    // 1. ABRIR MODAL
+    if (btnPre) {
+        btnPre.addEventListener('click', () => {
+            if (form.reportValidity()) {
+                // Cálculo de puntaje si aplica
+                if (typeof calcularPuntaje === 'function') calcularPuntaje();
+                
+                // MÉTODO NATIVO PARA ABRIR
+                modal.showModal(); 
+            }
+        });
+    }
+
+    // 2. CERRAR MODAL (CANCELAR)
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+            // MÉTODO NATIVO PARA CERRAR
+            modal.close(); 
+        });
+    }
+
+    // 3. CONFIRMAR ENVÍO
+    if (btnConfirmFinal) {
+        btnConfirmFinal.addEventListener('click', () => {
+            btnConfirmFinal.innerHTML = '<span class="animate-pulse">Enviando...</span>';
+            btnConfirmFinal.disabled = true;
+            form.submit();
+        });
+    }
+    
+    // 4. (Opcional) CERRAR SI CLICKEA FUERA (BACKDROP)
+    modal.addEventListener('click', (e) => {
+        const dialogDimensions = modal.getBoundingClientRect();
+        if (
+            e.clientX < dialogDimensions.left ||
+            e.clientX > dialogDimensions.right ||
+            e.clientY < dialogDimensions.top ||
+            e.clientY > dialogDimensions.bottom
+        ) {
+            modal.close();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // 1. CONFIGURACIÓN: Aquí se definen todas las reglas
+        // Solo se agrega líneas aquí si hay nuevas preguntas condicionales
+        const reglas = [
+            { 
+                triggerName: 'ronca',       // El 'name' del RadioGroup
+                triggerValue: 'si',        // El valor que activa la sección
+                targetId: 'extra-ronca'     // El ID del ExpandableSection
+            },
+            { 
+                triggerName: 'se_quedo_dormido', 
+                triggerValue: 'si', 
+                targetId: 'extra-se_quedo_dormido' 
+            }
+        ];
+
+        // 2. LÓGICA
+        reglas.forEach(regla => {
+            const inputs = document.querySelectorAll(`input[name="${regla.triggerName}"]`);
+            const target = document.getElementById(regla.targetId);
+            
+            if (!target) return; // Seguridad por si el ID no existe
+
+            const inputsInternos = target.querySelectorAll('input, select, textarea');
+
+            const actualizarEstado = () => {
+                const seleccionado = document.querySelector(`input[name="${regla.triggerName}"]:checked`);
+                const valor = seleccionado ? (seleccionado).value : null;
+
+                if (valor === regla.triggerValue) {
+                    // MOSTRAR
+                    target.classList.remove('grid-rows-[0fr]', 'opacity-0');
+                    target.classList.add('grid-rows-[1fr]', 'opacity-100');
+                    inputsInternos.forEach(i => i.removeAttribute('disabled'));
+                } else {
+                    // OCULTAR
+                    target.classList.remove('grid-rows-[1fr]', 'opacity-100');
+                    target.classList.add('grid-rows-[0fr]', 'opacity-0');
+                    inputsInternos.forEach(i => i.setAttribute('disabled', 'true'));
+                }
+            };
+
+            // Escuchar cambios
+            inputs.forEach(input => {
+                input.addEventListener('change', actualizarEstado);
+            });
+
+            // Ejecutar al inicio (por si recargas la página y ya había datos)
+            actualizarEstado();
+        });
+    });
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+</style>

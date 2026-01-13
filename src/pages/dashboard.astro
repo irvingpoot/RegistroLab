@@ -1,27 +1,240 @@
 ---
+
+/**
+ * @file dashboard.astro
+ * @description Panel de control principal del usuario.
+ * * CARACTERÍSTICAS PRINCIPALES:
+ * 1. Cálculo Manual de Fecha: Se ajusta manualmente la fecha a UTC-6 (Mérida) para evitar
+ * desfases cuando el servidor está en UTC (00:00 vs 06:00).
+ * 2. Consulta Optimizada: Solo descarga las citas del día actual (Rango 00:00 - 23:59).
+ * 3. Estado Inteligente: Detecta si la agenda ya se completó o si quedan citas pendientes
+ * para cambiar el color de la interfaz (Azul = Pendiente, Verde = Completado).
+ */
+
 import Layout from "../layouts/Layout.astro"
+import { createClient } from "@supabase/supabase-js"
+import Icon from '../components/Icon.astro';
+import { UserButton } from "@clerk/astro/components";
 
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
 
-const fechaHoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+// --- 1. CÁLCULO MANUAL DE FECHA (MÉRIDA UTC-6) ---
+const now = new Date();
+const offsetMerida = 6 * 60 * 60 * 1000; 
+const nowMerida = new Date(now.getTime() - offsetMerida);
+
+const year = nowMerida.getUTCFullYear();
+const month = String(nowMerida.getUTCMonth() + 1).padStart(2, '0');
+const day = String(nowMerida.getUTCDate()).padStart(2, '0');
+
+const fechaSQL = `${year}-${month}-${day}`;
+
+// Rango del día completo en Mérida
+const inicioDia = `${fechaSQL}T00:00:00-06:00`;
+const finDia = `${fechaSQL}T23:59:59-06:00`;
+
+// --- 2. CONSULTA A SUPABASE ---
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+// Agregamos 'estado' a la consulta para saber si ya se atendió
+const { data: dataCitas, error } = await supabase
+    .from('citas')
+    .select('id, fecha_hora, nombre, motivo, estado') 
+    .gte('fecha_hora', inicioDia)
+    .lte('fecha_hora', finDia)
+    .order('fecha_hora', { ascending: true });
+
+if (error) console.error("Error Dashboard:", error);
+
+// --- 3. PROCESAMIENTO INTELIGENTE ---
+const citasHoy = dataCitas || [];
+const totalCitasHoy = citasHoy.length;
+
+// Filtramos solo las que siguen pendientes
+const citasPendientes = citasHoy.filter(c => c.estado === 'pendiente');
+const cantidadPendientes = citasPendientes.length;
+
+// Lógica para determinar qué mostrar en "Próxima Cita"
+let proximaHora = "--:--";
+let proximaNombre = "";
+let estadoAgenda = "vacio"; // 'pendiente', 'completado', 'vacio'
+
+if (cantidadPendientes > 0) {
+    // Si hay pendientes, la próxima es la primera de la lista de pendientes
+    const siguiente = citasPendientes[0];
+    estadoAgenda = "pendiente";
+    proximaNombre = siguiente.nombre || "Paciente";
+    
+    if (siguiente.fecha_hora) {
+        const dateObj = new Date(siguiente.fecha_hora);
+        proximaHora = dateObj.toLocaleTimeString('es-MX', { 
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Merida'
+        });
+    }
+} else if (totalCitasHoy > 0) {
+    // Si hay citas hoy pero 0 pendientes, significa que ya acabamos
+    estadoAgenda = "completado";
+    proximaNombre = "Todas las citas finalizadas";
+}
+
+const fechaHoyTexto = new Date().toLocaleDateString('es-MX', { 
+    timeZone: 'America/Merida',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+});
 ---
 
-<Layout title="Dashboard - RegistroLab">
+<Layout title="Dashboard - Lab-Somno">
     <main class="max-w-6xl mx-auto pt-10 pb-20 px-6">
 
-        <div class="mb-10 flex flex-col md:flex-row justify-between items-end gap-4 pb-2">
-            <div>
-                <p class="text-blue-400 font-bold uppercase tracking-wider text-xs mb-1">Panel de Control</p>
-                <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-tight">Hola, <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">{nombreUsuario}</span></h1>
-                <p class="text-gray-400 mt-2 text-lg">¿Qué deseas hacer hoy?</p>
-            </div>
-            <div class="text-right hidden md:block">
-                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    {fechaHoy}
+        <div class="relative mb-12 pb-4">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] pointer-events-none mix-blend-screen"></div>
+
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
+                
+                <div class="space-y-3">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest w-fit backdrop-blur-sm">
+                        <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                        </span>
+                        Panel de Control
+                    </div>
+
+                    <h1 class="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight">
+                        Hola, <br class="md:hidden" />
+                        <span class="relative inline-block">
+                            <span class="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-500 blur-xl opacity-30 select-none" aria-hidden="true">{nombreUsuario}</span>
+                            <span class="relative text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 filter drop-shadow-sm">
+                                {nombreUsuario}
+                            </span>
+                        </span>
+                    </h1>
+
+                    <p class="text-gray-400 text-lg font-light max-w-lg leading-relaxed">
+                        Que bueno tenerte de vuelta. ¿Qué quieres hacer hoy?
+                    </p>
+                </div>
+
+                <div class="absolute right-1 top-10">
+                    <UserButton showName={true} />
+                </div>
+
+                <div class="hidden md:block text-right">
+                    <div class="group flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
+                        <div class="bg-gray-800 p-2.5 rounded-xl group-hover:bg-blue-600/20 group-hover:text-blue-400 transition-colors text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">Fecha Actual</p>
+                            <p class="text-base font-semibold text-gray-200 capitalize">{fechaHoyTexto}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            <div class="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gray-800 to-transparent mt-8"></div>
+        </div>
+
+        <div class="mb-10 animate-fade-in-up">
+            {totalCitasHoy > 0 ? (
+                // CASO A: HAY CITAS HOY (Pendientes o Terminadas)
+                <div class={`relative overflow-hidden rounded-2xl border p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg transition-all duration-500 ${
+                    estadoAgenda === 'completado' 
+                        ? 'bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-emerald-500/30 shadow-emerald-900/10' 
+                        : 'bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border-blue-500/30 shadow-blue-900/10'
+                }`}>
+                    
+                    <div class={`absolute top-0 left-0 w-full h-full pattern-grid-lg pointer-events-none ${
+                        estadoAgenda === 'completado' ? 'bg-emerald-500/5' : 'bg-blue-500/5'
+                    }`}></div>
+                    <div class={`absolute -left-4 -top-4 w-24 h-24 rounded-full blur-2xl ${
+                        estadoAgenda === 'completado' ? 'bg-emerald-500/20' : 'bg-blue-500/20'
+                    }`}></div>
+
+                    <div class="relative z-10 flex items-center gap-5">
+                        <div class="relative">
+                            <div class={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-colors ${
+                                estadoAgenda === 'completado' ? 'bg-emerald-600 shadow-emerald-600/40' : 'bg-blue-600 shadow-blue-600/40'
+                            }`}>
+                                <span class="text-3xl font-extrabold text-white">
+                                    {estadoAgenda === 'completado' ? '✓' : cantidadPendientes}
+                                </span>
+                            </div>
+                            {estadoAgenda === 'pendiente' && (
+                                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-gray-900 rounded-full animate-pulse"></div>
+                            )}
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-xl font-bold text-white mb-1">Agenda de Hoy</h3>
+                            <p class={`text-sm ${estadoAgenda === 'completado' ? 'text-emerald-200' : 'text-blue-200'}`}>
+                                {estadoAgenda === 'completado' 
+                                    ? `¡Excelente trabajo! Has atendido a tus ${totalCitasHoy} pacientes.` 
+                                    : cantidadPendientes === 1 
+                                        ? `Te queda 1 paciente esperando atención.` 
+                                        : `Te quedan ${cantidadPendientes} pacientes por atender hoy.`
+                                }
+                            </p>
+                            
+                            <div class={`mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-xs transition-colors ${
+                                estadoAgenda === 'completado' 
+                                    ? 'bg-emerald-950/50 border-emerald-800 text-emerald-300'
+                                    : 'bg-blue-950/50 border-blue-800 text-blue-300'
+                            }`}>
+                                {estadoAgenda === 'completado' ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                        Agenda Completada
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        Siguiente: <span class="font-bold text-white">{proximaHora}</span> - {proximaNombre}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10 w-full md:w-auto">
+                        <a href="/citas" class={`flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg group ${
+                            estadoAgenda === 'completado' 
+                                ? 'bg-emerald-600 hover:bg-emerald-500 hover:shadow-emerald-500/25' 
+                                : 'bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/25'
+                        }`}>
+                            Ver Agenda
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            ) : (
+                // CASO B: NO HAY CITAS (Día Libre)
+                <div class="relative overflow-hidden rounded-2xl bg-gray-800/40 border border-gray-700/50 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-5">
+                        <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Todo al día</h3>
+                            <p class="text-gray-400 text-sm">No hay citas programadas para hoy, {fechaHoyTexto}.</p>
+                        </div>
+                    </div>
+                    
+                    <a href="/nueva-cita" class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium rounded-lg transition-colors border border-gray-600">
+                        Agendar Cita
+                    </a>
+                </div>
+            )}
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[180px]">
@@ -52,7 +265,7 @@ const fechaHoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', year:
                     </div>
                     
                     <div class="mt-10">
-                        <h3 class="text-3xl font-bold text-white mb-2 group-hover:translate-x-1 transition-transform">Directorio</h3>
+                        <h3 class="text-3xl font-bold text-white mb-2 group-hover:translate-x-1 transition-transform">Pacientes</h3>
                         <p class="text-gray-400 text-sm leading-relaxed mb-4 group-hover:text-blue-200 transition-colors">
                             Acceso directo a la base de datos completa de pacientes y expedientes clínicos.
                         </p>
@@ -91,6 +304,26 @@ const fechaHoy = new Date().toLocaleDateString('es-MX', { weekday: 'long', year:
                     <div>
                         <h3 class="text-xl font-bold text-white group-hover:text-pink-200 transition-colors">Agendar Cita</h3>
                         <p class="text-xs text-gray-400 mt-1">Crear nueva cita</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="/estadisticas" class="group relative bg-gradient-to-br from-gray-800 to-gray-900 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/20 hover:scale-[1.01]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-purple-500/20"></div>
+                
+                <div class="relative z-10 h-full flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2.5 bg-purple-500/20 rounded-xl text-purple-300 group-hover:text-white group-hover:bg-purple-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold text-white mb-1 group-hover:text-purple-300 transition-colors">Estadísticas</h3>
+                        <p class="text-sm text-gray-400 font-medium group-hover:text-gray-300 transition-colors">Métricas y reportes financieros</p>
                     </div>
                 </div>
             </a>

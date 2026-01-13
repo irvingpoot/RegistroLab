@@ -1,4 +1,19 @@
 ---
+
+/**
+ * @component ReturnButton
+ * @description Enlace de navegación para regresar a la vista anterior o superior.
+ * * CASO DE USO:
+ * - Se ubica en la parte superior de formularios y vistas de detalle (ej: 'Ver Paciente', 'Editar Cita').
+ * - Proporciona una salida segura si el usuario entró por error a una sección.
+ * * DISEÑO:
+ * - Estilo minimalista (texto gris que se ilumina al hover) con icono de flecha.
+ * - Jerarquía visual baja para no competir con los botones de acción principales (Guardar).
+ * * PROPS:
+ * @prop {string} href - La ruta de destino (ej: '/lista', '/dashboard').
+ * @prop {string} [text='Volver'] - Etiqueta del enlace.
+ */
+
 interface Props {
 	href: string;
 	text?: string;

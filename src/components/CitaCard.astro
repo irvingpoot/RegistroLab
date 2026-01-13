@@ -1,4 +1,17 @@
 ---
+
+/**
+ * @component CitaCard
+ * @description Tarjeta de resumen para una cita individual en el Dashboard o Agenda.
+ * * LÓGICA VISUAL:
+ * - Muestra la hora, el nombre del paciente y el motivo.
+ * - Indicadores de Estado: Cambia visualmente si la cita está 'pendiente' (borde azul/gris)
+ * o 'completada' (borde verde/esmeralda).
+ * * PROPS:
+ * @prop {object} cita - Objeto completo de la cita traído de la base de datos.
+ * Debe contener: { id, hora, nombre, motivo, estado }.
+ */
+
 interface Props {
     cita: {
         id: string;
@@ -15,6 +28,31 @@ interface Props {
 }
 
 const { cita } = Astro.props;
+
+const generarLinkWhatsapp = () => {
+    if (!cita.telefono) return '#';
+
+    // 1. Limpiamos el número (quitamos guiones, espacios, paréntesis)
+    const numeroLimpio = cita.telefono.replace(/\D/g, '');
+    
+    // 2. Preparamos los datos
+    // Intenta obtener el nombre, si no existe usa "Paciente"
+    const nombrePaciente = cita.nombre || cita.nombre || "Paciente";
+    
+    // Formateamos fecha y hora para que se lea natural (ej: "12 de octubre")
+    const fechaTexto = new Date(cita.fecha_hora).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+    const horaTexto = cita.fecha_hora ? new Date(cita.fecha_hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Merida' }) : '';
+
+    // 3. Creamos el mensaje
+    const mensaje = `Hola ${nombrePaciente}, le escribimos de RegistroLab para confirmar su cita del día *${fechaTexto}* a las *${horaTexto}*. ¿Podría confirmar su asistencia?`;
+
+    // 4. Retornamos el link completo (Asumiendo lada 52 de México)
+    return `https://wa.me/52${numeroLimpio}?text=${encodeURIComponent(mensaje)}`;
+};
+
+
+
+const linkWA = generarLinkWhatsapp();
 
 const horaFormateada = new Date(cita.fecha_hora).toLocaleTimeString('es-MX', {
     hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Merida'
@@ -47,11 +85,24 @@ const motivoTexto = cita.motivo ? cita.motivo.replace('_', ' ') : "Sin motivo";
                 </span>
             </div>
             
-            <div class="flex items-center gap-2 text-sm text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5 text-blue-500 shrink-0">
+            <div class="flex items-center gap-2 text-sm text-gray-400 group/wa">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5 text-blue-500 group-hover/wa:text-green-500 transition-colors shrink-0">
                     <path fill-rule="evenodd" d="M2 3.5A1.5 1.5 0 0 1 3.5 2h1.148a1.5 1.5 0 0 1 1.465 1.175l.716 3.223a1.5 1.5 0 0 1-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 0 0 6.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 0 1 1.767-1.052l3.223.716A1.5 1.5 0 0 1 18 15.352V16.5a1.5 1.5 0 0 1-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 0 1 2.43 8.326 13.019 13.019 0 0 1 2 5V3.5Z" clip-rule="evenodd" />
                 </svg>
-                <span>{cita.telefono || "Sin teléfono registrado"}</span>
+
+                {cita.telefono ? (
+                    <a 
+                        href={linkWA} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        class="hover:text-green-400 hover:font-bold transition-all cursor-pointer border-b border-transparent hover:border-green-400/50"
+                        title="Enviar WhatsApp de confirmación"
+                    >
+                        {cita.telefono}
+                    </a>
+                ) : (
+                    <span>Sin teléfono registrado</span>
+                )}
             </div>
         </div>
 

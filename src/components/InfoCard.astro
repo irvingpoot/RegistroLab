@@ -1,4 +1,18 @@
 ---
+
+/**
+ * @component InfoCard
+ * @description Contenedor visual estándar para secciones de información.
+ * * PROPÓSITO:
+ * - Mantener consistencia visual en el expediente del paciente.
+ * - Provee un encabezado con título y subrayado degradado.
+ * * PROPS:
+ * @prop {string} title - El título de la sección (ej: "Antropométricos").
+ * @prop {string} [class] - Clases CSS adicionales opcionales para el contenedor externo.
+ * * SLOT:
+ * - Renderiza cualquier contenido hijo (tablas, listas, grids) dentro del cuerpo de la tarjeta.
+ */
+
 interface Props {
     title: string;
     className?: string;

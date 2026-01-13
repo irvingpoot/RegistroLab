@@ -1,8 +1,22 @@
 ---
+
+/**
+ * @component SintomaGroup
+ * @description Gestor dinámico de síntomas clínicos (Filas de Clave-Valor múltiple).
+ * * FUNCIONALIDAD:
+ * - Permite agregar N cantidad de síntomas, cada uno con sus propios atributos detallados
+ * (Temporalidad, Frecuencia, Gravedad).
+ * - Funciona en modo "Creación" (inicia vacío) y modo "Edición" (renderiza datos existentes).
+ * * MANEJO DE FORMULARIO:
+ * - Utiliza la notación de array en los inputs (`name="sintoma[]"`, `name="temporalidad[]"`, etc.)
+ * para que el servidor reciba vectores sincronizados por índice al procesar el FormData.
+ * * PROPS:
+ * @prop {Array} [sintomas=[]] - Lista de objetos con los síntomas existentes para pre-llenar el formulario.
+ */
+
 interface Props {
     numero?: number;
     className?: string;
-    // Nueva prop para recibir datos al editar
     data?: {
         sintoma?: string;
         temporalidad?: string;

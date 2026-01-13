@@ -1,4 +1,18 @@
 ---
+
+/**
+ * @component PuntajeExtraGroup
+ * @description Contenedor dinámico para gestionar pruebas psicométricas personalizadas (Extras).
+ * * CASO DE USO:
+ * - Permite al usuario registrar pruebas que no están en el esquema estándar (ej: "Beck", "Moca").
+ * - Funciona en modo "Creación" (inicia vacío) y modo "Edición" (pre-llena los inputs).
+ * * ESTRUCTURA DE DATOS:
+ * - Genera inputs matriciales para 4 campos: Nombre, Pre, Inter, Post.
+ * - Los inputs tienen el atributo `name="extra_prueba_X[]"` para ser procesados como Arrays en el backend.
+ * * PROPS:
+ * @prop {Array} [extras=[]] - Array de objetos con los datos existentes. Si se omite, el componente asume que es un registro nuevo.
+ */
+
 interface Props {
     className?: string;
     data?: { nombre_prueba?: string; puntaje?: number | null };
