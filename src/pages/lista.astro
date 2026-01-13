@@ -1,4 +1,18 @@
 ---
+
+/**
+ * @file lista.astro
+ * @description Directorio principal y listado de expedientes de pacientes.
+ * * OPTIMIZACIÓN DE RENDIMIENTO:
+ * - Implementa Paginación Server-Side (Offset/Limit) para manejar grandes volúmenes de datos
+ * sin saturar el cliente ni el ancho de banda (`PAGE_SIZE = 50`).
+ * - Consulta Relacional Optimizada: Recupera la lista de pacientes y *solamente* la última nota
+ * de seguimiento (subconsulta `.limit(1)`) para mostrar el estado más reciente sin descargar todo el historial.
+ * * FUNCIONALIDAD:
+ * - Búsqueda en tiempo real (por nombre) usando filtros `ilike` de Postgres.
+ * - Navegación entre páginas (Anterior/Siguiente) manteniendo el estado de la búsqueda actual.
+ */
+
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
@@ -10,7 +24,7 @@ const supabase = createClient(
 );
 
 // 1. RECUPERAR PARÁMETROS (Búsqueda y Paginación)
-const busqueda = Astro.url.searchParams.get('q') || ''; // <--- ¡Aquí está la variable que faltaba!
+const busqueda = Astro.url.searchParams.get('q') || '';
 const page = parseInt(Astro.url.searchParams.get('page') || '1');
 const PAGE_SIZE = 50;
 const from = (page - 1) * PAGE_SIZE;
@@ -166,7 +180,7 @@ const getPageLink = (pageNum: number) => {
 							<td class="px-6 py-4 text-center">
 								{paciente.ultimo_seguimiento_por ? (
 									<div class="flex flex-col items-center">
-										<span class="text-white font-medium text-xs bg-blue-600/30 text-blue-600 px-2 py-0.5 rounded border border-blue-500/20">
+										<span class="text-white font-medium text-xs bg-blue-600/30 px-2 py-0.5 rounded border border-blue-500/20">
 											{paciente.ultimo_seguimiento_por}
 										</span>
 										<span class="text-[10px] text-white mt-1">

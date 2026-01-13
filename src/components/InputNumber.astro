@@ -1,4 +1,17 @@
 ---
+
+/**
+ * @component InputNumber
+ * @description Campo numérico reutilizable con estilos y etiquetas integradas.
+ * * CARACTERÍSTICAS:
+ * - Soporta temas de color (blue, emerald, purple) para adaptarse al contexto (Cuestionarios vs Admin).
+ * - Acepta atributos HTML nativos como min, max, step y required.
+ * * PROPS PRINCIPALES:
+ * @prop {string} label - Etiqueta visible para el usuario.
+ * @prop {string} name - Nombre del campo para el FormData.
+ * @prop {string} [color='blue'] - Tema de color para el borde y el foco ('blue' | 'emerald' | 'purple').
+ */
+
 interface Props {
     label: string;
     subLabel?: string;

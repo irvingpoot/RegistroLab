@@ -1,4 +1,21 @@
 ---
+
+/**
+ * @file [id].astro
+ * @description Vista detallada (Expediente Digital) de un paciente específico.
+ * * CONCEPTO "EXPEDIENTE CENTRAL":
+ * - Agrega toda la información dispersa: Datos personales, Historial Clínico,
+ * Pagos, Citas, Seguimientos y Resultados de Cuestionarios.
+ * * CARACTERÍSTICAS TÉCNICAS:
+ * 1. Acciones Múltiples (Switch): Maneja varias acciones POST en un solo endpoint
+ * ('add_seguimiento', 'delete_pago', 'delete_cita', etc.) identificadas por el campo `action`.
+ * 2. Sistema de Tokens: Genera y visualiza el enlace público único (`token_cuestionarios`)
+ * para que el paciente responda evaluaciones sin iniciar sesión.
+ * 3. Cálculos en Tiempo Real: Suma el total de pagos históricos al cargar la página.
+ * * SEGURIDAD:
+ * - Valida que el ID exista y protege las acciones de borrado y edición.
+ */
+
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import InfoCard from "../../components/InfoCard.astro"
@@ -759,10 +776,10 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 <script define:vars={{ 
     baseUrl: Astro.url.origin, 
     token: paciente.token_cuestionarios,
-    // [NUEVO] Pasamos las respuestas de la BD al cliente
+    // Pasamos las respuestas de la BD al cliente
     respuestasGuardadas: paciente.respuestas_cuestionarios || [] 
 }}>
-    // [NUEVO] DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
+    // DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
     const DICCIONARIOS = {
         epworth: {
             epworth_1: "Al estar sentado leyendo",
@@ -883,7 +900,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         pittsburgh: document.getElementById('row-pittsburgh'),
     };
     
-    // [MODIFICADO] Función setFase ahora gestiona la visibilidad
+    // Función setFase ahora gestiona la visibilidad
     window.setFase = (fase) => {
         currentFase = fase;
 
@@ -900,7 +917,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 : "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
         });
 
-        // 3. [NUEVO] Verificamos si ya hay respuesta para mostrar Botón o Link
+        // 3. Verificamos si ya hay respuesta para mostrar Botón o Link
         ['epworth', 'berlin', 'pittsburgh'].forEach(cuestionario => {
             const row = rows[cuestionario];
             // Buscamos los contenedores dentro de la fila
@@ -922,7 +939,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         });
     }
 
-    // [NUEVO] Función para abrir el modal con los datos
+    // Función para abrir el modal con los datos
     window.verRespuestas = (cuestionario) => {
         const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === currentFase);
         if (!respuesta || !respuesta.datos) return;
@@ -1036,8 +1053,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
     const inputIdBorrarPago = document.getElementById('input-id-borrar-pago');
 
     document.addEventListener('click', (e) => {
-        // ... (Tu código existente para btn-editar-nota, etc)
-
         // Botón Borrar Pago
         const btnBorrarPago = (e.target).closest('.btn-borrar-pago');
         if (btnBorrarPago && modalBorrarPago && inputIdBorrarPago) {

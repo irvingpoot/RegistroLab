@@ -1,11 +1,26 @@
 ---
+
+/**
+ * @file [token].astro
+ * @description Página de captura de cuestionarios públicos (Epworth, Berlin, Pittsburgh).
+ * * * ARQUITECTURA DE SEGURIDAD:
+ * - Utiliza la `ANON_KEY` (pública) y delega la seguridad a **Supabase RPC**.
+ * - Funciones RPC utilizadas:
+ * 1. `validar_acceso_cuestionario`: Verifica token y estado sin exponer datos sensibles.
+ * 2. `guardar_respuesta_cuestionario`: Inserta las respuestas saltándose las reglas RLS de forma controlada desde la BD.
+ * * * FLUJO:
+ * 1. Obtiene el `token` de la URL.
+ * 2. Valida acceso vía RPC (si el token existe y si ya contestó).
+ * 3. Renderiza el formulario correspondiente.
+ * 4. Envía los datos (`datos` JSONB) a través de la función segura en BD.
+ */
+
 import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
 import MatrixScale from "../../../components/MatrixScale.astro"
 import { createClient } from "@supabase/supabase-js"
 
 const MODO_DISENO = false; // Cambiar a false para producción
 
-// [CAMBIO IMPORTANTE]: Usamos la Anon Key. Ahora es seguro gracias a las RPC de base de datos.
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
@@ -14,8 +29,6 @@ const supabase = createClient(
 const { token } = Astro.params;
 const faseUrl = Astro.url.searchParams.get('fase');
 
-// Variable para identificar qué cuestionario es (puedes sacarlo de la URL o hardcodearlo si es archivo único)
-// Asumiendo que esta página es Específica para Epworth:
 const nombreCuestionario = 'epworth'; 
 
 let paciente = { id: 0, nombre: "" };
@@ -54,7 +67,7 @@ if (!MODO_DISENO) {
             const formData = await Astro.request.formData();
             const respuestas = Object.fromEntries(formData);
 
-            // [CAMBIO IMPORTANTE]: Guardar usando la función RPC segura
+            // Guardar usando la función RPC segura
             const { error: saveError } = await supabase
                 .rpc('guardar_respuesta_segura', {
                     token_input: token,
@@ -85,7 +98,7 @@ if (!MODO_DISENO) {
 
 const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
-// ... (El resto de tus configuraciones de preguntas y arrays se queda IGUAL) ...
+
 const epworthOptions = [
     { label: 'Nunca', value: 0 },
     { label: 'Ligera', value: 1 },

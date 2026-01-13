@@ -1,4 +1,17 @@
 ---
+
+/**
+ * @component CitaCard
+ * @description Tarjeta de resumen para una cita individual en el Dashboard o Agenda.
+ * * LÓGICA VISUAL:
+ * - Muestra la hora, el nombre del paciente y el motivo.
+ * - Indicadores de Estado: Cambia visualmente si la cita está 'pendiente' (borde azul/gris)
+ * o 'completada' (borde verde/esmeralda).
+ * * PROPS:
+ * @prop {object} cita - Objeto completo de la cita traído de la base de datos.
+ * Debe contener: { id, hora, nombre, motivo, estado }.
+ */
+
 interface Props {
     cita: {
         id: string;

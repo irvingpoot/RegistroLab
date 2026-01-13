@@ -1,4 +1,21 @@
 ---
+
+/**
+ * @file registro.astro
+ * @description Formulario principal para la admisión y alta de nuevos pacientes.
+ * * FLUJO DE DATOS (Inserción en Cascada):
+ * 1. Crea el registro maestro en la tabla `pacientes`.
+ * 2. Recupera el `ID` generado automáticamente.
+ * 3. Itera e inserta los registros relacionados en `pacientes_sintomas` (Relación 1:N).
+ * 4. Itera e inserta los registros en `pacientes_puntajes_extra` (Relación 1:N).
+ * * AUTOMATIZACIÓN:
+ * - Cálculo de Edad: Determina la edad exacta basándose en la fecha de nacimiento ingresada.
+ * - Captura de Auditoría: Registra automáticamente quién creó el expediente (`registrado_por`).
+ * * INTERFAZ (UI):
+ * - Validación del lado del cliente para evitar envíos incompletos.
+ * - Formularios dinámicos para agregar N cantidad de síntomas o pruebas adicionales.
+ */
+
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"

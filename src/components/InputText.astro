@@ -1,4 +1,21 @@
 ---
+
+/**
+ * @component InputText
+ * @description Campo de entrada de texto versátil con estilos del sistema.
+ * * FLEXIBILIDAD:
+ * - Aunque por defecto es `type="text"`, admite otros tipos HTML5 como 'email', 'tel', 
+ * 'password' o 'url' mediante la prop `type`.
+ * * DISEÑO:
+ * - Integra estados de foco (`focus:border-X-500`) que responden al tema de color elegido.
+ * - Estilo consistente (gris oscuro/borde suave) para modo oscuro.
+ * * PROPS PRINCIPALES:
+ * @prop {string} label - Texto descriptivo superior.
+ * @prop {string} name - Identificador del campo para el formulario.
+ * @prop {string} [type='text'] - Tipo de input HTML.
+ * @prop {string} [color='blue'] - Color de acento al enfocar ('blue', 'emerald', 'purple', 'pink').
+ */
+
 interface Props {
     label: string;
     name: string;

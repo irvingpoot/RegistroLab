@@ -1,6 +1,20 @@
 ---
+
+/**
+ * @file dashboard.astro
+ * @description Panel de control principal del usuario.
+ * * CARACTERÍSTICAS PRINCIPALES:
+ * 1. Cálculo Manual de Fecha: Se ajusta manualmente la fecha a UTC-6 (Mérida) para evitar
+ * desfases cuando el servidor está en UTC (00:00 vs 06:00).
+ * 2. Consulta Optimizada: Solo descarga las citas del día actual (Rango 00:00 - 23:59).
+ * 3. Estado Inteligente: Detecta si la agenda ya se completó o si quedan citas pendientes
+ * para cambiar el color de la interfaz (Azul = Pendiente, Verde = Completado).
+ */
+
 import Layout from "../layouts/Layout.astro"
 import { createClient } from "@supabase/supabase-js"
+import Icon from '../components/Icon.astro';
+import { UserButton } from "@clerk/astro/components";
 
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
@@ -26,7 +40,7 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// [MODIFICACIÓN 1]: Agregamos 'estado' a la consulta para saber si ya se atendió
+// Agregamos 'estado' a la consulta para saber si ya se atendió
 const { data: dataCitas, error } = await supabase
     .from('citas')
     .select('id, fecha_hora, nombre, motivo, estado') 
@@ -40,7 +54,7 @@ if (error) console.error("Error Dashboard:", error);
 const citasHoy = dataCitas || [];
 const totalCitasHoy = citasHoy.length;
 
-// [MODIFICACIÓN 2]: Filtramos solo las que siguen pendientes
+// Filtramos solo las que siguen pendientes
 const citasPendientes = citasHoy.filter(c => c.estado === 'pendiente');
 const cantidadPendientes = citasPendientes.length;
 
@@ -67,7 +81,6 @@ if (cantidadPendientes > 0) {
     proximaNombre = "Todas las citas finalizadas";
 }
 
-// Fecha visual bonita
 const fechaHoyTexto = new Date().toLocaleDateString('es-MX', { 
     timeZone: 'America/Merida',
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
@@ -106,6 +119,10 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                     </p>
                 </div>
 
+                <div class="absolute right-1 top-10">
+                    <UserButton showName={true} />
+                </div>
+
                 <div class="hidden md:block text-right">
                     <div class="group flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
                         <div class="bg-gray-800 p-2.5 rounded-xl group-hover:bg-blue-600/20 group-hover:text-blue-400 transition-colors text-gray-400">
@@ -127,7 +144,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
         <div class="mb-10 animate-fade-in-up">
             {totalCitasHoy > 0 ? (
                 // CASO A: HAY CITAS HOY (Pendientes o Terminadas)
-                // [CAMBIO 1] El contenedor principal ahora cambia de color (Azul vs Verde)
                 <div class={`relative overflow-hidden rounded-2xl border p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg transition-all duration-500 ${
                     estadoAgenda === 'completado' 
                         ? 'bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-emerald-500/30 shadow-emerald-900/10' 

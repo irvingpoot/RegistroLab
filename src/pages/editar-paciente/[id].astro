@@ -1,4 +1,23 @@
 ---
+
+/**
+ * @file [id].astro
+ * @description Formulario maestro para la edición del expediente clínico.
+ * * ESTRATEGIA DE ACTUALIZACIÓN (Relaciones 1:N):
+ * - Para las listas dinámicas (Síntomas y Puntajes Extra), se utiliza una estrategia
+ * de "Borrado Total y Reinserción" (Flush & Fill) en cada guardado.
+ * Esto garantiza que los elementos eliminados visualmente por el usuario desaparezcan
+ * realmente de la base de datos sin necesidad de lógica compleja de comparación.
+ * * LÓGICA DE NEGOCIO:
+ * - Recálculo automático de `edad`: Se actualiza en el servidor basado en la fecha de nacimiento.
+ * - Formularios Dinámicos: Utiliza JavaScript (cliente) para clonar templates HTML
+ * y permitir agregar 'N' cantidad de síntomas o puntajes.
+ * * CARGA DE DATOS:
+ * - Ejecuta 3 consultas en paralelo (`Promise.all`) para reconstruir el estado completo
+ * del paciente antes de renderizar.
+ */
+
+
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import SintomaGroup from "../../components/SintomaGroup.astro"
@@ -356,7 +375,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_fuma" class={p.fuma === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Cigarros/semana</label><input type="number" name="cigarros_semana" value={p.cigarros_semana} class="input-sub"></div>
                         </div>
-                        {/* Alcohol */}
                         <div class="cond-block">
                             <label class="label">¿Alcohol?</label>
                             <div class="flex gap-6">
@@ -365,7 +383,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_alcohol" class={p.alcohol === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Cervezas/semana</label><input type="number" name="cervezas_semana" value={p.cervezas_semana} class="input-sub"></div>
                         </div>
-                        {/* Cafe */}
                         <div class="cond-block">
                             <label class="label">¿Café?</label>
                             <div class="flex gap-6">
@@ -374,7 +391,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_cafe" class={p.cafe === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Tazas/semana</label><input type="number" name="tazas_cafe_semana" value={p.tazas_cafe_semana} class="input-sub"></div>
                         </div>
-                        {/* Te */}
                         <div class="cond-block">
                             <label class="label">¿Té?</label>
                             <div class="flex gap-6">
@@ -511,7 +527,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
             });
         });
 
-        // 2. Síntomas Dinámicos (Clonar solo el primero como template si se necesita más)
+        // 2. Síntomas Dinámicos
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
         

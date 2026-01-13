@@ -1,4 +1,20 @@
 ---
+
+/**
+ * @file [id].astro
+ * @description Página para editar una cita existente.
+ * * LÓGICA DE FECHAS:
+ * 1. Carga (GET): Convierte la fecha UTC de la BD a formato local `YYYY-MM-DDTHH:mm`
+ * para que el input `datetime-local` la reconozca y muestre correctamente.
+ * 2. Guardado (POST): Recibe la fecha local del input y le anexa la zona horaria
+ * correcta (-06:00 Mérida) antes de enviarla a Supabase, asegurando consistencia.
+ * * FLUJO:
+ * - Valida que el ID exista.
+ * - Carga los datos actuales para pre-llenar el formulario.
+ * - Permite modificar estatus, motivo, observaciones y horario.
+ */
+
+
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"

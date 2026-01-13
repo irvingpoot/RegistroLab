@@ -1,4 +1,18 @@
 ---
+
+/**
+ * @file estadisticas.astro
+ * @description Panel de Inteligencia de Negocios (BI) y métricas clínicas.
+ * * ESTRATEGIA DE DATOS:
+ * - Utiliza "Database Functions" (RPC) de Supabase en lugar de descargas directas.
+ * - Función SQL: `get_dashboard_stats()`.
+ * * SECCIONES:
+ * 1. KPIs Financieros (Ingresos, Tickets).
+ * 2. Métricas de Agenda (Pendientes vs Completadas).
+ * 3. Demografía y Procedencia (Gráficos de Dona).
+ * 4. Factores de Riesgo Clínico.
+ */
+
 import Layout from "../layouts/Layout.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
@@ -8,7 +22,7 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// --- 1. OBTENCIÓN DE DATOS (OPTIMIZADO VÍA RPC) ---
+// --- 1. OBTENCIÓN DE DATOS ---
 // Llamamos a la función de base de datos que ya hizo todos los cálculos
 const { data, error } = await supabase.rpc('get_dashboard_stats');
 
@@ -198,7 +212,7 @@ const money = (val:number) => new Intl.NumberFormat('es-MX', { style: 'currency'
                         </div>
                         <span class="text-white font-bold">{stats.citasPendientes}</span>
                     </div>
-                     <div class="flex justify-between items-center text-xs p-2 rounded bg-gray-800/50 border border-gray-700/50">
+                    <div class="flex justify-between items-center text-xs p-2 rounded bg-gray-800/50 border border-gray-700/50">
                         <div class="flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
                             <span class="text-gray-300">Completadas</span>

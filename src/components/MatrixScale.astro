@@ -1,4 +1,26 @@
 ---
+
+/**
+ * @component MatrixScale
+ * @description Tabla de matriz para preguntas de Escala Likert (Opción Múltiple en grilla).
+ * * CASO DE USO:
+ * - Se utiliza cuando múltiples preguntas comparten las mismas opciones de respuesta
+ * (ej: 0=Nunca, 1=A veces, 2=Siempre).
+ * * LÓGICA DE RENDERIZADO:
+ * - Itera sobre el array `questions` para crear las filas.
+ * - Itera sobre el array `options` para crear las columnas de radio buttons.
+ * - Genera nombres de inputs secuenciales basados en el `idPrefix` (ej: 'epworth_1', 'epworth_2'...).
+ * * ACCESIBILIDAD:
+ * - Utiliza inputs tipo `radio` para asegurar que solo se elija una opción por fila.
+ * * PROPS:
+ * @prop {string} title - Título de la sección del cuestionario.
+ * @prop {string} description - Instrucciones para el paciente.
+ * @prop {Array} questions - Lista de textos de las preguntas.
+ * @prop {Array} options - Lista de objetos { value, label, mobileLabel } para las respuestas.
+ * @prop {string} idPrefix - Prefijo base para el atributo 'name' de los inputs.
+ * @prop {string} [color='blue'] - Color del tema para los controles seleccionados.
+ */
+
 interface Option {
     label: string;
     value: number;

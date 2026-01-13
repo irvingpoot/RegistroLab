@@ -1,4 +1,18 @@
----                            
+---
+
+/**
+ * @file LayoutCuestionario.astro
+ * @description Layout especializado para las vistas públicas de encuestas.
+ * * SISTEMA DE TEMAS (Theming):
+ * - Cambia dinámicamente la paleta de colores según la prop `tipo`:
+ * - 'epworth' -> Tonos Azules/Cielo (Calma).
+ * - 'pittsburgh' -> Tonos Púrpura/Violeta (Sueño profundo).
+ * - 'berlin' -> Tonos Esmeralda/Teal (Salud/Respiración).
+ * * PROPÓSITO:
+ * - Ofrecer una interfaz amigable, clara y legible para el paciente (Light Mode),
+ * diferenciándola visualmente del panel administrativo oscuro.
+ */
+
 import '../styles/global.css'
 
 const { title, tipo = 'default' } = Astro.props;

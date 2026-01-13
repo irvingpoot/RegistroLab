@@ -1,4 +1,19 @@
 ---
+
+/**
+ * @file nueva-cita.astro
+ * @description Formulario para el registro de nuevas citas en la agenda.
+ * * REGLAS DE NEGOCIO:
+ * 1. Prevención de Solapamiento: Antes de crear la cita, consulta a la BD si ya existe
+ * un registro activo (no cancelado) en ese mismo horario exacto.
+ * 2. Manejo de Zona Horaria: Fuerza la interpretación de la fecha local del navegador
+ * como UTC-6 (Mérida) al agregarle el offset manual antes de guardar en UTC.
+ * 3. Auditoría Automática: Captura el nombre del usuario en sesión (`Astro.locals`)
+ * para llenar el campo `registrado_por` sin intervención manual.
+ * * UI:
+ * - Implementa un modal de éxito a pantalla completa con animación SVG.
+ */
+
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import { createClient } from "@supabase/supabase-js"

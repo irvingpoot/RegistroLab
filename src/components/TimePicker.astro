@@ -1,4 +1,22 @@
 ---
+
+/**
+ * @component TimePicker
+ * @description Selector de hora compuesto (Dos dropdowns: Horas y Minutos).
+ * * MOTIVACIÓN TÉCNICA:
+ * - Reemplaza al `<input type="time">` nativo para evitar inconsistencias de UI entre navegadores
+ * (Safari vs Chrome) y forzar el formato estricto "HH:MM" sin segundos.
+ * * FUNCIONAMIENTO:
+ * - Renderiza dos elementos `<select>` visibles para el usuario.
+ * - Utiliza un script interno (`TimePickerLogic`) que escucha los cambios y concatena
+ * los valores en un `<input type="hidden">`, que es el que finalmente se envía al servidor.
+ * * PROPS:
+ * @prop {string} label - Etiqueta principal.
+ * @prop {string} name - Nombre del campo (se asigna al input oculto).
+ * @prop {string} [subLabel] - Texto de ayuda secundario con color temático.
+ * @prop {string} [color='blue'] - Tema de color para el subtexto.
+ */
+
 interface Props {
     label: string;
     subLabel?: string;
