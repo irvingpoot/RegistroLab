@@ -298,6 +298,20 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 </section>
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
+                    <h2 class="section-title">Análisis de síntomas</h2>
+                    <div id="lista-sintomas" class="space-y-8">
+                        {listaSintomas.map((s:any, idx:any) => (
+                            <SintomaGroup numero={idx + 1} data={s} />
+                        ))}
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button type="button" id="btn-add-sintoma" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-white border border-blue-500/30 hover:bg-blue-600/20 px-4 py-2 rounded-lg cursor-pointer">
+                            <span class="text-xl leading-none">+</span> Agregar otro síntoma
+                        </button>
+                    </div>
+                </section>
+
+                <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Diagnósticos previos</h2>
                     <textarea name="antecedentes" rows="4" class="input resize-y">{p.antecedentes}</textarea>
                 </section>
@@ -418,20 +432,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             </div>
                             <div id="div_te" class={p.te === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Tazas/semana</label><input type="number" name="tazas_te_semana" value={p.tazas_te_semana} class="input-sub"></div>
                         </div>
-                    </div>
-                </section>
-
-                <section class="w-full max-w-4xl px-2 md:px-0">
-                    <h2 class="section-title">Análisis de síntomas</h2>
-                    <div id="lista-sintomas" class="space-y-8">
-                        {listaSintomas.map((s:any, idx:any) => (
-                            <SintomaGroup numero={idx + 1} data={s} />
-                        ))}
-                    </div>
-                    <div class="mt-4 flex justify-end">
-                        <button type="button" id="btn-add-sintoma" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-white border border-blue-500/30 hover:bg-blue-600/20 px-4 py-2 rounded-lg cursor-pointer">
-                            <span class="text-xl leading-none">+</span> Agregar otro síntoma
-                        </button>
                     </div>
                 </section>
 

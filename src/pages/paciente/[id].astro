@@ -255,6 +255,26 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
             </div>
 
+            <InfoCard title="Análisis de Síntomas">
+                {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {paciente.pacientes_sintomas.map((s: any, index: number) => (
+                            <div class="bg-gray-800/40 border border-gray-700 p-4 rounded-xl relative group hover:border-blue-500/50 transition-colors">
+                                <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
+                                <h4 class="text-lg font-bold text-white mb-2 capitalize">{s.sintoma}</h4>
+                                <div class="space-y-1 text-sm">
+                                    <p><span class="text-gray-500">Temporalidad:</span> <span class="text-gray-300">{s.temporalidad}</span></p>
+                                    <p><span class="text-gray-500">Frecuencia:</span> <span class="text-gray-300">{s.frecuencia}</span></p>
+                                    <p><span class="text-gray-500">Gravedad:</span> <span class="text-gray-300">{s.gravedad}</span></p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div class="text-gray-500 italic">No hay síntomas registrados.</div>
+                )}
+            </InfoCard>
+
             <InfoCard title="Hábitos y Patrones de Sueño">
     
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 border-b border-gray-700/50 pb-8">
@@ -317,26 +337,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     </div>
                 </div>
 
-            </InfoCard>
-
-            <InfoCard title="Análisis de Síntomas">
-                {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {paciente.pacientes_sintomas.map((s: any, index: number) => (
-                            <div class="bg-gray-800/40 border border-gray-700 p-4 rounded-xl relative group hover:border-blue-500/50 transition-colors">
-                                <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
-                                <h4 class="text-lg font-bold text-white mb-2 capitalize">{s.sintoma}</h4>
-                                <div class="space-y-1 text-sm">
-                                    <p><span class="text-gray-500">Temporalidad:</span> <span class="text-gray-300">{s.temporalidad}</span></p>
-                                    <p><span class="text-gray-500">Frecuencia:</span> <span class="text-gray-300">{s.frecuencia}</span></p>
-                                    <p><span class="text-gray-500">Gravedad:</span> <span class="text-gray-300">{s.gravedad}</span></p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div class="text-gray-500 italic">No hay síntomas registrados.</div>
-                )}
             </InfoCard>
 
             {/* Contenedor opcional
