@@ -287,10 +287,6 @@ if (Astro.request.method === "POST") {
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex grow flex-col">
-                                <label for="motivo" class="text-lg font-medium text-gray-300">Motivo de la consulta</label>
-                                <input type="text" id="motivo" name="motivo" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -321,6 +317,30 @@ if (Astro.request.method === "POST") {
                 </section>
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
+                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Motivo de Consulta</h2>
+                    <div class="flex flex-col">
+                        <textarea 
+                            id="motivo" 
+                            name="motivo" 
+                            required 
+                            rows="4" 
+                            placeholder="Describe detalladamente el motivo de la consulta..."
+                            class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"
+                        ></textarea>
+                    </div>
+                </section>
+
+                <section class="w-full max-w-4xl px-2 md:px-0">
+                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Diagnósticos previos</h2>
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex flex-col">
+                            <label for="antecedentes" class="text-lg font-medium text-gray-300">Antecedentes familiares</label>
+                            <textarea id="antecedentes" name="antecedentes" rows="4" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Hábitos y patrones</h2>
                     <div class="flex flex-col space-y-6">
                         <div class="flex flex-col">
@@ -339,22 +359,22 @@ if (Astro.request.method === "POST") {
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div class="flex flex-col">
                                         <label for="hora_acostarse" class="text-xs text-gray-400 mb-1">Hora que se acuesta</label>
-                                        <input type="time" id="hora_acostarse" name="hora_acostarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                        <input required type="time" id="hora_acostarse" name="hora_acostarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                                     </div>
 
                                     <div class="flex flex-col">
                                         <label for="hora_dormir" class="text-xs text-gray-400 mb-1">Hora que se duerme</label>
-                                        <input type="time" id="hora_dormir" name="hora_dormir" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                        <input required type="time" id="hora_dormir" name="hora_dormir" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                                     </div>
 
                                     <div class="flex flex-col">
                                         <label for="hora_despertar" class="text-xs text-gray-400 mb-1">Hora que despierta</label>
-                                        <input type="time" id="hora_despertar" name="hora_despertar" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                        <input required type="time" id="hora_despertar" name="hora_despertar" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                                     </div>
 
                                     <div class="flex flex-col">
                                         <label for="hora_levantarse" class="text-xs text-gray-400 mb-1">Hora que se levanta</label>
-                                        <input type="time" id="hora_levantarse" name="hora_levantarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                        <input required type="time" id="hora_levantarse" name="hora_levantarse" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                                     </div>
                                 </div>
                             </div>
@@ -464,16 +484,6 @@ if (Astro.request.method === "POST") {
                                 <label for="tazas_te_semana" class="text-sm font-medium text-blue-300 block mb-1">Tazas a la semana:</label>
                                 <input type="number" id="tazas_te_semana" name="tazas_te_semana" min="0" class="w-full p-2 border border-blue-500/30 bg-blue-900/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white">
                             </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="w-full max-w-4xl px-2 md:px-0">
-                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Diagnósticos previos</h2>
-                    <div class="flex flex-col space-y-4">
-                        <div class="flex flex-col">
-                            <label for="antecedentes" class="text-lg font-medium text-gray-300">Antecedentes familiares</label>
-                            <textarea id="antecedentes" name="antecedentes" rows="4" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
                         </div>
                     </div>
                 </section>

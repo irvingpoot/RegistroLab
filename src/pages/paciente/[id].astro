@@ -218,10 +218,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     <div><span class="label">Ocupación</span><p class="value">{paciente.ocupacion || "—"}</p></div>
                     <div><span class="label">Escolaridad</span><p class="value">{paciente.escolaridad || "—"}</p></div>
                     <div><span class="label">Referido por</span><p class="value">{paciente.referencia}</p></div>
-                    <div class="md:col-span-3 bg-gray-800/30 p-4 rounded-lg border border-gray-700/50">
-                        <span class="label mb-1 block">Motivo de consulta</span>
-                        <p class="text-white leading-relaxed">{paciente.motivo}</p>
-                    </div>
                 </div>
             </InfoCard>
 
@@ -243,6 +239,20 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         <li class="flex justify-between pb-1"><span class="text-gray-400">Té</span><span class="text-white font-medium">{paciente.te === 'si' ? `${paciente.tazas_te_semana} tazas/sem` : 'No'}</span></li>
                     </ul>
                 </InfoCard>
+
+                <InfoCard title="Motivo de Consulta">
+                    <div class="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50">
+                        <p class="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap">
+                            {paciente.motivo}
+                        </p>
+                    </div>
+                </InfoCard>
+
+                <InfoCard title="Diagnósticos Previos">
+                    <span class="label mb-2 block">Antecedentes Familiares y Personales</span>
+                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]"><p class="text-gray-300 italic leading-relaxed text-sm">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p></div>
+                </InfoCard>
+
             </div>
 
             <InfoCard title="Hábitos y Patrones de Sueño">
@@ -329,21 +339,23 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 )}
             </InfoCard>
 
+            {/* Contenedor opcional
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InfoCard title="Alteraciones del Sueño">
-                    <div class="flex items-center gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
-                        <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
-                        </div>
-                        <div><span class="label">Diagnóstico Preliminar</span><p class="text-xl font-medium text-white capitalize">{paciente.alteracion_sueno ? paciente.alteracion_sueno.replace(/_/g, ' ') : "Ninguno seleccionado"}</p></div>
-                    </div>
-                </InfoCard>
-                <InfoCard title="Diagnósticos Previos">
-                    <span class="label mb-2 block">Antecedentes Familiares y Personales</span>
-                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]"><p class="text-gray-300 italic leading-relaxed text-sm">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p></div>
-                </InfoCard>
+                
             </div>
+            
+            */}
 
+            <InfoCard title="Alteraciones del Sueño">
+                <div class="flex items-center gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                    <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                    </div>
+                    <div><span class="label">Diagnóstico Preliminar</span><p class="text-xl font-medium text-white capitalize">{paciente.alteracion_sueno ? paciente.alteracion_sueno.replace(/_/g, ' ') : "Ninguno seleccionado"}</p></div>
+                </div>
+            </InfoCard>
+            
             <InfoCard title="Puntajes">
                 <div class="flex justify-between items-center mb-6">
                     <p class="text-gray-400 text-sm">Resultados de las pruebas aplicadas al paciente.</p>

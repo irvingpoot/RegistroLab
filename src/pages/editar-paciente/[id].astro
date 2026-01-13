@@ -261,10 +261,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex grow flex-col">
-                                <label class="label">Motivo de la consulta</label>
-                                <input type="text" name="motivo" value={p.motivo} required class="input">
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -289,6 +285,21 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             <input type="number" name="altura" step="0.01" value={p.altura} class="input">
                         </div>
                     </div>
+                </section>
+
+                <section class="w-full max-w-4xl px-2 md:px-0">
+                    <h2 class="section-title">Motivo de Consulta</h2>
+                    <textarea 
+                        name="motivo" 
+                        required 
+                        rows="4" 
+                        class="input resize-y"
+                    >{p.motivo}</textarea>
+                </section>
+
+                <section class="w-full max-w-4xl px-2 md:px-0">
+                    <h2 class="section-title">Diagnósticos previos</h2>
+                    <textarea name="antecedentes" rows="4" class="input resize-y">{p.antecedentes}</textarea>
                 </section>
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
@@ -408,11 +419,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                             <div id="div_te" class={p.te === 'si' ? "mt-3" : "hidden mt-3"}><label class="sub-label">Tazas/semana</label><input type="number" name="tazas_te_semana" value={p.tazas_te_semana} class="input-sub"></div>
                         </div>
                     </div>
-                </section>
-
-                <section class="w-full max-w-4xl px-2 md:px-0">
-                    <h2 class="section-title">Diagnósticos previos</h2>
-                    <textarea name="antecedentes" rows="4" class="input resize-y">{p.antecedentes}</textarea>
                 </section>
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
