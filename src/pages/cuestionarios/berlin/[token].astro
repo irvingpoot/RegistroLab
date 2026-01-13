@@ -7,14 +7,18 @@ import { createClient } from "@supabase/supabase-js"
 
 const MODO_DISENO = false; // Cambiar a false para producción
 
-// Usamos SERVICE_ROLE_KEY para saltarnos RLS y poder escribir sin que el paciente esté logueado
-const supabaseAdmin = createClient(
+// [CAMBIO IMPORTANTE]: Usamos la Anon Key. Ahora es seguro gracias a las RPC de base de datos.
+const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_SERVICE_ROLE_KEY
+    import.meta.env.SUPABASE_KEY
 );
 
 const { token } = Astro.params;
 const faseUrl = Astro.url.searchParams.get('fase');
+
+// Variable para identificar qué cuestionario es (puedes sacarlo de la URL o hardcodearlo si es archivo único)
+// Asumiendo que esta página es Específica para Epworth:
+const nombreCuestionario = 'berlin'; 
 
 let paciente = { id: 0, nombre: "" };
 let mensaje = "";
@@ -25,52 +29,47 @@ if (!MODO_DISENO) {
         return Astro.redirect('/404');
     }
 
-    // 1. Obtener Paciente
-    const { data, error } = await supabaseAdmin
-        .from('pacientes')
-        .select('id, nombre')
-        .eq('token_cuestionarios', token) // Ojo: verifica si tu columna es 'token_cuestionarios' o 'token_encuesta'
-        .single();
+    // 1. VALIDAR ACCESO Y ESTADO (Usando la función segura RPC)
+    const { data: infoAcceso, error: errorAcceso } = await supabase
+        .rpc('validar_acceso_cuestionario', {
+            token_input: token,
+            cuestionario_input: nombreCuestionario,
+            fase_input: faseUrl
+        });
 
-    if (error || !data) return Astro.redirect('/404');
-    paciente = data;
+    // Si devuelve array vacío o error, es que el token no existe
+    if (errorAcceso || !infoAcceso || infoAcceso.length === 0) {
+        console.error("Error acceso:", errorAcceso);
+        return Astro.redirect('/404');
+    }
 
-    // 2. VERIFICAR SI YA CONTESTÓ
-    const nombreCuestionario = 'berlin'; // 'berlin' o 'pittsburgh' según el archivo
+    // Mapeamos los datos recibidos de la función SQL
+    paciente = { 
+        id: infoAcceso[0].paciente_id, 
+        nombre: infoAcceso[0].nombre 
+    };
+    yaContestado = infoAcceso[0].ya_contestado;
 
-    const { data: respuestaPrev } = await supabaseAdmin
-        .from('respuestas_cuestionarios')
-        .select('id')
-        .eq('paciente_id', paciente.id)
-        .eq('fase', faseUrl)
-        .eq('cuestionario', nombreCuestionario)
-        .single();
-
-    yaContestado = !!respuestaPrev;
-
-    // 3. GUARDAR RESPUESTAS (POST)
+    // 2. PROCESAR FORMULARIO (POST)
     if (Astro.request.method === "POST" && !yaContestado) {
         try {
             const formData = await Astro.request.formData();
             const respuestas = Object.fromEntries(formData);
 
-            const { error: saveError } = await supabaseAdmin
-                .from('respuestas_cuestionarios')
-                .upsert({
-                    paciente_id: paciente.id,
-                    fase: faseUrl,
-                    cuestionario: nombreCuestionario,
-                    datos: respuestas,
-                    updated_at: new Date()
-                }, { 
-                    onConflict: 'paciente_id, fase, cuestionario'
+            // [CAMBIO IMPORTANTE]: Guardar usando la función RPC segura
+            const { error: saveError } = await supabase
+                .rpc('guardar_respuesta_segura', {
+                    token_input: token,
+                    fase_input: faseUrl,
+                    cuestionario_input: nombreCuestionario,
+                    datos_input: respuestas
                 });
 
             if (saveError) {
-                console.error("Error Supabase:", saveError);
+                console.error("Error Supabase RPC:", saveError);
                 mensaje = "Error al guardar las respuestas.";
             } else {
-                // ÉXITO: Recargamos la página para que detecte el 'yaContestado' desde la BD
+                // ÉXITO: Recargamos para mostrar la pantalla de "Gracias"
                 return Astro.redirect(Astro.url.pathname + Astro.url.search);
             }
 
@@ -80,6 +79,7 @@ if (!MODO_DISENO) {
         }
     }
 } else {
+    // Modo diseño
     paciente = { id: 0, nombre: "Paciente Simulado" };
     yaContestado = false; 
     if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
