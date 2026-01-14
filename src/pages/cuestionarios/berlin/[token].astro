@@ -101,34 +101,34 @@ if (!MODO_DISENO) {
 const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
 const optionsRonca = [
-    { label: 'Sí', value: 'si' },
-    { label: 'No', value: 'no' },
-    { label: 'No lo sé', value: 'unknown' }
+    { label: 'Sí', value: 1 },
+    { label: 'No', value: 0 },
+    { label: 'No lo sé', value: 0 }
 ];
 
 const optionsFrecuencia = [
-    { label: 'Casi todos los días', value: 'si' },
-    { label: '3-4 veces por semana', value: 'no' },
-    { label: '1-2 veces por semana', value: 'unknown' },
-    { label: '1-2 veces por mes', value: 'no' },
-    { label: 'Casi nunca o nunca', value: 'no' }
+    { label: 'Casi todos los días', value: 1 },
+    { label: '3-4 veces por semana', value: 1 },
+    { label: '1-2 veces por semana', value: 0 },
+    { label: '1-2 veces por mes', value: 0 },
+    { label: 'Casi nunca o nunca', value: 0 }
 ];
 
 const optionsVolumen = [
-    { label: 'Como una respiración fuerte', value: 'si' },
-    { label: 'Tan alto como una conversación', value: 'no' },
-    { label: 'Más alto que una conversación', value: 'unknown' },
-    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 'no' }
+    { label: 'Como una respiración fuerte', value: 0 },
+    { label: 'Tan alto como una conversación', value: 0 },
+    { label: 'Más alto que una conversación', value: 1 },
+    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 1 }
 ];
 
 const optionsSiNo = [
-    { label: 'Si', value: 'si' },
-    { label: 'No', value: 'no' }
+    { label: 'Si', value: 1 },
+    { label: 'No', value: 0 }
 ];
 
 const optionsSexo = [
-    { label: 'Masculino', value: 'male' },
-    { label: 'Femenino', value: 'female' }
+    { label: 'Masculino', value: 'masculino' },
+    { label: 'Femenino', value: 'femenino' }
 ];
 
 ---
@@ -421,12 +421,12 @@ const optionsSexo = [
         const reglas = [
             { 
                 triggerName: 'ronca',       // El 'name' del RadioGroup
-                triggerValue: 'si',        // El valor que activa la sección
+                triggerValue: "1",        // El valor que activa la sección
                 targetId: 'extra-ronca'     // El ID del ExpandableSection
             },
             { 
                 triggerName: 'se_quedo_dormido', 
-                triggerValue: 'si', 
+                triggerValue: 1, 
                 targetId: 'extra-se_quedo_dormido' 
             }
         ];

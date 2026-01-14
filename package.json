@@ -22,7 +22,10 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "@clerk/shared"
+      "@clerk/shared",
+      "@tailwindcss/oxide",
+      "esbuild",
+      "sharp"
     ]
   }
 }
