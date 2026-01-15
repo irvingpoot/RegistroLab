@@ -20,6 +20,7 @@ import InputNumber from "../../../components/InputNumber.astro"
 import RadioGroup from "../../../components/RadioGroup.astro"
 import ExpandableSection from "../../../components/ExpandableSection.astro"
 import { createClient } from "@supabase/supabase-js"
+import { calcularBerlin } from "../../../utils/calculos"
 
 const MODO_DISENO = false; // Cambiar a false para producción
 
@@ -67,22 +68,35 @@ if (!MODO_DISENO) {
     if (Astro.request.method === "POST" && !yaContestado) {
         try {
             const formData = await Astro.request.formData();
-            const respuestas = Object.fromEntries(formData);
+            const respuestas = Object.fromEntries(formData) as Record<string, any>; // Tipado flexible
 
-            // Guardar usando la función RPC segura
+            // --- CÁLCULO BERLIN ---
+            const resultado = calcularBerlin(respuestas);
+            
+            // 1. Asignar puntaje numérico para la columna DB (0, 1, 2, 3)
+            const puntajeFinal = resultado.puntaje;
+
+            // 2. Inyectar los detalles visuales dentro del JSON de respuestas
+            // Esto hará que aparezcan en el modal "Ver Respuestas" automáticamente
+            Object.assign(respuestas, resultado.extraData);
+            
+            // También guardamos el puntaje dentro del JSON por si acaso
+            respuestas.puntaje = puntajeFinal;
+
+            // Guardar usando la función RPC
             const { error: saveError } = await supabase
                 .rpc('guardar_respuesta_segura', {
                     token_input: token,
                     fase_input: faseUrl,
                     cuestionario_input: nombreCuestionario,
-                    datos_input: respuestas
+                    datos_input: respuestas,
+                    puntaje_input: puntajeFinal
                 });
 
             if (saveError) {
                 console.error("Error Supabase RPC:", saveError);
                 mensaje = "Error al guardar las respuestas.";
             } else {
-                // ÉXITO: Recargamos para mostrar la pantalla de "Gracias"
                 return Astro.redirect(Astro.url.pathname + Astro.url.search);
             }
 
@@ -100,35 +114,42 @@ if (!MODO_DISENO) {
 
 const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
+
+
+// Riesgo: Sí
 const optionsRonca = [
-    { label: 'Sí', value: 1 },
-    { label: 'No', value: 0 },
-    { label: 'No lo sé', value: 0 }
+    { label: 'Sí', value: 'positivo' },
+    { label: 'No', value: 'negativo' },
+    { label: 'No lo sé', value: 'negativo' }
 ];
 
-const optionsFrecuencia = [
-    { label: 'Casi todos los días', value: 1 },
-    { label: '3-4 veces por semana', value: 1 },
-    { label: '1-2 veces por semana', value: 0 },
-    { label: '1-2 veces por mes', value: 0 },
-    { label: 'Casi nunca o nunca', value: 0 }
-];
-
+// Riesgo: "Más alto que conversación" o "Muy alto"
 const optionsVolumen = [
-    { label: 'Como una respiración fuerte', value: 0 },
-    { label: 'Tan alto como una conversación', value: 0 },
-    { label: 'Más alto que una conversación', value: 1 },
-    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 1 }
+    { label: 'Como una respiración fuerte', value: 'negativo' },
+    { label: 'Tan alto como una conversación', value: 'negativo' },
+    { label: 'Más alto que una conversación', value: 'positivo' },
+    { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 'positivo' }
 ];
 
+// Riesgo: "Casi todos los días" o "3-4 veces por semana"
+const optionsFrecuencia = [
+    { label: 'Casi todos los días', value: 'positivo' },
+    { label: '3-4 veces por semana', value: 'positivo' },
+    { label: '1-2 veces por semana', value: 'negativo' },
+    { label: '1-2 veces por mes', value: 'negativo' },
+    { label: 'Casi nunca o nunca', value: 'negativo' }
+];
+
+// Riesgo: Sí
 const optionsSiNo = [
-    { label: 'Si', value: 1 },
-    { label: 'No', value: 0 }
+    { label: 'Si', value: 'positivo' },
+    { label: 'No', value: 'negativo' }
 ];
 
+// (Este queda igual, no afecta puntaje)
 const optionsSexo = [
-    { label: 'Masculino', value: 'masculino' },
-    { label: 'Femenino', value: 'femenino' }
+    { label: 'Masculino', value: 'male' },
+    { label: 'Femenino', value: 'female' }
 ];
 
 ---
@@ -421,12 +442,12 @@ const optionsSexo = [
         const reglas = [
             { 
                 triggerName: 'ronca',       // El 'name' del RadioGroup
-                triggerValue: "1",        // El valor que activa la sección
+                triggerValue: "positivo",        // El valor que activa la sección
                 targetId: 'extra-ronca'     // El ID del ExpandableSection
             },
             { 
                 triggerName: 'se_quedo_dormido', 
-                triggerValue: 1, 
+                triggerValue: "positivo", 
                 targetId: 'extra-se_quedo_dormido' 
             }
         ];

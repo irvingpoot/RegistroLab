@@ -18,6 +18,7 @@
 import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
 import MatrixScale from "../../../components/MatrixScale.astro"
 import { createClient } from "@supabase/supabase-js"
+import { calcularEpworth } from "../../../utils/calculos"
 
 const MODO_DISENO = false; // Cambiar a false para producción
 
@@ -65,15 +66,22 @@ if (!MODO_DISENO) {
     if (Astro.request.method === "POST" && !yaContestado) {
         try {
             const formData = await Astro.request.formData();
-            const respuestas = Object.fromEntries(formData);
+            const respuestas = Object.fromEntries(formData) as Record<string, any>;;
 
-            // Guardar usando la función RPC segura
+            // 1. CALCULAR PUNTAJE
+            const puntajeCalculado = calcularEpworth(respuestas); 
+            
+            // Agregamos el puntaje al JSON de respuestas por si acaso
+            respuestas.puntaje = puntajeCalculado;
+
+            // 2. GUARDAR CON RPC
             const { error: saveError } = await supabase
                 .rpc('guardar_respuesta_segura', {
                     token_input: token,
                     fase_input: faseUrl,
                     cuestionario_input: nombreCuestionario,
-                    datos_input: respuestas
+                    datos_input: respuestas,
+                    puntaje_input: puntajeCalculado
                 });
 
             if (saveError) {
