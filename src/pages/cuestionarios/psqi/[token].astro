@@ -6,6 +6,7 @@ import TimePicker from "../../../components/TimePicker.astro"
 import InputNumber from "../../../components/InputNumber.astro"
 import InputText from "../../../components/InputText.astro"
 import RadioGroup from "../../../components/RadioGroup.astro"
+import { calcularpsqi } from "../../../utils/calculos"
 
 const MODO_DISENO = false; // Cambiar a false para producción
 
@@ -17,7 +18,7 @@ const supabase = createClient(
 const { token } = Astro.params;
 const faseUrl = Astro.url.searchParams.get('fase');
 
-const nombreCuestionario = 'pittsburgh'; 
+const nombreCuestionario = 'psqi'; 
 
 let paciente = { id: 0, nombre: "" };
 let mensaje = "";
@@ -53,15 +54,26 @@ if (!MODO_DISENO) {
     if (Astro.request.method === "POST" && !yaContestado) {
         try {
             const formData = await Astro.request.formData();
-            const respuestas = Object.fromEntries(formData);
+            const respuestas = Object.fromEntries(formData) as Record<string, any>; 
 
-            // Guardar usando la función RPC segura
+            // CÁLCULO PITTSBURGH
+            const resultado = calcularpsqi(respuestas);
+            
+            // Inyectar puntaje numérico para la columna DB
+            const puntajeFinal = resultado.puntaje;
+
+            // Inyectar detalles visuales para el modal "Ver Respuestas"
+            Object.assign(respuestas, resultado.extraData);
+            respuestas.puntaje = puntajeFinal;
+
+            // Guardar usando RPC
             const { error: saveError } = await supabase
                 .rpc('guardar_respuesta_segura', {
                     token_input: token,
                     fase_input: faseUrl,
                     cuestionario_input: nombreCuestionario,
-                    datos_input: respuestas
+                    datos_input: respuestas, 
+                    puntaje_input: puntajeFinal
                 });
 
             if (saveError) {
@@ -122,29 +134,36 @@ const compañeroQuestions = [
 ];
 
 const optionsFrecuencia = [
-    { label: 'No me ha ocurrido durante el último mes', value: 'si' },
-    { label: 'Menos de una vez a la semana', value: 'no' },
-    { label: 'Una o dos veces a la semana', value: 'unknown' },
-    { label: 'Tres o más veces a ala semana', value: 'no' }
+    { label: 'No me ha ocurrido durante el último mes', value: 0 },
+    { label: 'Menos de una vez a la semana', value: 1 },
+    { label: 'Una o dos veces a la semana', value: 2 },
+    { label: 'Tres o más veces a ala semana', value: 3 }
 ];
 
 const optionsCalidad = [
-    { label: 'Muy buena', value: 'si' },
-    { label: 'Bastante buena', value: 'no' },
-    { label: 'Bastante mala', value: 'unknown' },
-    { label: 'Muy mala', value: 'no' }
+    { label: 'Muy buena', value: 0 },
+    { label: 'Bastante buena', value: 1 },
+    { label: 'Bastante mala', value: 2 },
+    { label: 'Muy mala', value: 3 }
 ];
 
 const optionsCompañero = [
-    { label: 'No tengo pareja ni compañero/a de habitación', value: 'si' },
-    { label: 'Si tengo pero duerme en otra habitación', value: 'no' },
-    { label: 'Si tengo, pero duerme en la misma habitación y distinta cama', value: 'unknown' },
-    { label: 'Si tengo y duerme en la misma cama', value: 'no' }
+    { label: 'No tengo pareja ni compañero/a de habitación', value: 0 },
+    { label: 'Si tengo pero duerme en otra habitación', value: 1 },
+    { label: 'Si tengo, pero duerme en la misma habitación y distinta cama', value: 2 },
+    { label: 'Si tengo y duerme en la misma cama', value: 3 }
+];
+
+const optionsLatencia = [
+    { label: 'Menos de 15 minutos (≤15)', value: 0 },
+    { label: 'Entre 16 y 30 minutos', value: 1 },
+    { label: 'Entre 31 y 60 minutos', value: 2 },
+    { label: 'Más de 60 minutos (>60)', value: 3 }
 ];
 
 ---
 
-<LayoutCuestionario title="Cuestionario Pittsburgh" tipo="pittsburgh">
+<LayoutCuestionario title="Cuestionario Pittsburgh" tipo="psqi">
 
     {yaContestado ? (
             <div class="max-w-xl mx-auto mt-12 relative px-4">
@@ -240,15 +259,11 @@ const optionsCompañero = [
                         color="purple"
                     />
 
-                    <InputNumber 
-                        label="Durante el último mes, ¿cuánto tiempo (en minutos) te ha costado quedarte dormido después de acostarte por las noches?" 
-                        subLabel="Número de minutos para conciliar el sueño"
+                    <RadioGroup 
+                        label="Durante el último mes, ¿cuánto tiempo te ha costado quedarte dormido después de acostarte por las noches?"
                         name="tiempo_dormir" 
-                        placeholder="Ej. 40" 
-                        min={0}
-                        max={1000} 
+                        options={optionsLatencia}
                         required={true}
-                        color="purple"
                     />
 
                     <TimePicker 
@@ -286,7 +301,7 @@ const optionsCompañero = [
 
                     <RadioGroup 
                         label="¿Con qué frecuencia ha tenido un sueño alterado a consecuencia de este problema?"
-                        name="se_quedo_dormido"
+                        name="frecuencia_otra_alteracion"
                         options={optionsFrecuencia}
                     />
 

@@ -20,6 +20,7 @@ import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import InfoCard from "../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
+import { calcularpsqi } from "../../utils/calculos"
 
 const { id } = Astro.params;
 
@@ -137,6 +138,53 @@ if (Astro.request.method === "POST") {
             const idPago = formData.get("id_pago");
             const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
             if (error) throw error;
+        }
+
+        if (action === "update_psqi_study") {
+            const fase = formData.get("fase") as string;
+            const horas = parseFloat(formData.get("horas") as string);
+
+            // 1. Buscar la respuesta existente
+            const { data: resp, error: findError } = await supabase
+                .from('respuestas_cuestionarios')
+                .select('*')
+                .eq('paciente_id', id)
+                .eq('cuestionario', 'psqi')
+                .eq('fase', fase)
+                .single();
+
+            if (findError || !resp) {
+                // Si no hay respuesta del paciente, no podemos recalcular
+                throw new Error("El paciente aún no ha contestado el cuestionario para esta fase.");
+            }
+
+            // 2. Modificar el JSON con el dato médico
+            const datos = resp.datos;
+            datos.horas_sueno_estudio = horas; // Inyectamos el dato
+            
+            // 3. RECALCULAR usando la función compartida
+            const resultado = calcularpsqi(datos);
+            
+            // Actualizamos el JSON con el nuevo puntaje y los detalles (C1, C2, C3...)
+            datos.puntaje = resultado.puntaje;
+            Object.assign(datos, resultado.extraData);
+
+            // 4. Guardar JSON Actualizado
+            const { error: updateJsonError } = await supabase
+                .from('respuestas_cuestionarios')
+                .update({ datos: datos })
+                .eq('id', resp.id);
+
+            if (updateJsonError) throw updateJsonError;
+
+            // 5. Actualizar la columna de puntaje en la tabla pacientes
+            const columnaScore = `psqi_${fase}`;
+            const { error: updateScoreError } = await supabase
+                .from('pacientes')
+                .update({ [columnaScore]: resultado.puntaje })
+                .eq('id', id);
+
+            if (updateScoreError) throw updateScoreError;
         }
 
 
@@ -454,25 +502,29 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         </div>
                     </div>
 
-                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-pittsburgh">
+                    <div class="bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group hover:border-purple-500/50 transition-colors" id="row-psqi">
                         <div class="flex items-center gap-2">
-                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">Pittsburgh</div>
+                            <div class="bg-purple-900/20 text-purple-400 px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center">psqi</div>
                             
                             <div class="container-link flex items-center gap-2 w-full">
-                                <input type="text" readonly id="link-pittsburgh" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
-                                <button onclick="copiarLink('link-pittsburgh')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                <input type="text" readonly id="link-psqi" class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+                                <button onclick="copiarLink('link-psqi')" class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
                                 </button>
                             </div>
-                            <div class="container-btn hidden w-full">
-                                <button onclick="verRespuestas('pittsburgh')" class="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-4 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
+                            <div class="container-btn hidden w-full flex gap-5">
+                                <button onclick="verRespuestas('psqi')" class="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 text-xs font-bold py-2 px-2 rounded border border-purple-500/30 flex items-center justify-center gap-2 transition-all">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                     Ver Respuestas del Paciente
+                                </button>
+                                
+                                <button onclick="abrirModalEstudio()" class="flex-1 bg-purple-700 hover:bg-purple-500 text-white text-xs font-bold py-2 px-2 rounded border border-purple-500 flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20" title="Ingresar dato real de horas dormidas">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                    Ingresar resultado de estudio
                                 </button>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -585,6 +637,41 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
         </div>
     </main>
+
+    <dialog id="modal-psqi-estudio" class="m-auto bg-gray-900 border border-purple-500 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
+        <div class="mb-4 text-purple-400 flex justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold text-white mb-2">Datos del Estudio de Sueño</h3>
+        <p class="text-gray-400 text-xs mb-6 px-2">
+            Ingresa las horas reales de sueño obtenidas en el estudio clínico. <br>
+            <span class="text-purple-300">Esto recalculará la eficiencia y el puntaje total.</span>
+        </p>
+        
+        <form method="POST" class="flex flex-col gap-4">
+            <input type="hidden" name="action" value="update_psqi_study">
+            <input type="hidden" name="fase" id="input-fase-estudio">
+            
+            <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+                <label class="text-xs text-gray-500 uppercase font-bold block mb-2">Horas Dormidas (Reales)</label>
+                <div class="flex items-center justify-center gap-2">
+                    <input type="number" step="0.1" name="horas" id="input-horas-estudio" placeholder="Ej. 5.5" class="bg-gray-900 border border-purple-500/50 rounded-lg p-2 text-white text-center text-xl font-mono w-24 focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                    <span class="text-gray-400 font-bold">Hrs</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3 justify-center mt-2">
+                <button type="button" onclick="document.getElementById('modal-psqi-estudio').close()" class="flex-1 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:text-white cursor-pointer hover:bg-gray-800 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 py-2.5 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 cursor-pointer shadow-lg shadow-purple-900/20">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </dialog>
 
     <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
         <div class="flex justify-between items-center mb-6">
@@ -853,8 +940,63 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             epworth_7: "Sentado tranquilamente tras comer",
             epworth_8: "En un auto detenido por tráfico"
         },
-        berlin: {}, // Aquí puedes agregar las preguntas de Berlin después
-        pittsburgh: {} // Aquí puedes agregar las de Pittsburgh después
+        berlin: {
+            edad: "Edad",
+            altura: "Altura (cm)",
+            peso: "Peso (kg)",
+            sexo: "Sexo",
+            ronca: "¿Ronca?",
+            ronca_volumen: "Volumen del ronquido",
+            ronca_frecuencia: "Frecuencia del ronquido",
+            ronca_molesta: "¿Molesta a otros?",
+            ronca_deja_de_respirar: "¿Deja de respirar?",
+            despierta_cansado: "¿Despierta cansado?",
+            se_siente_mal: "¿Fatiga diurna?",
+            se_quedo_dormido: "¿Se durmió conduciendo?",
+            se_quedo_dormido_frecuencia: "Frecuencia al conducir",
+            hipertension: "¿Hipertensión?"
+        },
+        psqi: {
+            // Datos básicos
+            hora_acostarse: "Hora habitual de acostarse",
+            tiempo_dormir: "Tiempo para conciliar el sueño",
+            hora_levantarse: "Hora habitual de levantarse",
+            horas_sueno: "Horas de sueño reales",
+            
+            // Perturbaciones (Alteraciones)
+            alteracion_1: "No poder dormir en 30 min",
+            alteracion_2: "Despertar a media noche/madrugada",
+            alteracion_3: "Tener que ir al baño",
+            alteracion_4: "No poder respirar bien",
+            alteracion_5: "Tos o ronquidos",
+            alteracion_6: "Sentir frío",
+            alteracion_7: "Sentir calor",
+            alteracion_8: "Tener pesadillas",
+            alteracion_9: "Sentir dolor",
+            
+            // Otra causa
+            otra_causa: "Otra causa de alteración (descripción)",
+            frecuencia_otra_alteracion: "Frecuencia de otra causa",
+            
+            // Hábitos y Funcionalidad
+            calidad_sueno: "Calidad subjetiva del sueño",
+            tomo_medicinas: "Uso de medicinas para dormir",
+            dificultad_despierto: "Dificultad para mantenerse despierto",
+            problema_entusiasmo: "Problema de entusiasmo/ánimo",
+            
+            // Pareja / Compañero
+            pareja_companero: "Presencia de compañero de cama",
+            compañero_1: "Pareja: Ronquidos fuertes",
+            compañero_2: "Pareja: Pausas respiratorias",
+            compañero_3: "Pareja: Movimientos de piernas",
+            compañero_4: "Pareja: Desorientación/Confusión",
+            compañero_5: "Pareja: Otro trastorno",
+            otra_transtorno: "Desc. trastorno pareja",
+
+            // Datos Extra
+            horas_sueno_estudio: "Horas Sueño (Dato Estudio Médico)",
+            puntaje: "Puntaje Global PSQI"
+        }
     };
 
     // Lógica para el modal de extras (Agregar / Eliminar filas)
@@ -952,14 +1094,14 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
     const inputs = {
         epworth: document.getElementById('link-epworth'),
         berlin: document.getElementById('link-berlin'),
-        pittsburgh: document.getElementById('link-pittsburgh'),
+        psqi: document.getElementById('link-psqi'),
     };
 
     // Referencias a las filas completas (para ocultar link y mostrar botón)
     const rows = {
         epworth: document.getElementById('row-epworth'),
         berlin: document.getElementById('row-berlin'),
-        pittsburgh: document.getElementById('row-pittsburgh'),
+        psqi: document.getElementById('row-psqi'),
     };
     
     // Función setFase ahora gestiona la visibilidad
@@ -969,7 +1111,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         // 1. Generamos los 3 links dinámicamente (por si se necesitan)
         inputs.epworth.value = `${baseUrl}/cuestionarios/epworth/${token}?fase=${fase}`;
         inputs.berlin.value = `${baseUrl}/cuestionarios/berlin/${token}?fase=${fase}`;
-        inputs.pittsburgh.value = `${baseUrl}/cuestionarios/pittsburgh/${token}?fase=${fase}`;
+        inputs.psqi.value = `${baseUrl}/cuestionarios/psqi/${token}?fase=${fase}`;
 
         // 2. Actualizamos estilos de botones de fase
         ['pre', 'inter', 'post'].forEach(f => {
@@ -980,7 +1122,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         });
 
         // 3. Verificamos si ya hay respuesta para mostrar Botón o Link
-        ['epworth', 'berlin', 'pittsburgh'].forEach(cuestionario => {
+        ['epworth', 'berlin', 'psqi'].forEach(cuestionario => {
             const row = rows[cuestionario];
             // Buscamos los contenedores dentro de la fila
             const containerLink = row.querySelector('.container-link');
@@ -1033,30 +1175,64 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         const preguntas = DICCIONARIOS[cuestionario] || {};
 
         // 1. SECCIÓN DE PUNTAJE (Banner Superior)
-        if (datos.puntaje) {
+        if (datos.puntaje !== undefined) {
             html += `
                 <div class="px-6 py-5 bg-gradient-to-r from-gray-800/50 to-gray-900 border-b border-gray-700 flex items-center justify-between">
                     <div>
                         <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Puntaje Total</p>
                         <p class="text-gray-500 text-xs">Cálculo automático</p>
                     </div>
-                    <div class="flex items-baseline gap-2">
-                        <span class="text-3xl font-mono font-bold text-white">${datos.puntaje}</span>
-                        <span class="text-xs text-gray-500 font-medium uppercase">pts</span>
+                    <div class="flex flex-col items-end">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-mono font-bold text-white">${datos.puntaje}</span>
+                            <span class="text-xs text-gray-500 font-medium uppercase">pts</span>
+                        </div>
+            `;
+            
+            // --- LÓGICA ESPECÍFICA PARA BERLIN: RESUMEN DE CATEGORÍAS ---
+            if (cuestionario === 'berlin') {
+                let cats = [];
+                // Buscamos en el JSON las claves que guardamos desde calculos.ts
+                if (datos["Resultado Categoría 1 (Ronquido)"]?.includes("POSITIVA")) cats.push("1");
+                if (datos["Resultado Categoría 2 (Somnolencia)"]?.includes("POSITIVA")) cats.push("2");
+                if (datos["Resultado Categoría 3 (Presión/IMC)"]?.includes("POSITIVA")) cats.push("3");
+
+                const textoCats = cats.length > 0 ? cats.join(", ") : "Ninguna";
+                const colorTexto = cats.length > 0 ? "text-red-400" : "text-gray-400";
+
+                // Agregamos el resumen justo debajo del puntaje
+                html += `
+                        <div class="mt-1 text-right">
+                            <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mr-1">Categorías Positivas:</span>
+                            <span class="text-sm font-bold ${colorTexto}">${textoCats}</span>
+                        </div>
+                `;
+            }
+            
+            html += `
                     </div>
                 </div>
             `;
         }
 
-        // 2. LISTA DE PREGUNTAS (Diseño de Filas)
+        // 2. DETALLES ESPECÍFICOS
+        // Definimos claves que NO queremos mostrar en la lista normal porque son de lógica interna
+        const clavesOcultas = [
+            "puntaje", 
+            "Categoría 1 (Ronquido)", 
+            "Categoría 2 (Somnolencia)", 
+            "Categoría 3 (Hipertensión/IMC)",
+            "Riesgo Global"
+        ];
+
         for (const key in datos) {
-            if (key === 'puntaje') continue;
+            if (clavesOcultas.includes(key)) continue;
 
             const textoPregunta = preguntas[key] || key;
             const valorRespuesta = datos[key];
 
             html += `
-                <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/5 transition-colors group">
+                <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/5 transition-colors group border-b border-gray-800/30 last:border-0">
                     <div class="md:w-3/4">
                         <p class="text-gray-300 text-sm font-medium leading-snug group-hover:text-white transition-colors">
                             ${textoPregunta}
@@ -1102,6 +1278,26 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             btn.innerText = textoOriginal;
             btn.classList.remove('text-green-400');
         }, 1500);
+    }
+
+    // Función para abrir el modal de ajuste de estudio
+    window.abrirModalEstudio = () => {
+        const respuesta = respuestasGuardadas.find(r => r.cuestionario === 'psqi' && r.fase === currentFase);
+        
+        if (!respuesta) return; // Seguridad
+
+        const modal = document.getElementById('modal-psqi-estudio');
+        const inputFase = document.getElementById('input-fase-estudio');
+        const inputHoras = document.getElementById('input-horas-estudio');
+
+        // Configurar valores
+        inputFase.value = currentFase;
+        
+        // Buscar si ya hay un valor previo guardado en el JSON
+        const horasPrevias = respuesta.datos.horas_sueno_estudio;
+        inputHoras.value = horasPrevias ? horasPrevias : '';
+
+        modal.showModal();
     }
 
     const inputFechaPago = document.getElementById('pago-fecha');
