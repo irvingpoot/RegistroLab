@@ -140,6 +140,13 @@ const optionsFrecuencia = [
     { label: 'Tres o más veces a ala semana', value: 3 }
 ];
 
+const optionsProblematico = [
+    { label: 'No me ha resultado problematico en lo absoluto', value: 0 },
+    { label: 'Solo ligeramente problematico', value: 1 },
+    { label: 'Moderadamente problematico', value: 2 },
+    { label: 'Muy problematico', value: 3 }
+];
+
 const optionsCalidad = [
     { label: 'Muy buena', value: 0 },
     { label: 'Bastante buena', value: 1 },
@@ -329,7 +336,7 @@ const optionsLatencia = [
                     <RadioGroup 
                         label="Durante el último mes, ¿cómo de problemático ha resultado para ti el mantener el entusiasmo por hacer las cosas?"
                         name="problema_entusiasmo"
-                        options={optionsFrecuencia}
+                        options={optionsProblematico}
                         required={true}
                     />
 
