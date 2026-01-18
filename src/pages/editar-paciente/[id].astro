@@ -59,6 +59,7 @@ if (Astro.request.method === "POST") {
 
         const pacienteUpdate = {
             nombre: data.get("nombre"),
+            telefono: data.get("telefono"),
             edad: edadCalculada,
             fecha_nacimiento: fechaNacString || null,
             genero: data.get("genero"),
@@ -101,7 +102,7 @@ if (Astro.request.method === "POST") {
             frecuencia: data.getAll('frecuencia')[0]?.toString(),
             gravedad: data.getAll('gravedad')[0]?.toString(),
 
-            alteracion_sueno: data.get("alteracion_sueno"),
+            alteracion_sueno: data.getAll("alteracion_sueno"),
 
             epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
             dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
@@ -200,10 +201,24 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">SocioDemográficos</h2>
                     <div class="flex flex-col space-y-4">
-                        <div class="flex flex-col">
-                            <label class="label">Nombre completo:</label>
-                            <input type="text" name="nombre" value={p.nombre} required class="input">
+                        <div class="flex flex-col md:flex-row gap-4 md:gap-7">
+                            <div class="flex grow flex-col">
+                                <label class="label">Nombre completo:</label>
+                                <input type="text" name="nombre" value={p.nombre} required class="input">
+                            </div>
+                            
+                            <div class="flex grow flex-col md:w-1/3">
+                                <label class="label">Teléfono:</label>
+                                <input 
+                                    type="tel" 
+                                    name="telefono" 
+                                    value={p.telefono} 
+                                    placeholder="Ej. 999 123 4567" 
+                                    class="input"
+                                >
+                            </div>
                         </div>
+                        
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                             <div class="flex grow flex-col md:w-1/2"> 
                                 <label class="label">Fecha de Nacimiento:</label>
@@ -437,11 +452,23 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Alteraciones del sueño</h2>
+                    
+                    {/* Nota visual para el usuario */}
+                    <p class="text-xs text-blue-300 font-bold uppercase tracking-wider mb-3 px-1">
+                        * Puedes seleccionar múltiples opciones
+                    </p>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
                         {['insomnio', 'respiracion', 'ritmo_circadiano', 'movimiento', 'parasomnia', 'hipersomnia', 'medicas_psiquiatricas', 'sustancias'].map(val => (
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value={val} checked={p.alteracion_sueno === val} class="accent-blue-500 w-4 h-4"/>
-                                <span class="capitalize">{val.replace('_', ' ')}</span>
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 p-2 rounded-lg hover:bg-white/5 transition-colors group">
+                                <input 
+                                    type="checkbox" 
+                                    name="alteracion_sueno" 
+                                    value={val} 
+                                    checked={p.alteracion_sueno && Array.isArray(p.alteracion_sueno) && p.alteracion_sueno.includes(val)} 
+                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500 cursor-pointer"
+                                />
+                                <span class="capitalize group-hover:translate-x-1 transition-transform">{val.replace('_', ' ')}</span>
                             </label>
                         ))}
                     </div>

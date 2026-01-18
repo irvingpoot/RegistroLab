@@ -18,6 +18,7 @@
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
+import { clerkClient } from "@clerk/astro/server";
 
 const { id } = Astro.params;
 
@@ -31,23 +32,54 @@ const supabase = createClient(
 let mensaje = "";
 let error = false;
 
+let listaEspecialistas = [];
+try {
+    const client = clerkClient(Astro);
+    const response = await client.users.getUserList({ limit: 20 });
+    const users = Array.isArray(response) ? response : (response.data || []);
+    listaEspecialistas = users.map(u => {
+        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        return nombre || u.username || "Usuario Sin Nombre";
+    });
+} catch (e) {
+    console.error("Error users:", e);
+}
+
 // Actualizar Datos (Si es POST)
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
-        
         const fechaLocal = data.get("fecha_hora") as string;
         const fechaObj = new Date(`${fechaLocal}-06:00`);
+        const fechaISO = fechaObj.toISOString();
+        
+        // 1. NUEVO: Capturar especialista
+        const atendidoPor = data.get("atendido_por") as string;
+
+        // 2. VALIDACIÓN:
+        // Buscamos si hay OTRA cita (id != id actual) a la misma hora con el MISMO doctor.
+        const { data: colision } = await supabase
+            .from('citas')
+            .select('id')
+            .eq('fecha_hora', fechaISO)
+            .eq('atendido_por', atendidoPor)
+            .neq('id', id) // <--- IMPORTANTE: No chocar con uno mismo
+            .neq('estado', 'cancelada')
+            .maybeSingle();
+
+        if (colision) {
+            throw new Error(`⚠️ No se puede cambiar: ${atendidoPor} ya tiene otra cita agendada a esa hora.`);
+        }
 
         const actualizacion = {
             nombre: data.get("nombre"),
-            // Agregamos '|| null' para permitir vacíos
             motivo: data.get("motivo"),
             telefono: data.get("telefono") || null,
             sintoma: data.get("sintoma") || null,
             referencia: data.get("referencia"),
-            fecha_hora: fechaObj.toISOString(),
+            fecha_hora: fechaISO,
             observaciones: data.get("observaciones") || null,
+            atendido_por: atendidoPor // <--- Guardamos el cambio
         };
 
         const { error: updateError } = await supabase
@@ -57,7 +89,7 @@ if (Astro.request.method === "POST") {
 
         if (updateError) throw updateError;
         
-        return Astro.redirect("/citas"); // Redirigir al éxito
+        return Astro.redirect("/citas"); 
 
     } catch (e) {
         console.error(e);
@@ -151,6 +183,37 @@ const fechaValue = `${fechaParte}T${horaParte}`;
                         <div class="flex grow flex-col">
                             <label class="text-lg font-medium text-gray-300">Motivo de consulta (Opcional):</label>
                             <input type="text" name="sintoma" value={cita.sintoma} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7 mb-4">
+                        <div class="flex grow flex-col">
+                            <label for="atendido_por" class="text-lg font-medium text-gray-300">¿Quién atenderá? <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <select id="atendido_por" name="atendido_por" required class="w-full mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none transition-all cursor-pointer">
+                                    <option value="" disabled>Seleccionar especialista</option>
+                                    
+                                    {listaEspecialistas.map((nombreDoc) => (
+                                        <option 
+                                            class="bg-gray-900" 
+                                            value={nombreDoc} 
+                                            selected={cita.atendido_por === nombreDoc}
+                                        >
+                                            {nombreDoc}
+                                        </option>
+                                    ))}
+
+                                    {/* Caso especial: Si la cita tiene un doctor que YA NO existe en Clerk (fue borrado), mostrarlo para no perder el dato */}
+                                    {cita.atendido_por && !listaEspecialistas.includes(cita.atendido_por) && (
+                                        <option class="bg-gray-900" value={cita.atendido_por} selected>
+                                            {cita.atendido_por} (Usuario inactivo)
+                                        </option>
+                                    )}
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-3 pt-1 pointer-events-none text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

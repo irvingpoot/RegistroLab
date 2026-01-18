@@ -18,6 +18,7 @@ import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import { createClient } from "@supabase/supabase-js"
 import ReturnButton from "../components/ReturnButton.astro"
+import { clerkClient } from "@clerk/astro/server";
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
@@ -29,6 +30,25 @@ const nombreRegistrador = user
     ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
     : "Anónimo";
 
+
+let listaPsicologos = [];
+try {
+    const client = clerkClient(Astro);
+    const response = await client.users.getUserList({
+        limit: 20, // Ajusta si tienes más personal
+        orderBy: 'created_at' 
+    });
+    const users = Array.isArray(response) ? response : (response.data || []);
+    
+    // Mapeamos solo lo que nos interesa: El nombre completo
+    listaPsicologos = users.map(u => {
+        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        return nombre || u.username || u.emailAddresses[0].emailAddress; // Fallback si no tiene nombre
+    });
+} catch (e) {
+    console.error("Error cargando psicologos:", e);
+}
+
 let mensaje = "";
 let error = false;
 let registroExitoso = false;
@@ -36,21 +56,25 @@ let registroExitoso = false;
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
-        
         const fechaLocal = data.get("fecha_hora") as string;
         const fechaObj = new Date(`${fechaLocal}-06:00`);
         const fechaISO = fechaObj.toISOString();
+        
+        // 1. Capturar quién atiende
+        const atendidoPor = data.get("atendido_por") as string; 
 
-        // Validación de duplicados
+        // 2. Validación:
+        // Buscamos si YA existe una cita a esa hora CON EL MISMO especialista.
         const { data: citaExistente } = await supabase
             .from('citas')
             .select('id')
             .eq('fecha_hora', fechaISO)
+            .eq('atendido_por', atendidoPor) // Solo choca si es el mismo psic
             .neq('estado', 'cancelada') 
             .maybeSingle();
 
         if (citaExistente) {
-            throw new Error("⚠️ Horario no disponible: Ya existe una cita activa a esa hora.");
+            throw new Error(`⚠️ Agenda ocupada: ${atendidoPor} ya tiene una cita a esa hora.`);
         }
 
         const nuevaCita = {
@@ -62,7 +86,8 @@ if (Astro.request.method === "POST") {
             fecha_hora: fechaISO,
             observaciones: data.get("observaciones") || null,
             estado: 'pendiente',
-            registrado_por_id: nombreRegistrador
+            registrado_por_id: nombreRegistrador,
+            atendido_por: atendidoPor // Guardamos el psicólogo
         };
 
         const { error: supabaseError } = await supabase
@@ -106,7 +131,7 @@ if (Astro.request.method === "POST") {
 
     {error && (
         <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50 text-center w-11/12 md:w-auto">
-            Error: {mensaje}
+            {mensaje}
         </div>
     )}
 
@@ -183,6 +208,26 @@ if (Astro.request.method === "POST") {
                                 <input type="radio" name="motivo" value="tratamiento" required class="accent-blue-500 w-5 h-5">
                                 <span class="font-medium">Tratamiento</span>
                             </label>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
+                        <div class="flex grow flex-col">
+                            <label for="atendido_por" class="text-lg font-medium text-gray-300">¿Quién atenderá? <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <select id="atendido_por" name="atendido_por" required class="w-full mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none transition-all cursor-pointer">
+                                    <option value="" disabled selected>Seleccionar especialista</option>
+                                    {listaPsicologos.map((nombreDoc) => (
+                                        <option class="bg-gray-900" value={nombreDoc}>
+                                            {nombreDoc}
+                                        </option>
+                                    ))}
+                                    <option class="bg-gray-900 text-gray-400" value="Por asignar">-- Por definir --</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-3 pt-1 pointer-events-none text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
