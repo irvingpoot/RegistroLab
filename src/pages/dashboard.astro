@@ -61,7 +61,7 @@ const supabase = createClient(
 // Agregamos 'estado' a la consulta para saber si ya se atendió
 const { data: dataCitas, error } = await supabase
     .from('citas')
-    .select('id, fecha_hora, nombre, motivo, estado, atendido_por') 
+    .select('id, fecha_hora, nombre, estado') 
     .gte('fecha_hora', inicioDia)
     .lte('fecha_hora', finDia)
     .order('fecha_hora', { ascending: true });
