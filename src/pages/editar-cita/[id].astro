@@ -126,7 +126,7 @@ const horaParte = fechaObjCita.toLocaleTimeString('en-GB', {
 const fechaValue = `${fechaParte}T${horaParte}`;
 ---
 
-<Layout title="Editar Cita">
+<Layout title={`Editar Cita: ${cita.nombre}`}>
     <ReturnButton href="/citas" text="Cancelar edición" />
 
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
