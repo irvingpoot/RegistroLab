@@ -262,6 +262,26 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             <InfoCard title="SocioDemográficos">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div><span class="label">Fecha de Nacimiento</span><p class="value">{formatDate(paciente.fecha_nacimiento)} <span class="text-gray-500 text-sm">({edadDisplay} años)</span></p></div>
+                    <div>
+                        <span class="label">Teléfono</span>
+                        {paciente.telefono ? (
+                            <a
+                                href={`https://wa.me/52${paciente.telefono.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="value font-mono text-blue-300 hover:text-green-400 hover:underline flex items-center gap-2 w-fit transition-colors group"
+                                title="Enviar mensaje de WhatsApp"
+                            >
+                                {/* Icono WhatsApp */}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp transition-transform group-hover:scale-110" viewBox="0 0 16 16">
+                                    <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+                                </svg>
+                                {paciente.telefono}
+                            </a>
+                        ) : (
+                            <p class="value font-mono text-gray-500">—</p>
+                        )}
+                    </div>
                     <div><span class="label">Género</span><p class="value capitalize">{paciente.genero}</p></div>
                     <div><span class="label">Ocupación</span><p class="value">{paciente.ocupacion || "—"}</p></div>
                     <div><span class="label">Escolaridad</span><p class="value">{paciente.escolaridad || "—"}</p></div>
@@ -396,11 +416,31 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             */}
 
             <InfoCard title="Alteraciones del Sueño">
-                <div class="flex items-center gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
-                    <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                <div class="flex flex-col gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                        </div>
+                        <span class="label mb-0">Diagnósticos Preliminares</span>
                     </div>
-                    <div><span class="label">Diagnóstico Preliminar</span><p class="text-xl font-medium text-white capitalize">{paciente.alteracion_sueno ? paciente.alteracion_sueno.replace(/_/g, ' ') : "Ninguno seleccionado"}</p></div>
+                    
+                    <div class="pl-2">
+                        {paciente.alteracion_sueno && paciente.alteracion_sueno.length > 0 ? (
+                            <div class="flex flex-wrap gap-2">
+                                {/* Verificamos si es array (nuevo formato) o string (viejo formato migrado mal) por seguridad */}
+                                {Array.isArray(paciente.alteracion_sueno) 
+                                    ? paciente.alteracion_sueno.map((alt: string) => (
+                                        <span class="px-3 py-1 bg-red-900/20 border border-red-500/30 text-red-200 rounded-full text-sm font-medium capitalize shadow-sm">
+                                            {alt.replace(/_/g, ' ')}
+                                        </span>
+                                    ))
+                                    : <span class="text-white capitalize">{paciente.alteracion_sueno}</span>
+                                }
+                            </div>
+                        ) : (
+                            <p class="text-gray-500 italic">Ninguno seleccionado</p>
+                        )}
+                    </div>
                 </div>
             </InfoCard>
             

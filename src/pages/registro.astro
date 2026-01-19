@@ -64,6 +64,7 @@ if (Astro.request.method === "POST") {
         const nuevoPaciente = {
             // 1. SocioDemográficos
             nombre: data.get("nombre"),
+            telefono: data.get("telefono"),
             edad: edadCalculada,
             fecha_nacimiento: fechaNacString ? fechaNacString : null,
             genero: data.get("genero"),
@@ -76,10 +77,10 @@ if (Astro.request.method === "POST") {
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
 
             donde_duerme: data.get("donde_duerme"),
-            hora_acostarse: data.get("hora_acostarse"), // Ya existía en tu tabla
-            hora_dormir: data.get("hora_dormir"),       // Existente
-            hora_despertar: data.get("hora_despertar"), // NUEVO
-            hora_levantarse: data.get("hora_levantarse"), // Existente
+            hora_acostarse: data.get("hora_acostarse"),
+            hora_dormir: data.get("hora_dormir"),   
+            hora_despertar: data.get("hora_despertar"),
+            hora_levantarse: data.get("hora_levantarse"), 
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
             somnolencia: data.get("somnolencia"),
@@ -105,7 +106,7 @@ if (Astro.request.method === "POST") {
             frecuencia: data.get("frecuencia"),
             gravedad: data.get("gravedad"),
 
-            alteracion_sueno: data.get("alteracion_sueno"),
+            alteracion_sueno: data.getAll("alteracion_sueno"),
 
             epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
             dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
@@ -185,7 +186,7 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Layout title="Registro de Pacientes">
+<Layout title="Registro de Pacientes | Lab-Somno">
     <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
 
@@ -224,9 +225,16 @@ if (Astro.request.method === "POST") {
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">SocioDemográficos</h2>
                     <div class="flex flex-col space-y-4">
-                        <div class="flex flex-col">
-                            <label for="nombre" class="text-lg font-medium text-gray-300">Nombre completo:</label>
-                            <input type="text" id="nombre" name="nombre" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
+                        <div class="flex flex-col md:flex-row gap-4 md:gap-7">
+                            <div class="flex grow flex-col">
+                                <label for="nombre" class="text-lg font-medium text-gray-300">Nombre completo:</label>
+                                <input type="text" id="nombre" name="nombre" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
+                            </div>
+                            
+                            <div class="flex grow flex-col md:w-1/3">
+                                <label for="telefono" class="text-lg font-medium text-gray-300">Teléfono:</label>
+                                <input type="tel" id="telefono" name="telefono" placeholder="Ej. 999 123 4567" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
+                            </div>
                         </div>
 
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
@@ -288,6 +296,8 @@ if (Astro.request.method === "POST") {
                                 </div>
                             </div>
                         </div>
+
+
                     </div>
                 </section>
 
@@ -506,38 +516,51 @@ if (Astro.request.method === "POST") {
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Alteraciones del sueño</h2>
                     <div class="flex flex-col space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="insomnio" class="accent-blue-500 w-4 h-4">
-                                <span>Insomnio</span>
+                            
+                            <p class="col-span-full text-xs text-blue-300 font-bold uppercase tracking-wider mb-2 text-center md:text-right">
+                                * Puedes seleccionar múltiples opciones
+                            </p>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="insomnio" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Insomnio</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="respiracion" class="accent-blue-500 w-4 h-4">
-                                <span>Trastornos de la respiración</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="respiracion" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Trastornos de la respiración</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="ritmo_circadiano" class="accent-blue-500 w-4 h-4">
-                                <span>Ritmo circadiano</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="ritmo_circadiano" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Ritmo circadiano</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="movimiento" class="accent-blue-500 w-4 h-4">
-                                <span>Del movimiento</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="movimiento" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Del movimiento</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="parasomnia" class="accent-blue-500 w-4 h-4">
-                                <span>Parasomnia</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="parasomnia" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Parasomnia</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="hipersomnia" class="accent-blue-500 w-4 h-4">
-                                <span>Hipersomnia</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="hipersomnia" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Hipersomnia</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="medicas_psiquiatricas" class="accent-blue-500 w-4 h-4">
-                                <span>Asociado a condiciones médicas o psiquiátricas</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="medicas_psiquiatricas" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Condiciones médicas/psiquiátricas</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded-lg hover:bg-white/5">
-                                <input type="radio" name="alteracion_sueno" value="sustancias" class="accent-blue-500 w-4 h-4">
-                                <span>Uso de sustancias</span>
+
+                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group">
+                                <input type="checkbox" name="alteracion_sueno" value="sustancias" class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500">
+                                <span class="group-hover:translate-x-1 transition-transform">Uso de sustancias</span>
                             </label>
+
                         </div>
                     </div>
                 </section>
