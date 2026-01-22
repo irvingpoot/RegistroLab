@@ -15,6 +15,7 @@ import Layout from "../layouts/Layout.astro"
 import { createClient } from "@supabase/supabase-js"
 import { UserButton } from "@clerk/astro/components";
 import { clerkClient } from "@clerk/astro/server";
+import SystemUpdates from "../components/SystemUpdate.astro";
 
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
@@ -410,6 +411,8 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
         </div>
 
     </main>
+
+    <SystemUpdates />
 </Layout>
 
 <style>
