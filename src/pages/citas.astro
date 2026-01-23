@@ -22,7 +22,9 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-const today = new Date();
+const nowServer = new Date();
+const offsetMerida = 6 * 60 * 60 * 1000; 
+const today = new Date(nowServer.getTime() - offsetMerida);
 const currentYear = parseInt(Astro.url.searchParams.get('year') || today.getFullYear().toString());
 const currentMonth = parseInt(Astro.url.searchParams.get('month') || today.getMonth().toString());
 
