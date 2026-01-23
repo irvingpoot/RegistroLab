@@ -5,12 +5,11 @@
  */
 import { currentVersion, isMajorUpdate, updateDate, changes } from "../data/changelog";
 
-// Configuración explicita de colores (Agregamos 'dot' para evitar que Tailwind los borre)
 const types: Record<string, { color: string, label: string, dot: string }> = {
     feature: { 
         color: "text-blue-400 border-blue-500/30 bg-blue-500/10 shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]", 
         label: "NUEVO",
-        dot: "bg-blue-400" // <--- Declarado explícitamente
+        dot: "bg-blue-400"
     },
     fix: { 
         color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]", 
