@@ -16,10 +16,10 @@
  * - Formularios dinámicos para agregar N cantidad de síntomas o pruebas adicionales.
  */
 
-import Layout from "../layouts/Layout.astro"
-import Icon from "../components/Icon.astro"
-import ReturnButton from "../components/ReturnButton.astro"
-import SintomaGroup from "../components/SintomaGroup.astro"
+import Layout from "../../layouts/Layout.astro"
+import Icon from "../../components/Icon.astro"
+import ReturnButton from "../../components/ReturnButton.astro"
+import SintomaGroup from "../../components/SintomaGroup.astro"
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -62,6 +62,8 @@ if (Astro.request.method === "POST") {
         }
 
         const nuevoPaciente = {
+            tipo_paciente: "sueno",
+
             // 1. SocioDemográficos
             nombre: data.get("nombre"),
             telefono: data.get("telefono"),
@@ -176,7 +178,7 @@ if (Astro.request.method === "POST") {
             }
         }
         
-        return Astro.redirect('/registro?exito=true');
+        return Astro.redirect('/registro/sueno?exito=true');
 
     } catch (e) {
         console.error(e);
@@ -186,7 +188,7 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Layout title="Registro de Pacientes | Lab-Somno">
+<Layout title="Registro: Transtornos de sueño | Lab-Somno">
     <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
 
@@ -217,6 +219,7 @@ if (Astro.request.method === "POST") {
     <main class="max-w-7xl mx-auto pt-6 md:pt-10 pb-28 px-4">
         <div class="flex flex-col items-center justify-center mb-8">
             <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight max-lg:max-w-xs max-md:pt-15">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
+            <p class="text-gray-400 mt-2">Expediente de transtorno del sueño</p>
 		</div>
 
         <form method="POST" id="form-registro" novalidate>
@@ -355,10 +358,10 @@ if (Astro.request.method === "POST") {
                 </section>
 
                 <section class="w-full max-w-4xl px-2 md:px-0">
-                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Diagnósticos previos</h2>
+                    <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Historia clinica</h2>
                     <div class="flex flex-col space-y-4">
                         <div class="flex flex-col">
-                            <label for="antecedentes" class="text-lg font-medium text-gray-300">Antecedentes familiares</label>
+                            <label for="antecedentes" class="text-lg font-medium text-gray-300">Antecedentes familiares y Personales</label>
                             <textarea id="antecedentes" name="antecedentes" rows="4" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
                         </div>
                     </div>
@@ -581,7 +584,7 @@ if (Astro.request.method === "POST") {
                             <tbody class="text-sm divide-y divide-gray-800">
                                 {['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'].map((score) => (
                                     <tr class="hover:bg-gray-800/30 transition-colors">
-                                        <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
+                                        <td class="py-3 px-4 font-medium text-gray-300 capitalize">
                                             {score.replace(/_/g, ' ')}
                                         </td>
                                         <td class="p-2">

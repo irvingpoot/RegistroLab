@@ -16,11 +16,11 @@
  * - Valida que el ID exista y protege las acciones de borrado y edición.
  */
 
-import Layout from "../../layouts/Layout.astro"
-import ReturnButton from "../../components/ReturnButton.astro"
-import InfoCard from "../../components/InfoCard.astro"
+import Layout from "../../../layouts/Layout.astro"
+import ReturnButton from "../../../components/ReturnButton.astro"
+import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
-import { calcularpsqi } from "../../utils/calculos"
+import { calcularpsqi } from "../../../utils/calculos"
 
 const { id } = Astro.params;
 
@@ -69,7 +69,6 @@ if (Astro.request.method === "POST") {
             if (error) throw error;
         }
 
-        // CASO A: ELIMINAR PACIENTE
         if (action === "delete_patient") {
             const { error: deleteError } = await supabase
                 .from('pacientes')
@@ -78,18 +77,15 @@ if (Astro.request.method === "POST") {
 
             if (deleteError) throw deleteError;
 
-            // Redirigir a la lista tras eliminar
             return Astro.redirect("/lista?mensaje=eliminado");
         }
 
-        // CASO B: ACTUALIZAR PUNTAJES
         if (action === "update_scores") {
             const getInt = (key: string) => {
                 const val = formData.get(key);
                 return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
             };
 
-            // 1. Actualizar Puntajes Estándar (3 fases)
             const scoresList = ['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'];
             let puntajesActualizados: any = {};
             
@@ -102,7 +98,6 @@ if (Astro.request.method === "POST") {
             const { error: updateError } = await supabase.from('pacientes').update(puntajesActualizados).eq('id', id);
             if (updateError) throw updateError;
 
-            // 2. Actualizar Extras (Borrar y Recrear con 3 fases)
             await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
             
             const extraNombres = formData.getAll('extra_prueba_nombre');
@@ -144,7 +139,6 @@ if (Astro.request.method === "POST") {
             const fase = formData.get("fase") as string;
             const horas = parseFloat(formData.get("horas") as string);
 
-            // 1. Buscar la respuesta existente
             const { data: resp, error: findError } = await supabase
                 .from('respuestas_cuestionarios')
                 .select('*')
@@ -154,22 +148,17 @@ if (Astro.request.method === "POST") {
                 .single();
 
             if (findError || !resp) {
-                // Si no hay respuesta del paciente, no podemos recalcular
                 throw new Error("El paciente aún no ha contestado el cuestionario para esta fase.");
             }
 
-            // 2. Modificar el JSON con el dato médico
             const datos = resp.datos;
-            datos.horas_sueno_estudio = horas; // Inyectamos el dato
+            datos.horas_sueno_estudio = horas; 
             
-            // 3. RECALCULAR usando la función compartida
             const resultado = calcularpsqi(datos);
             
-            // Actualizamos el JSON con el nuevo puntaje y los detalles (C1, C2, C3...)
             datos.puntaje = resultado.puntaje;
             Object.assign(datos, resultado.extraData);
 
-            // 4. Guardar JSON Actualizado
             const { error: updateJsonError } = await supabase
                 .from('respuestas_cuestionarios')
                 .update({ datos: datos })
@@ -177,7 +166,6 @@ if (Astro.request.method === "POST") {
 
             if (updateJsonError) throw updateJsonError;
 
-            // 5. Actualizar la columna de puntaje en la tabla pacientes
             const columnaScore = `psqi_${fase}`;
             const { error: updateScoreError } = await supabase
                 .from('pacientes')
@@ -187,6 +175,58 @@ if (Astro.request.method === "POST") {
             if (updateScoreError) throw updateScoreError;
         }
 
+        if (action === "habilitar_tms") {
+            const { error } = await supabase
+                .from('pacientes')
+                .update({ tms_habilitado: true })
+                .eq('id', id);
+            if (error) console.error("Error habilitando TMS:", error);
+        }
+
+        // CASO 2: Agregar nueva sesión
+        if (action === "nueva_sesion_tms") {
+            const fecha = formData.get("fecha");
+            const obs = formData.get("observaciones");
+            
+            const { error } = await supabase.from('tms_sesiones').insert({
+                paciente_id: id,
+                fecha_aplicacion: fecha,
+                observaciones: obs
+            });
+            if (error) console.error("Error creando sesión:", error);
+        }
+
+        if (action === "subir_consentimiento_tms") {
+            const archivo = formData.get("archivo_pdf");
+
+            if (archivo && archivo instanceof File && archivo.size > 0) {
+                
+                // Ruta del archivo
+                const filePath = `${id}/consentimiento_tms.pdf`;
+
+                // 1. Subir a Supabase (Bucket PRIVADO)
+                const { error: uploadError } = await supabase.storage
+                    .from('expedientes')
+                    .upload(filePath, archivo, {
+                        upsert: true,
+                        contentType: 'application/pdf'
+                    });
+
+                if (uploadError) {
+                    console.error("Error subiendo archivo:", uploadError);
+                } else {
+                    // CAMBIO IMPORTANTE:
+                    // No pedimos getPublicUrl. Guardamos el PATH (la ruta) en la base de datos.
+                    // Esto es seguro porque la ruta por sí sola no sirve de nada sin las llaves.
+                    const { error: dbError } = await supabase
+                        .from('pacientes')
+                        .update({ tms_consentimiento_url: filePath }) // Guardamos "uuid/consentimiento.pdf"
+                        .eq('id', id);
+                        
+                    if (dbError) console.error("Error guardando ruta en DB:", dbError);
+                }
+            }
+        }
 
     } catch (error) {
         console.error("Error en acción:", error);
@@ -196,8 +236,9 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), pacientes_pagos(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), pacientes_pagos(*), tms_sesiones(*)')
     .eq('id', id)
+    .order('created_at', { referencedTable: 'tms_sesiones', ascending: false })
     .single();
 
 if (error || !paciente) {
@@ -211,11 +252,21 @@ if (paciente.pacientes_seguimiento) {
 if (paciente.pacientes_pagos) {
     paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 }
+
+let urlConsentimientoFirmado = null;
+
+if (paciente?.tms_consentimiento_url) {
+    const { data: signedData } = await supabase.storage
+        .from('expedientes')
+        .createSignedUrl(paciente.tms_consentimiento_url, 3600);
+        
+    urlConsentimientoFirmado = signedData?.signedUrl;
+}
+
 const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
-// Formateador de moneda
+
 const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
-// Helpers
 const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
 
 const formatDateShort = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : "";
@@ -226,6 +277,8 @@ const formatTime = (timeString: string) => {
     return `${hours}:${minutes}`;
 };
 const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
+
+const sesionesTMS = paciente?.tms_sesiones || [];
 ---
 
 <Layout title={`Expediente: ${paciente.nombre}`}>
@@ -236,14 +289,14 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         <div class="border-b-2 border-white/10 pb-6 mb-10 flex flex-col md:flex-row justify-between items-end gap-4">
             <div>
                 
-                <p class="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente Clínico</p>
+                <p class="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente Transtorno de sueño</p>
                 <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
                 <div class="flex gap-4 mt-2 text-gray-400 text-sm items-center">
                     <span>ID: #{paciente.id}</span>
                     <span>•</span>
                     <span>Registrado: {formatDate(paciente.created_at)}</span>
                     <span>•</span>
-                    <a href={`/editar-paciente/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                    <a href={`/editar-paciente/sueno/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                         Editar Expediente Completo
                     </a>
@@ -485,12 +538,73 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
-            <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-xl">
+            <InfoCard title="Protocolo TMS"> 
+                <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div>
+                        <p class="text-gray-400 max-w-xl">
+                            {paciente.tms_habilitado 
+                                ? `Seguimiento activo. Se han registrado ${sesionesTMS.length} sesiones hasta el momento.`
+                                : "Este paciente aún no tiene habilitado el seguimiento para Estimulación Magnética Transcraneal."}
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-3">
+                        {!paciente.tms_habilitado ? (
+                            <form method="POST">
+                                <input type="hidden" name="action" value="habilitar_tms" />
+                                <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105">
+                                    Habilitar Seguimiento
+                                </button>
+                            </form>
+                        ) : (
+                            <div class="flex flex-wrap justify-end gap-3">
+                                
+                                {urlConsentimientoFirmado ? (
+                                    // OPCIÓN A: YA EXISTE -> BOTÓN PARA VER
+                                    <a href={urlConsentimientoFirmado} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-medium rounded-xl transition-colors group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>Consentimiento Firmado</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    </a>
+                                ) : (
+                                    // OPCIÓN B: NO EXISTE -> BOTÓN PARA SUBIR
+                                    <form method="POST" enctype="multipart/form-data" class="relative">
+                                        <input type="hidden" name="action" value="subir_consentimiento_tms" />
+                                        
+                                        <input 
+                                            type="file" 
+                                            name="archivo_pdf" 
+                                            id="file-consentimiento" 
+                                            accept="application/pdf"
+                                            class="hidden"
+                                            onchange="this.form.submit()"
+                                        />
+                                        
+                                        <label for="file-consentimiento" class="cursor-pointer flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-dashed border-gray-600 hover:border-blue-400 text-gray-300 hover:text-white font-medium rounded-xl transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            <span>Subir Consentimiento</span>
+                                        </label>
+                                    </form>
+                                )}
+
+                                <button onclick="document.getElementById('modal-tms').showModal()" class="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all">
+                                    <span>Ver Sesiones</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </InfoCard>
+
+            <InfoCard title="Enlaces de evaluación remota">
                 <div class="mb-6">
-                    <h3 class="text-white font-bold text-lg flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
-                        Enlaces de Evaluación Remota
-                    </h3>
                     <p class="text-sm text-gray-400 mt-1">1. Selecciona la fase del tratamiento.</p>
                     <p class="text-sm text-gray-400">2. Copia el enlace del cuestionario específico que deseas enviar.</p>
                 </div>
@@ -566,7 +680,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         </div>
                     </div>
                 </div>
-            </div>
+            </InfoCard>
 
             <InfoCard title="Seguimiento">
                 <div class="flex justify-between items-center mb-6">
@@ -932,10 +1046,95 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         </form>
     </dialog>
 
+    <dialog id="modal-tms" class="m-auto bg-transparent p-0 backdrop:bg-black/80 backdrop:backdrop-blur-sm w-full max-w-4xl">
+        <div class="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden m-4 max-h-[90vh] flex flex-col">
+            
+            <div class="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center sticky top-0 z-20">
+                <div>
+                    <h3 class="text-xl font-bold text-white">Historial de Sesiones</h3>
+                    <p class="text-sm text-gray-400">Paciente: {paciente.nombre} {paciente.apellidos}</p>
+                </div>
+                <button onclick="document.getElementById('modal-tms').close()" class="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                
+                <div class="mb-8 bg-blue-900/10 border border-blue-500/20 rounded-2xl p-5">
+                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider mb-4">Registrar Nueva Sesión</h4>
+                    <form method="POST" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <input type="hidden" name="action" value="nueva_sesion_tms" />
+                        
+                        <div class="md:col-span-4">
+                            <label class="block text-xs text-gray-400 mb-1">Fecha de Aplicación</label>
+                            <input type="date" name="fecha" required class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none" />
+                        </div>
+                        
+                        <div class="md:col-span-6">
+                            <label class="block text-xs text-gray-400 mb-1">Observaciones</label>
+                            <textarea 
+                                name="observaciones" 
+                                rows="2" 
+                                placeholder="Reacciones, intensidad, notas..." 
+                                class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none resize-none"
+                            ></textarea>
+                        </div>
+
+                        <div class="md:col-span-2 flex items-center">
+                            <button type="submit" class="w-full h-[42px] bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center">
+                                Añadir +
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4"> 
+                    {sesionesTMS.length > 0 ? sesionesTMS.map((sesion:any, index:any) => (
+                        <details 
+                            class="group bg-slate-800/50 border border-white/5 rounded-xl overflow-hidden transition-all duration-300 open:bg-slate-800 open:border-blue-500/30 open:shadow-lg open:shadow-blue-900/10"
+                            open={index === 0}
+                        >
+                            
+                            <summary class="flex justify-between items-center p-4 cursor-pointer list-none select-none outline-none hover:bg-white/5 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-blue-500/20 text-blue-300 text-xs font-bold px-2 py-1 rounded-md border border-blue-500/20">
+                                        SESIÓN #{sesionesTMS.length - index}
+                                    </span>
+                                    <span class="text-xs text-gray-400 font-mono group-open:text-white transition-colors">
+                                        {new Date(sesion.fecha_aplicacion).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                </div>
+
+                                <div class="text-gray-500 group-hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </summary>
+                            
+                            <div class="px-5 pb-5 pt-2">
+                                <div class="h-px w-full bg-white/5 mb-4"></div> <p class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                                    {sesion.observaciones || "Sin observaciones registradas."}
+                                </p>
+                            </div>
+
+                        </details>
+
+                    )) : (
+                        <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl">
+                            No hay sesiones registradas aún.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    </dialog>
+
 </Layout>
 
 <style>
-    @reference "../../styles/global.css";
+    @reference "../../../styles/global.css";
 
     .label {
         @apply block text-gray-500 text-xs uppercase tracking-wider font-bold mb-1;
@@ -960,14 +1159,38 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(4px);
     }
+
+    dialog[open] {
+        animation: fade-in 0.3s ease-out;
+    }
+    @keyframes fade-in {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    details > summary {
+        list-style: none;
+    }
+    details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details[open] .chevron {
+        transform: rotate(180deg);
+    }
+    
+    details[open] p {
+        animation: fade-in-slide 0.3s ease-out;
+    }
+    
+    @keyframes fade-in-slide {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
 </style>
 
-<script define:vars={{ 
-    baseUrl: Astro.url.origin, 
-    token: paciente.token_cuestionarios,
-    // Pasamos las respuestas de la BD al cliente
-    respuestasGuardadas: paciente.respuestas_cuestionarios || [] 
-}}>
+<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [] }}>
     // DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
     const DICCIONARIOS = {
         epworth: {
@@ -1038,6 +1261,22 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             puntaje: "Puntaje Global PSQI"
         }
     };
+
+    const savedScroll = sessionStorage.getItem('scrollPos');
+    
+    if (savedScroll) {
+        window.scrollTo({
+            top: parseInt(savedScroll),
+            behavior: 'instant'
+        });
+        sessionStorage.removeItem('scrollPos');
+    }
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            sessionStorage.setItem('scrollPos', window.scrollY.toString());
+        });
+    });
 
     // Lógica para el modal de extras (Agregar / Eliminar filas)
     document.addEventListener('DOMContentLoaded', () => {

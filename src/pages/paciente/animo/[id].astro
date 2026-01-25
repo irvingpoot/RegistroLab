@@ -1,0 +1,575 @@
+---
+/**
+ * @file paciente/animo/[id].astro
+ * @description Expediente Clínico específico para pacientes de Estado de Ánimo.
+ * Adaptado para mostrar escalas psiquiátricas y ocultar métricas de sueño profundo.
+ */
+
+import Layout from "../../../layouts/Layout.astro"
+import ReturnButton from "../../../components/ReturnButton.astro"
+import InfoCard from "../../../components/InfoCard.astro"
+import { createClient } from "@supabase/supabase-js"
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect("/lista");
+
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+const user = await Astro.locals.currentUser();
+const nombreAutor = user 
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
+    : "Sistema";
+
+// --- LÓGICA DE ACCIONES (POST) ---
+// Mantenemos la lógica vital (Pagos, TMS, Seguimiento) pero limpiamos lo de sueño.
+if (Astro.request.method === "POST") {
+    try {
+        const formData = await Astro.request.formData();
+        const action = formData.get("action");
+
+        // 1. NOTAS DE SEGUIMIENTO
+        if (action === "add_seguimiento") {
+            const nuevaNota = {
+                paciente_id: id,
+                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
+                observacion: formData.get("observacion"),
+                registrado_por: nombreAutor
+            };
+            const { error } = await supabase.from('pacientes_seguimiento').insert([nuevaNota]);
+            if (error) throw error;
+        }
+
+        if (action === "delete_seguimiento") {
+            const idNota = formData.get("id_seguimiento");
+            const { error } = await supabase.from('pacientes_seguimiento').delete().eq('id', idNota);
+            if (error) throw error;
+        }
+
+        // 2. ELIMINAR PACIENTE
+        if (action === "delete_patient") {
+            const { error } = await supabase.from('pacientes').delete().eq('id', id);
+            if (error) throw error;
+            return Astro.redirect("/lista?mensaje=eliminado");
+        }
+
+        // 3. ACTUALIZAR PUNTAJES (Solo escalas de Ánimo)
+        if (action === "update_scores") {
+            const getInt = (key: string) => {
+                const val = formData.get(key);
+                return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
+            };
+            
+            // Lista filtrada para Ánimo
+            const scoresList = ['hamilton_d', 'hamilton_a', 'isi'];
+            
+            let puntajesActualizados: any = {};
+            scoresList.forEach(score => {
+                puntajesActualizados[`${score}_pre`] = getInt(`${score}_pre`);
+                puntajesActualizados[`${score}_inter`] = getInt(`${score}_inter`);
+                puntajesActualizados[`${score}_post`] = getInt(`${score}_post`);
+            });
+
+            const { error: updateError } = await supabase.from('pacientes').update(puntajesActualizados).eq('id', id);
+            if (updateError) throw updateError;
+
+            // Puntajes Extra
+            await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
+            const extraNombres = formData.getAll('extra_prueba_nombre');
+            const extraPre = formData.getAll('extra_prueba_pre');
+            const extraInter = formData.getAll('extra_prueba_inter');
+            const extraPost = formData.getAll('extra_prueba_post');
+
+            const extrasAInsertar = extraNombres.map((nombre, index) => ({
+                paciente_id: id,
+                nombre_prueba: nombre.toString(),
+                puntaje_pre: extraPre[index] ? parseInt(extraPre[index].toString()) : null,
+                puntaje_inter: extraInter[index] ? parseInt(extraInter[index].toString()) : null,
+                puntaje_post: extraPost[index] ? parseInt(extraPost[index].toString()) : null
+            })).filter(item => item.nombre_prueba.trim() !== '');
+
+            if (extrasAInsertar.length > 0) {
+                await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
+            }
+        }
+
+        // 4. PAGOS
+        if (action === "add_pago") {
+            const nuevoPago = {
+                paciente_id: id,
+                monto: parseFloat(formData.get("monto") as string),
+                concepto: formData.get("concepto"),
+                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
+                registrado_por: nombreAutor
+            };
+            const { error } = await supabase.from('pacientes_pagos').insert([nuevoPago]);
+            if (error) throw error;
+        }
+        if (action === "delete_pago") {
+            const idPago = formData.get("id_pago");
+            const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
+            if (error) throw error;
+        }
+
+        // 5. TMS (Estimulación Magnética)
+        if (action === "habilitar_tms") {
+            const { error } = await supabase.from('pacientes').update({ tms_habilitado: true }).eq('id', id);
+            if (error) console.error("Error habilitando TMS:", error);
+        }
+
+        if (action === "nueva_sesion_tms") {
+            const { error } = await supabase.from('tms_sesiones').insert({
+                paciente_id: id,
+                fecha_aplicacion: formData.get("fecha"),
+                observaciones: formData.get("observaciones")
+            });
+            if (error) console.error("Error creando sesión:", error);
+        }
+
+        if (action === "subir_consentimiento_tms") {
+            const archivo = formData.get("archivo_pdf");
+            if (archivo && archivo instanceof File && archivo.size > 0) {
+                const filePath = `${id}/consentimiento_tms.pdf`;
+                const { error: uploadError } = await supabase.storage.from('expedientes').upload(filePath, archivo, { upsert: true, contentType: 'application/pdf' });
+                if (!uploadError) {
+                    await supabase.from('pacientes').update({ tms_consentimiento_url: filePath }).eq('id', id);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error("Error en acción:", error);
+    }
+}
+
+// --- CONSULTA DE DATOS ---
+const { data: paciente, error } = await supabase
+    .from('pacientes')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), pacientes_pagos(*), tms_sesiones(*)')
+    .eq('id', id)
+    .order('created_at', { foreignTable: 'tms_sesiones', ascending: false })
+    .single();
+
+if (error || !paciente) return Astro.redirect("/lista");
+
+// Ordenar listas
+if (paciente.pacientes_seguimiento) paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+if (paciente.pacientes_pagos) paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+// Link PDF seguro
+let urlConsentimientoFirmado = null;
+if (paciente?.tms_consentimiento_url) {
+    const { data: signedData } = await supabase.storage.from('expedientes').createSignedUrl(paciente.tms_consentimiento_url, 3600);
+    urlConsentimientoFirmado = signedData?.signedUrl;
+}
+
+// Helpers visuales
+const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
+const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
+const formatDateShort = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : "";
+const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
+const sesionesTMS = paciente?.tms_sesiones || [];
+---
+
+<Layout title={`Expediente Ánimo: ${paciente.nombre}`}>
+    <ReturnButton href="/lista" text="Volver a la lista" />
+
+    <main class="max-w-6xl mx-auto pt-20 pb-28 px-4">
+        
+        <div class="border-b-2 border-blue-500/30 pb-6 mb-10 flex flex-col md:flex-row justify-between items-end gap-4">
+            <div>
+                <p class="text-purple-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente de Estado de Ánimo</p>
+                <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
+                <div class="flex gap-4 mt-2 text-gray-400 text-sm items-center">
+                    <span>ID: #{paciente.id}</span>
+                    <span>•</span>
+                    <span>Registrado: {formatDate(paciente.created_at)}</span>
+                    <span>•</span>
+                    <a href={`/editar-paciente/animo/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                        Editar Expediente Completo
+                    </a>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="block text-gray-500 text-xs uppercase tracking-wider mb-1">Registrado por</span>
+                <span class="bg-gray-800 px-3 py-1 rounded-full text-sm text-gray-300 border border-gray-700">
+                    {paciente.registrado_por || "Sistema"}
+                </span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-8">
+
+            <InfoCard title="SocioDemográficos">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div><span class="label">Fecha de Nacimiento</span><p class="value">{formatDate(paciente.fecha_nacimiento)} <span class="text-gray-500 text-sm">({edadDisplay} años)</span></p></div>
+                    <div>
+                        <span class="label">Teléfono</span>
+                        {paciente.telefono ? (
+                            <a href={`https://wa.me/52${paciente.telefono.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" class="value font-mono text-blue-300 hover:text-green-400 hover:underline flex items-center gap-2 w-fit transition-colors group">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-whatsapp transition-transform group-hover:scale-110" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
+                                {paciente.telefono}
+                            </a>
+                        ) : <p class="value font-mono text-gray-500">—</p>}
+                    </div>
+                    <div><span class="label">Género</span><p class="value capitalize">{paciente.genero}</p></div>
+                    <div><span class="label">Ocupación</span><p class="value">{paciente.ocupacion || "—"}</p></div>
+                    <div><span class="label">Escolaridad</span><p class="value">{paciente.escolaridad || "—"}</p></div>
+                    <div><span class="label">Referido por</span><p class="value">{paciente.referencia}</p></div>
+                </div>
+            </InfoCard>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <InfoCard title="Motivo de Consulta">
+                    <div class="bg-gray-800/50 p-6 rounded-xl border border-gray-700/50">
+                        <p class="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap">{paciente.motivo}</p>
+                    </div>
+                </InfoCard>
+
+                <InfoCard title="Historia Clínica">
+                    <span class="label mb-2 block">Antecedentes</span>
+                    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]"><p class="text-gray-300 italic leading-relaxed text-sm">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p></div>
+                </InfoCard>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <InfoCard title="Estilo de Vida y Sustancias">
+                    <ul class="space-y-3">
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Ejercicio</span><span class="text-white font-medium">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio}h/sem)` : 'No'}</span></li>
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Alcohol</span><span class="text-white font-medium">{paciente.alcohol === 'si' ? `${paciente.cervezas_semana} / semana` : 'No'}</span></li>
+                        <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Tabaco</span><span class="text-white font-medium">{paciente.fuma === 'si' ? `${paciente.cigarros_semana} / semana` : 'No'}</span></li>
+                        <li class="flex justify-between pb-1"><span class="text-gray-400">Café</span><span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span></li>
+                    </ul>
+                </InfoCard>
+
+                <InfoCard title="Análisis de Síntomas">
+                    {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
+                        <div class="flex flex-col gap-3">
+                            {paciente.pacientes_sintomas.map((s: any, index: number) => (
+                                <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg relative">
+                                    <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
+                                    <h4 class="text-base font-bold text-blue-200 capitalize mb-1">{s.sintoma}</h4>
+                                    <div class="text-xs text-gray-400 flex gap-4">
+                                        {s.gravedad && <span>Intensidad: {s.gravedad}</span>}
+                                        {s.frecuencia && <span>Frec: {s.frecuencia}</span>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div class="text-gray-500 italic py-4 text-center">No hay síntomas desglosados.</div>
+                    )}
+                </InfoCard>
+            </div>
+            
+            <InfoCard title="Puntajes y Escalas">
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-gray-400 text-sm">Resultados de las pruebas aplicadas al paciente.</p>
+                    <button onclick="document.getElementById('modal-puntajes').showModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                        Actualizar Puntajes
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="text-gray-500 text-xs uppercase border-b border-gray-700/50">
+                                <th class="pb-2 font-medium">Escala</th>
+                                <th class="pb-2 text-center text-blue-400">Pre</th>
+                                <th class="pb-2 text-center text-purple-400">Inter</th>
+                                <th class="pb-2 text-center text-emerald-400">Post</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {['hamilton_d', 'hamilton_a', 'isi'].map(score => (
+                                <tr>
+                                    <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
+                                        {score === 'hamilton_d' ? 'Hamilton (Depresión)' : 
+                                            score === 'hamilton_a' ? 'Hamilton (Ansiedad)' : 
+                                            'Índice Severidad Insomnio (ISI)'}
+                                    </td>
+                                    <td class="py-3 text-center font-mono text-blue-200">{paciente[`${score}_pre`] ?? "-"}</td>
+                                    <td class="py-3 text-center font-mono text-blue-200">{paciente[`${score}_inter`] ?? "-"}</td>
+                                    <td class="py-3 text-center font-mono text-emerald-200">{paciente[`${score}_post`] ?? "-"}</td>
+                                </tr>
+                            ))}
+                            {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
+                                <tr class="bg-blue-900/10">
+                                    <td class="py-3 pr-4 font-medium text-blue-300">{extra.nombre_prueba} <span class="text-[10px] text-gray-500 uppercase">(Extra)</span></td>
+                                    <td class="py-3 text-center font-mono text-blue-200">{extra.puntaje_pre ?? "-"}</td>
+                                    <td class="py-3 text-center font-mono text-blue-200">{extra.puntaje_inter ?? "-"}</td>
+                                    <td class="py-3 text-center font-mono text-emerald-200">{extra.puntaje_post ?? "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </InfoCard>
+
+            <InfoCard title="Protocolo TMS"> 
+                <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div>
+                        <p class="text-gray-400 max-w-xl">
+                            {paciente.tms_habilitado 
+                                ? `Seguimiento activo. Se han registrado ${sesionesTMS.length} sesiones hasta el momento.`
+                                : "Este paciente aún no tiene habilitado el seguimiento para Estimulación Magnética Transcraneal."}
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-3">
+                        {!paciente.tms_habilitado ? (
+                            <form method="POST">
+                                <input type="hidden" name="action" value="habilitar_tms" />
+                                <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105">
+                                    Habilitar Seguimiento
+                                </button>
+                            </form>
+                        ) : (
+                            <div class="flex flex-wrap justify-end gap-3">
+                                {urlConsentimientoFirmado ? (
+                                    <a href={urlConsentimientoFirmado} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-medium rounded-xl transition-colors group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>Consentimiento</span>
+                                    </a>
+                                ) : (
+                                    <form method="POST" enctype="multipart/form-data" class="relative">
+                                        <input type="hidden" name="action" value="subir_consentimiento_tms" />
+                                        <input type="file" name="archivo_pdf" id="file-consentimiento" accept="application/pdf" class="hidden" onchange="this.form.submit()" />
+                                        <label for="file-consentimiento" class="cursor-pointer flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-dashed border-gray-600 hover:border-blue-400 text-gray-300 hover:text-white font-medium rounded-xl transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            <span>Subir PDF</span>
+                                        </label>
+                                    </form>
+                                )}
+
+                                <button onclick="document.getElementById('modal-tms').showModal()" class="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all">
+                                    <span>Ver Sesiones</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </InfoCard>
+
+            <InfoCard title="Seguimiento">
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-gray-400 text-sm">Historial de notas posteriores a consulta.</p>
+                    <button onclick="document.getElementById('modal-seguimiento').showModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-2">
+                        <span class="text-lg leading-none">+</span> Agregar Nota
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    {paciente.pacientes_seguimiento && paciente.pacientes_seguimiento.length > 0 ? (
+                        paciente.pacientes_seguimiento.map((nota: any) => (
+                            <div class="bg-gray-800/40 p-4 rounded-xl border border-gray-700/50 hover:bg-gray-800/60 transition-all group relative">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-bold text-blue-300 font-mono">{formatDateShort(nota.fecha)}</span>
+                                        <span class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Por: {nota.registrado_por || "Sistema"}</span>
+                                    </div>
+                                    <form method="POST" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <input type="hidden" name="action" value="delete_seguimiento" />
+                                        <input type="hidden" name="id_seguimiento" value={nota.id} />
+                                        <button class="text-gray-500 hover:text-red-400 transition-colors" title="Eliminar"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                    </form>
+                                </div>
+                                <p class="text-gray-200 whitespace-pre-wrap leading-relaxed text-sm">{nota.observacion}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <div class="text-center py-8 border border-dashed border-gray-700 rounded-xl"><p class="text-gray-500 italic">No hay notas registradas.</p></div>
+                    )}
+                </div>
+            </InfoCard>
+
+            <InfoCard title="Historial de Pagos">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+                    <div>
+                        <p class="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Total Acumulado</p>
+                        <p class="text-3xl font-mono font-bold text-emerald-400">{formatMoney(totalPagado)}</p>
+                    </div>
+                    <button onclick="document.getElementById('modal-pago').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/20 font-medium text-sm">
+                        Registrar Nuevo Pago
+                    </button>
+                </div>
+
+                <div class="overflow-hidden rounded-xl border border-gray-800">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-gray-400 text-xs uppercase font-bold">
+                            <tr><th class="p-4">Fecha</th><th class="p-4">Concepto</th><th class="p-4 text-right">Monto</th><th class="p-4 text-center">x</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800 bg-gray-900/50">
+                            {paciente.pacientes_pagos && paciente.pacientes_pagos.length > 0 ? (
+                                paciente.pacientes_pagos.map((pago: any) => (
+                                    <tr class="hover:bg-gray-800/50 transition-colors">
+                                        <td class="p-4 text-gray-300 font-mono">{formatDateShort(pago.fecha)}</td>
+                                        <td class="p-4 text-white font-medium">{pago.concepto}</td>
+                                        <td class="p-4 text-right text-emerald-300 font-mono font-bold">{formatMoney(pago.monto)}</td>
+                                        <td class="p-4 text-center">
+                                            <form method="POST" onsubmit="return confirm('¿Eliminar pago?');">
+                                                <input type="hidden" name="action" value="delete_pago" />
+                                                <input type="hidden" name="id_pago" value={pago.id} />
+                                                <button class="text-gray-600 hover:text-red-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : <tr><td colspan="4" class="p-8 text-center text-gray-500 italic">Sin pagos.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </InfoCard>
+
+            <div class="mt-12 border-t border-red-900/30 pt-8 pb-10 flex flex-col items-center">
+                <form method="POST" onsubmit="return confirm('¿ESTÁS SEGURO? Se borrará todo el expediente.');">
+                    <input type="hidden" name="action" value="delete_patient" />
+                    <button type="submit" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                        Eliminar Expediente Completo
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </main>
+
+    <dialog id="modal-seguimiento" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-lg text-left">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold text-white">Agregar Nota</h3><button onclick="document.getElementById('modal-seguimiento').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button></div>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="add_seguimiento">
+            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 outline-none" required style="color-scheme: dark;"></div>
+            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Observación</label><textarea name="observacion" rows="5" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-blue-500 outline-none resize-none" required></textarea></div>
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-seguimiento').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500">Guardar</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold text-white flex items-center gap-2"><span class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">$</span> Registrar Pago</h3><button onclick="document.getElementById('modal-pago').close()" class="text-gray-500 hover:text-white">✕</button></div>
+        <form method="POST" class="space-y-4">
+            <input type="hidden" name="action" value="add_pago">
+            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Monto ($)</label><input type="number" step="0.01" name="monto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 outline-none text-lg font-mono" placeholder="0.00" required></div>
+            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Concepto</label><input type="text" name="concepto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 outline-none" placeholder="Ej: Consulta" required></div>
+            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-emerald-500 outline-none" required style="color-scheme: dark;"></div>
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500">Guardar</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-puntajes" class="m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-4xl text-left">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold text-white">Actualizar Puntajes</h3><button onclick="document.getElementById('modal-puntajes').close()" class="text-gray-500 hover:text-white">✕</button></div>
+        <form method="POST" class="space-y-6">
+            <input type="hidden" name="action" value="update_scores" />
+            <div class="overflow-x-auto max-h-[60vh] overflow-y-auto pr-2">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 bg-gray-900 z-10"><tr class="text-gray-400 text-xs uppercase border-b border-gray-700"><th class="py-2">Prueba</th><th class="py-2 text-center w-24 text-blue-400">Pre</th><th class="py-2 text-center w-24 text-purple-400">Inter</th><th class="py-2 text-center w-24 text-emerald-400">Post</th></tr></thead>
+                    <tbody class="divide-y divide-gray-800">
+                        {['hamilton_d', 'hamilton_a', 'isi'].map(score => (
+                            <tr>
+                                <td class="py-3 font-medium text-gray-300 capitalize text-sm">{score === 'hamilton_d' ? 'Hamilton (Depresión)' : score === 'hamilton_a' ? 'Hamilton (Ansiedad)' : 'Índice Insomnio (ISI)'}</td>
+                                <td class="p-2"><input type="number" name={`${score}_pre`} value={paciente[`${score}_pre`]} class="score-input w-full" /></td>
+                                <td class="p-2"><input type="number" name={`${score}_inter`} value={paciente[`${score}_inter`]} class="score-input w-full" /></td>
+                                <td class="p-2"><input type="number" name={`${score}_post`} value={paciente[`${score}_post`]} class="score-input w-full" /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <h4 class="text-sm font-bold text-white mb-3">Puntajes Extra</h4>
+                    <div id="modal-extras-container" class="space-y-2">
+                        {paciente.pacientes_puntajes_extra && paciente.pacientes_puntajes_extra.map((extra: any) => (
+                            <div class="grid grid-cols-12 gap-2 items-center extra-row bg-gray-800/30 p-2 rounded">
+                                <div class="col-span-3"><input type="text" name="extra_prueba_nombre" value={extra.nombre_prueba} placeholder="Nombre" class="bg-transparent border-b border-gray-600 text-white w-full text-sm focus:outline-none focus:border-blue-500" /></div>
+                                <div class="col-span-3"><input type="number" name="extra_prueba_pre" value={extra.puntaje_pre} placeholder="Pre" class="score-input w-full" /></div>
+                                <div class="col-span-3"><input type="number" name="extra_prueba_inter" value={extra.puntaje_inter} placeholder="Inter" class="score-input w-full" /></div>
+                                <div class="col-span-2"><input type="number" name="extra_prueba_post" value={extra.puntaje_post} placeholder="Post" class="score-input w-full" /></div>
+                                <div class="col-span-1 text-center"><button type="button" class="text-red-400 hover:text-red-300 btn-remove-extra">✕</button></div>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300"><span class="text-lg leading-none">+</span> Agregar prueba extra</button>
+                </div>
+            </div>
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-puntajes').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium">Guardar Cambios</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="modal-tms" class="m-auto bg-transparent p-0 backdrop:bg-black/80 backdrop:backdrop-blur-sm w-full max-w-4xl">
+        <div class="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden m-4 max-h-[90vh] flex flex-col">
+            <div class="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center sticky top-0 z-20">
+                <div><h3 class="text-xl font-bold text-white">Historial de Sesiones</h3><p class="text-sm text-gray-400">Paciente: {paciente.nombre}</p></div>
+                <button onclick="document.getElementById('modal-tms').close()" class="p-2 text-gray-400 hover:text-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <div class="mb-8 bg-blue-900/10 border border-blue-500/20 rounded-2xl p-5">
+                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider mb-4">Registrar Nueva Sesión</h4>
+                    <form method="POST" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <input type="hidden" name="action" value="nueva_sesion_tms" />
+                        <div class="md:col-span-4"><label class="block text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" required class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none" /></div>
+                        <div class="md:col-span-6"><label class="block text-xs text-gray-400 mb-1">Observaciones</label><textarea name="observaciones" rows="2" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none resize-none"></textarea></div>
+                        <div class="md:col-span-2 flex items-end"><button type="submit" class="w-full h-[42px] bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">Añadir +</button></div>
+                    </form>
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    {sesionesTMS.length > 0 ? sesionesTMS.map((sesion:any, index:any) => (
+                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-4">
+                            <div class="flex justify-between items-center mb-2"><span class="text-blue-300 text-xs font-bold">SESIÓN #{sesionesTMS.length - index}</span><span class="text-gray-400 text-xs">{formatDate(sesion.fecha_aplicacion)}</span></div>
+                            <p class="text-gray-300 text-sm">{sesion.observaciones || "Sin observaciones."}</p>
+                        </div>
+                    )) : <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl">No hay sesiones.</div>}
+                </div>
+            </div>
+        </div>
+    </dialog>
+</Layout>
+
+<style>
+    @reference "../../../styles/global.css";
+    .label { @apply block text-gray-500 text-xs uppercase tracking-wider font-bold mb-1; }
+    .value { @apply text-lg text-white font-medium; }
+    .score-input { @apply bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-center; }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
+    dialog[open] { animation: fade-in 0.3s ease-out; }
+    @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Script para filas extra en modal
+        const container = document.getElementById('modal-extras-container');
+        const btnAdd = document.getElementById('btn-add-extra-modal');
+        const setupRemoveBtn = (btn: any) => {
+            btn.addEventListener('click', (e: any) => e.target.closest('.extra-row')?.remove());
+        };
+        document.querySelectorAll('.btn-remove-extra').forEach(setupRemoveBtn);
+        if (btnAdd && container) {
+            btnAdd.addEventListener('click', () => {
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-12 gap-2 items-center extra-row bg-gray-800/30 p-2 rounded';
+                row.innerHTML = `
+                    <div class="col-span-3">
+                        <input type="text" name="extra_prueba_nombre" placeholder="Nombre" class="bg-transparent border-b border-gray-600 text-white w-full text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="col-span-3"><input type="number" name="extra_prueba_pre" placeholder="Pre" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-3"><input type="number" name="extra_prueba_inter" placeholder="Inter" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-2"><input type="number" name="extra_prueba_post" placeholder="Post" class="bg-gray-800 border border-gray-600 rounded p-2 text-white text-center text-sm w-full"></div>
+                    <div class="col-span-1 text-center"><button type="button" class="text-red-400 btn-remove-extra">✕</button></div>
+                `;
+                container.appendChild(row);
+                const newBtn = row.querySelector('.btn-remove-extra');
+                if(newBtn) setupRemoveBtn(newBtn);
+            });
+        }
+    });
+</script>
