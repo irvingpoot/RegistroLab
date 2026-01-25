@@ -58,8 +58,7 @@ if (Astro.request.method === "POST") {
             // Clínicos
             motivo: data.get("motivo"),
             antecedentes: data.get("antecedentes"),
-            // Mantenemos la lógica de guardar el motivo como síntoma principal para evitar error NOT NULL
-            sintoma: data.get("motivo"), 
+            sintoma: data.getAll('sintoma')[0]?.toString(),
 
             // Antropométricos
             peso: data.get("peso") ? parseFloat(data.get("peso") as string) : null,
@@ -93,7 +92,7 @@ if (Astro.request.method === "POST") {
         // 3. Actualizar Síntomas Dinámicos (Borrar todo y reinsertar)
         await supabase.from('pacientes_sintomas').delete().eq('paciente_id', id);
         
-        const sintomas = data.getAll('sintoma_dinamico'); // Ojo: Usamos nombre distinto para no confundir con columna 'sintoma' principal
+        const sintomas = data.getAll('sintoma');
         const temporalidades = data.getAll('temporalidad');
         const frecuencias = data.getAll('frecuencia');
         const gravedades = data.getAll('gravedad');
@@ -125,7 +124,7 @@ if (Astro.request.method === "POST") {
             await supabase.from('pacientes_puntajes_extra').insert(extrasInsert);
         }
 
-        return Astro.redirect(`/paciente/${id}`);
+        return Astro.redirect(`/paciente/animo/${id}`);
 
     } catch (e) {
         console.error(e);
@@ -244,15 +243,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                     <h2 class="section-title">Análisis de síntomas</h2>
                     <div id="lista-sintomas" class="space-y-8">
                         {listaSintomas.map((s:any, idx:any) => (
-                            // Nota: SintomaGroup usa name="sintoma" internamente, pero al procesar usamos getAll('sintoma')
-                            // Si SintomaGroup es muy rígido, asegúrate que los 'name' coincidan con lo que esperas en el POST.
-                            // Aquí asumimos que SintomaGroup usa inputs genéricos o configurables.
-                            // Si SintomaGroup pone name="sintoma", en el POST lo renombraremos o usaremos getAll('sintoma')
-                            // Para evitar conflicto con el 'sintoma' principal (motivo), en el POST usamos data.getAll('sintoma')[0] para el principal
-                            // Pero aquí necesitamos separar. 
-                            // TRUCO: SintomaGroup suele generar inputs array. 
-                            // Vamos a asumir que SintomaGroup genera inputs: name="sintoma", name="temporalidad", etc.
-                            // En el POST, getAll('sintoma') traerá TODOS. Filtraremos los vacíos.
                             <SintomaGroup numero={idx + 1} data={s} />
                         ))}
                     </div>

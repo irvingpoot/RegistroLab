@@ -75,7 +75,7 @@ if (Astro.request.method === "POST") {
             donde_duerme: data.get("donde_duerme"),
             hora_acostarse: data.get("hora_acostarse"), 
             hora_dormir: data.get("hora_dormir"),
-            hora_despertar: data.get("hora_despertar"), // Nuevo
+            hora_despertar: data.get("hora_despertar"),
             hora_levantarse: data.get("hora_levantarse"),
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
@@ -159,7 +159,7 @@ if (Astro.request.method === "POST") {
             await supabase.from('pacientes_puntajes_extra').insert(extrasInsert);
         }
 
-        return Astro.redirect(`/paciente/${id}`);
+        return Astro.redirect(`/paciente/sueno/${id}`);
 
     } catch (e) {
         console.error(e);

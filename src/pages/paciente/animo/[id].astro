@@ -24,7 +24,7 @@ const nombreAutor = user
     : "Sistema";
 
 // --- LÓGICA DE ACCIONES (POST) ---
-// Mantenemos la lógica vital (Pagos, TMS, Seguimiento) pero limpiamos lo de sueño.
+// Mantenemos la lógica vital (TMS, Seguimiento) pero limpiamos lo de sueño.
 if (Astro.request.method === "POST") {
     try {
         const formData = await Astro.request.formData();
@@ -95,24 +95,6 @@ if (Astro.request.method === "POST") {
             }
         }
 
-        // 4. PAGOS
-        if (action === "add_pago") {
-            const nuevoPago = {
-                paciente_id: id,
-                monto: parseFloat(formData.get("monto") as string),
-                concepto: formData.get("concepto"),
-                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
-                registrado_por: nombreAutor
-            };
-            const { error } = await supabase.from('pacientes_pagos').insert([nuevoPago]);
-            if (error) throw error;
-        }
-        if (action === "delete_pago") {
-            const idPago = formData.get("id_pago");
-            const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
-            if (error) throw error;
-        }
-
         // 5. TMS (Estimulación Magnética)
         if (action === "habilitar_tms") {
             const { error } = await supabase.from('pacientes').update({ tms_habilitado: true }).eq('id', id);
@@ -120,11 +102,28 @@ if (Astro.request.method === "POST") {
         }
 
         if (action === "nueva_sesion_tms") {
+            const getInt = (k: string) => {
+                const v = formData.get(k);
+                return v && v.toString().trim() ? parseInt(v.toString()) : null;
+            };
+            const getStr = (k: string) => {
+                const v = formData.get(k);
+                return v ? v.toString().trim() : null;
+            };
+
             const { error } = await supabase.from('tms_sesiones').insert({
                 paciente_id: id,
                 fecha_aplicacion: formData.get("fecha"),
-                observaciones: formData.get("observaciones")
+                observaciones: formData.get("observaciones"),
+                // NUEVOS CAMPOS TÉCNICOS
+                umbral_motor: getInt("umbral_motor"),
+                intensidad_tratamiento: getInt("intensidad_tratamiento"),
+                frecuencia: getStr("frecuencia"),
+                total_pulsos: getInt("total_pulsos"),
+                sitio_estimulacion: getStr("sitio_estimulacion"),
+                protocolo: getStr("protocolo")
             });
+            
             if (error) console.error("Error creando sesión:", error);
         }
 
@@ -147,7 +146,7 @@ if (Astro.request.method === "POST") {
 // --- CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), pacientes_pagos(*), tms_sesiones(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), tms_sesiones(*)')
     .eq('id', id)
     .order('created_at', { foreignTable: 'tms_sesiones', ascending: false })
     .single();
@@ -156,7 +155,6 @@ if (error || !paciente) return Astro.redirect("/lista");
 
 // Ordenar listas
 if (paciente.pacientes_seguimiento) paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-if (paciente.pacientes_pagos) paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
 // Link PDF seguro
 let urlConsentimientoFirmado = null;
@@ -166,12 +164,27 @@ if (paciente?.tms_consentimiento_url) {
 }
 
 // Helpers visuales
-const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
-const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
-const formatDateShort = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : "";
+const formatDate = (dateString: string) => {
+    if (!dateString) return "No registrado";
+    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+};
+
+const formatDateShort = (dateString: string) => {
+    if (!dateString) return "";
+    const fechaLimpia = dateString.substring(0, 10);
+    return new Date(fechaLimpia + 'T12:00:00').toLocaleDateString('es-MX', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+};
 const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
 const sesionesTMS = paciente?.tms_sesiones || [];
+const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 ---
 
 <Layout title={`Expediente Ánimo: ${paciente.nombre}`}>
@@ -231,12 +244,16 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                 </InfoCard>
 
                 <InfoCard title="Historia Clínica">
-                    <span class="label mb-2 block">Antecedentes</span>
                     <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]"><p class="text-gray-300 italic leading-relaxed text-sm">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p></div>
                 </InfoCard>
-            </div>
+                
+                <InfoCard title="Antropométricos">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div><span class="label">Peso</span><p class="value">{paciente.peso ? `${paciente.peso} kg` : "—"}</p></div>
+                        <div><span class="label">Altura</span><p class="value">{paciente.altura ? `${paciente.altura} m` : "—"}</p></div>
+                    </div>
+                </InfoCard>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <InfoCard title="Estilo de Vida y Sustancias">
                     <ul class="space-y-3">
                         <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Ejercicio</span><span class="text-white font-medium">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio}h/sem)` : 'No'}</span></li>
@@ -245,7 +262,9 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                         <li class="flex justify-between pb-1"><span class="text-gray-400">Café</span><span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span></li>
                     </ul>
                 </InfoCard>
+            </div>
 
+            <div class="grid grid-cols-1 gap-8">
                 <InfoCard title="Análisis de Síntomas">
                     {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
                         <div class="flex flex-col gap-3">
@@ -334,7 +353,7 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                                 {urlConsentimientoFirmado ? (
                                     <a href={urlConsentimientoFirmado} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-medium rounded-xl transition-colors group">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                             </svg>
                                             <span>Consentimiento</span>
                                     </a>
@@ -344,9 +363,9 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                                         <input type="file" name="archivo_pdf" id="file-consentimiento" accept="application/pdf" class="hidden" onchange="this.form.submit()" />
                                         <label for="file-consentimiento" class="cursor-pointer flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-dashed border-gray-600 hover:border-blue-400 text-gray-300 hover:text-white font-medium rounded-xl transition-all">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                             </svg>
-                                            <span>Subir PDF</span>
+                                            <span>Subir Consentimiento</span>
                                         </label>
                                     </form>
                                 )}
@@ -395,52 +414,13 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                 </div>
             </InfoCard>
 
-            <InfoCard title="Historial de Pagos">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-                    <div>
-                        <p class="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Total Acumulado</p>
-                        <p class="text-3xl font-mono font-bold text-emerald-400">{formatMoney(totalPagado)}</p>
-                    </div>
-                    <button onclick="document.getElementById('modal-pago').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/20 font-medium text-sm">
-                        Registrar Nuevo Pago
-                    </button>
-                </div>
-
-                <div class="overflow-hidden rounded-xl border border-gray-800">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-800 text-gray-400 text-xs uppercase font-bold">
-                            <tr><th class="p-4">Fecha</th><th class="p-4">Concepto</th><th class="p-4 text-right">Monto</th><th class="p-4 text-center">x</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-800 bg-gray-900/50">
-                            {paciente.pacientes_pagos && paciente.pacientes_pagos.length > 0 ? (
-                                paciente.pacientes_pagos.map((pago: any) => (
-                                    <tr class="hover:bg-gray-800/50 transition-colors">
-                                        <td class="p-4 text-gray-300 font-mono">{formatDateShort(pago.fecha)}</td>
-                                        <td class="p-4 text-white font-medium">{pago.concepto}</td>
-                                        <td class="p-4 text-right text-emerald-300 font-mono font-bold">{formatMoney(pago.monto)}</td>
-                                        <td class="p-4 text-center">
-                                            <form method="POST" onsubmit="return confirm('¿Eliminar pago?');">
-                                                <input type="hidden" name="action" value="delete_pago" />
-                                                <input type="hidden" name="id_pago" value={pago.id} />
-                                                <button class="text-gray-600 hover:text-red-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : <tr><td colspan="4" class="p-8 text-center text-gray-500 italic">Sin pagos.</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </InfoCard>
-
             <div class="mt-12 border-t border-red-900/30 pt-8 pb-10 flex flex-col items-center">
-                <form method="POST" onsubmit="return confirm('¿ESTÁS SEGURO? Se borrará todo el expediente.');">
-                    <input type="hidden" name="action" value="delete_patient" />
-                    <button type="submit" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                        Eliminar Expediente Completo
-                    </button>
-                </form>
+                <button onclick="document.getElementById('modal-eliminar').showModal()" class="group flex items-center gap-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                    Eliminar Expediente Completo
+                </button>
             </div>
 
         </div>
@@ -452,18 +432,32 @@ const sesionesTMS = paciente?.tms_sesiones || [];
             <input type="hidden" name="action" value="add_seguimiento">
             <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 outline-none" required style="color-scheme: dark;"></div>
             <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Observación</label><textarea name="observacion" rows="5" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-blue-500 outline-none resize-none" required></textarea></div>
-            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-seguimiento').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500">Guardar</button></div>
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-seguimiento').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 cursor-pointer">Guardar</button></div>
         </form>
     </dialog>
 
-    <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
-        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold text-white flex items-center gap-2"><span class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">$</span> Registrar Pago</h3><button onclick="document.getElementById('modal-pago').close()" class="text-gray-500 hover:text-white">✕</button></div>
-        <form method="POST" class="space-y-4">
-            <input type="hidden" name="action" value="add_pago">
-            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Monto ($)</label><input type="number" step="0.01" name="monto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 outline-none text-lg font-mono" placeholder="0.00" required></div>
-            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Concepto</label><input type="text" name="concepto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 outline-none" placeholder="Ej: Consulta" required></div>
-            <div class="flex flex-col"><label class="text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-emerald-500 outline-none" required style="color-scheme: dark;"></div>
-            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500">Guardar</button></div>
+    <dialog id="modal-eliminar" class="m-auto bg-gray-900 border border-red-600 rounded-2xl p-8 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-center">
+        <div class="mb-4 text-red-500 flex justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-12 h-12 animate-pulse">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-white mb-2">¿Eliminar Expediente?</h3>
+        <p class="text-gray-300 mb-6 text-sm">
+            Estás a punto de eliminar el expediente de <span class="text-white font-bold">{paciente.nombre}</span>. 
+            <br/><br/>
+            <span class="text-red-400 bg-red-900/20 px-2 py-1 rounded">Esta acción es irreversible</span>
+            <br/>Se perderán todos los datos, citas, síntomas y puntajes asociados.
+        </p>
+        
+        <form method="POST" class="flex gap-4 justify-center">
+            <input type="hidden" name="action" value="delete_patient">
+            <button type="button" onclick="document.getElementById('modal-eliminar').close()" class="px-5 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:text-white cursor-pointer hover:bg-gray-800 transition-colors">
+                Cancelar
+            </button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer shadow-lg shadow-red-900/20 transition-all hover:scale-105">
+                Sí, Eliminar
+            </button>
         </form>
     </dialog>
 
@@ -494,41 +488,143 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                                 <div class="col-span-3"><input type="number" name="extra_prueba_pre" value={extra.puntaje_pre} placeholder="Pre" class="score-input w-full" /></div>
                                 <div class="col-span-3"><input type="number" name="extra_prueba_inter" value={extra.puntaje_inter} placeholder="Inter" class="score-input w-full" /></div>
                                 <div class="col-span-2"><input type="number" name="extra_prueba_post" value={extra.puntaje_post} placeholder="Post" class="score-input w-full" /></div>
-                                <div class="col-span-1 text-center"><button type="button" class="text-red-400 hover:text-red-300 btn-remove-extra">✕</button></div>
+                                <div class="col-span-1 text-center"><button type="button" class="text-red-400 hover:text-red-300 btn-remove-extra cursor-pointer">✕</button></div>
                             </div>
                         ))}
                     </div>
-                    <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300"><span class="text-lg leading-none">+</span> Agregar prueba extra</button>
+                    <button type="button" id="btn-add-extra-modal" class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300 cursor-pointer"><span class="text-lg leading-none">+</span> Agregar prueba extra</button>
                 </div>
             </div>
-            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-puntajes').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium">Guardar Cambios</button></div>
+            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50"><button type="button" onclick="document.getElementById('modal-puntajes').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 cursor-pointer">Cancelar</button><button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium cursor-pointer">Guardar Cambios</button></div>
         </form>
     </dialog>
 
-    <dialog id="modal-tms" class="m-auto bg-transparent p-0 backdrop:bg-black/80 backdrop:backdrop-blur-sm w-full max-w-4xl">
+    <dialog id="modal-tms" class="m-auto bg-transparent p-0 backdrop:bg-black/80 backdrop:backdrop-blur-sm w-full max-w-5xl">
         <div class="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden m-4 max-h-[90vh] flex flex-col">
+            
             <div class="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center sticky top-0 z-20">
-                <div><h3 class="text-xl font-bold text-white">Historial de Sesiones</h3><p class="text-sm text-gray-400">Paciente: {paciente.nombre}</p></div>
-                <button onclick="document.getElementById('modal-tms').close()" class="p-2 text-gray-400 hover:text-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-6 bg-blue-500 rounded-full"></span>
+                        Bitácora Técnica TMS
+                    </h3>
+                    <p class="text-sm text-gray-400">Paciente: <span class="text-white font-medium">{paciente.nombre}</span></p>
+                </div>
+                <button onclick="document.getElementById('modal-tms').close()" class="p-2 text-gray-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
             </div>
-            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
-                <div class="mb-8 bg-blue-900/10 border border-blue-500/20 rounded-2xl p-5">
-                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider mb-4">Registrar Nueva Sesión</h4>
-                    <form method="POST" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+                
+                <div class="bg-gradient-to-br from-blue-900/10 to-slate-900 border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                    
+                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        Registrar Sesión de Hoy
+                    </h4>
+                    
+                    <form method="POST" class="grid grid-cols-1 md:grid-cols-12 gap-5 relative z-10">
                         <input type="hidden" name="action" value="nueva_sesion_tms" />
-                        <div class="md:col-span-4"><label class="block text-xs text-gray-400 mb-1">Fecha</label><input type="date" name="fecha" required class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none" /></div>
-                        <div class="md:col-span-6"><label class="block text-xs text-gray-400 mb-1">Observaciones</label><textarea name="observaciones" rows="2" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none resize-none"></textarea></div>
-                        <div class="md:col-span-2 flex items-end"><button type="submit" class="w-full h-[42px] bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors">Añadir +</button></div>
+                        
+                        <div class="md:col-span-3">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Fecha</label>
+                            <input type="date" name="fecha" required class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" style="color-scheme:dark;" />
+                        </div>
+                        <div class="md:col-span-5">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Protocolo / Diagnóstico</label>
+                            <input type="text" name="protocolo" placeholder="Ej. Insomnio Crónico" value={ultimaConfig.protocolo || ''} class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" />
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Sitio Estimulación</label>
+                            <select name="sitio_estimulacion" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer">
+                                <option value="" disabled selected={!ultimaConfig.sitio_estimulacion}>Seleccionar...</option>
+                                <option value="DLPFC Izquierdo">DLPFC Izquierdo</option>
+                                <option value="DLPFC Derecho">DLPFC Derecho</option>
+                                <option value="Corteza Motora M1">Corteza Motora (M1)</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Umbral Motor (MT)</label>
+                                <div class="relative">
+                                    <input type="number" name="umbral_motor" placeholder="60" value={ultimaConfig.umbral_motor || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                                    <span class="absolute right-0 top-1 text-xs text-gray-600">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Intensidad Tx</label>
+                                <div class="relative">
+                                    <input type="number" name="intensidad_tratamiento" placeholder="120" value={ultimaConfig.intensidad_tratamiento || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                                    <span class="absolute right-0 top-1 text-xs text-gray-600">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Frecuencia</label>
+                                <select name="frecuencia" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono text-sm cursor-pointer">
+                                    <option value="1Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '1Hz'}>1 Hz</option>
+                                    <option value="10Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '10Hz'}>10 Hz</option>
+                                    <option value="TBS" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'TBS'}>Theta Burst</option>
+                                    <option value="Otro" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'Otro'}>Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Total Pulsos</label>
+                                <input type="number" name="total_pulsos" placeholder="1200" value={ultimaConfig.total_pulsos || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-9">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Notas Clínicas / Incidencias</label>
+                            <input type="text" name="observaciones" placeholder="Ej. Paciente durmió durante la sesión." class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" />
+                        </div>
+                        <div class="md:col-span-3 flex items-end">
+                            <button type="submit" class="w-full h-[40px] bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 cursor-pointer">
+                                <span>Guardar Sesión</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                            </button>
+                        </div>
                     </form>
                 </div>
-                <div class="grid grid-cols-1 gap-4">
-                    {sesionesTMS.length > 0 ? sesionesTMS.map((sesion:any, index:any) => (
-                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-4">
-                            <div class="flex justify-between items-center mb-2"><span class="text-blue-300 text-xs font-bold">SESIÓN #{sesionesTMS.length - index}</span><span class="text-gray-400 text-xs">{formatDate(sesion.fecha_aplicacion)}</span></div>
-                            <p class="text-gray-300 text-sm">{sesion.observaciones || "Sin observaciones."}</p>
-                        </div>
-                    )) : <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl">No hay sesiones.</div>}
+
+                <div>
+                    <h4 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Historial de Aplicaciones</h4>
+                    <div class="space-y-3">
+                        {sesionesTMS.length > 0 ? sesionesTMS.map((sesion:any, index:any) => (
+                            <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4 hover:bg-slate-800/60 transition-colors group">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3 pb-3 border-b border-white/5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs">
+                                            #{sesionesTMS.length - index}
+                                        </div>
+                                        <div>
+                                            <p class="text-white font-bold text-sm">{formatDate(sesion.fecha_aplicacion)}</p>
+                                            <p class="text-xs text-blue-300">{sesion.protocolo || "Protocolo Estándar"}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-4 text-xs font-mono text-gray-400">
+                                        {sesion.umbral_motor && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">MT</span><span class="text-white">{sesion.umbral_motor}%</span></div>}
+                                        {sesion.intensidad_tratamiento && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Intensidad</span><span class="text-white">{sesion.intensidad_tratamiento}%</span></div>}
+                                        {sesion.frecuencia && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Hz</span><span class="text-emerald-400">{sesion.frecuencia}</span></div>}
+                                        {sesion.total_pulsos && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Pulsos</span><span class="text-sky-400">{sesion.total_pulsos}</span></div>}
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 items-start">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                                    <p class="text-gray-300 text-sm leading-relaxed">{sesion.observaciones || "Sin observaciones registradas."}</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl bg-slate-900/30">
+                                <p>No hay sesiones registradas en el historial.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
             </div>
         </div>
     </dialog>
@@ -571,5 +667,21 @@ const sesionesTMS = paciente?.tms_sesiones || [];
                 if(newBtn) setupRemoveBtn(newBtn);
             });
         }
+    });
+
+    const savedScroll = sessionStorage.getItem('scrollPos');
+    
+    if (savedScroll) {
+        window.scrollTo({
+            top: parseInt(savedScroll),
+            behavior: 'instant'
+        });
+        sessionStorage.removeItem('scrollPos');
+    }
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            sessionStorage.setItem('scrollPos', window.scrollY.toString());
+        });
     });
 </script>
