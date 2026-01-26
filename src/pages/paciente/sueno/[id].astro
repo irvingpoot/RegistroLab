@@ -5,22 +5,21 @@
  * @description Vista detallada (Expediente Digital) de un paciente específico.
  * * CONCEPTO "EXPEDIENTE CENTRAL":
  * - Agrega toda la información dispersa: Datos personales, Historial Clínico,
- * Pagos, Citas, Seguimientos y Resultados de Cuestionarios.
+ * Citas, Seguimientos y Resultados de Cuestionarios.
  * * CARACTERÍSTICAS TÉCNICAS:
  * 1. Acciones Múltiples (Switch): Maneja varias acciones POST en un solo endpoint
- * ('add_seguimiento', 'delete_pago', 'delete_cita', etc.) identificadas por el campo `action`.
+ * ('add_seguimiento', 'delete_cita', etc.) identificadas por el campo `action`.
  * 2. Sistema de Tokens: Genera y visualiza el enlace público único (`token_cuestionarios`)
  * para que el paciente responda evaluaciones sin iniciar sesión.
- * 3. Cálculos en Tiempo Real: Suma el total de pagos históricos al cargar la página.
  * * SEGURIDAD:
  * - Valida que el ID exista y protege las acciones de borrado y edición.
  */
 
-import Layout from "../../layouts/Layout.astro"
-import ReturnButton from "../../components/ReturnButton.astro"
-import InfoCard from "../../components/InfoCard.astro"
+import Layout from "../../../layouts/Layout.astro"
+import ReturnButton from "../../../components/ReturnButton.astro"
+import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
-import { calcularpsqi } from "../../utils/calculos"
+import { calcularpsqi } from "../../../utils/calculos"
 
 const { id } = Astro.params;
 
@@ -69,7 +68,6 @@ if (Astro.request.method === "POST") {
             if (error) throw error;
         }
 
-        // CASO A: ELIMINAR PACIENTE
         if (action === "delete_patient") {
             const { error: deleteError } = await supabase
                 .from('pacientes')
@@ -78,18 +76,15 @@ if (Astro.request.method === "POST") {
 
             if (deleteError) throw deleteError;
 
-            // Redirigir a la lista tras eliminar
             return Astro.redirect("/lista?mensaje=eliminado");
         }
 
-        // CASO B: ACTUALIZAR PUNTAJES
         if (action === "update_scores") {
             const getInt = (key: string) => {
                 const val = formData.get(key);
                 return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
             };
 
-            // 1. Actualizar Puntajes Estándar (3 fases)
             const scoresList = ['epworth', 'dbi', 'hamilton_d', 'hamilton_a', 'isi', 'psqi', 'stop_bang', 'berlin', 'cuestionario_insomnio'];
             let puntajesActualizados: any = {};
             
@@ -102,7 +97,6 @@ if (Astro.request.method === "POST") {
             const { error: updateError } = await supabase.from('pacientes').update(puntajesActualizados).eq('id', id);
             if (updateError) throw updateError;
 
-            // 2. Actualizar Extras (Borrar y Recrear con 3 fases)
             await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
             
             const extraNombres = formData.getAll('extra_prueba_nombre');
@@ -123,28 +117,10 @@ if (Astro.request.method === "POST") {
             }
         }
 
-        if (action === "add_pago") {
-            const nuevoPago = {
-                paciente_id: id,
-                monto: parseFloat(formData.get("monto") as string),
-                concepto: formData.get("concepto"),
-                fecha: formData.get("fecha") ? new Date(formData.get("fecha") as string).toISOString() : new Date().toISOString(),
-                registrado_por: nombreAutor
-            };
-            const { error } = await supabase.from('pacientes_pagos').insert([nuevoPago]);
-            if (error) throw error;
-        }
-        if (action === "delete_pago") {
-            const idPago = formData.get("id_pago");
-            const { error } = await supabase.from('pacientes_pagos').delete().eq('id', idPago);
-            if (error) throw error;
-        }
-
         if (action === "update_psqi_study") {
             const fase = formData.get("fase") as string;
             const horas = parseFloat(formData.get("horas") as string);
 
-            // 1. Buscar la respuesta existente
             const { data: resp, error: findError } = await supabase
                 .from('respuestas_cuestionarios')
                 .select('*')
@@ -154,22 +130,17 @@ if (Astro.request.method === "POST") {
                 .single();
 
             if (findError || !resp) {
-                // Si no hay respuesta del paciente, no podemos recalcular
                 throw new Error("El paciente aún no ha contestado el cuestionario para esta fase.");
             }
 
-            // 2. Modificar el JSON con el dato médico
             const datos = resp.datos;
-            datos.horas_sueno_estudio = horas; // Inyectamos el dato
+            datos.horas_sueno_estudio = horas; 
             
-            // 3. RECALCULAR usando la función compartida
             const resultado = calcularpsqi(datos);
             
-            // Actualizamos el JSON con el nuevo puntaje y los detalles (C1, C2, C3...)
             datos.puntaje = resultado.puntaje;
             Object.assign(datos, resultado.extraData);
 
-            // 4. Guardar JSON Actualizado
             const { error: updateJsonError } = await supabase
                 .from('respuestas_cuestionarios')
                 .update({ datos: datos })
@@ -177,7 +148,6 @@ if (Astro.request.method === "POST") {
 
             if (updateJsonError) throw updateJsonError;
 
-            // 5. Actualizar la columna de puntaje en la tabla pacientes
             const columnaScore = `psqi_${fase}`;
             const { error: updateScoreError } = await supabase
                 .from('pacientes')
@@ -187,6 +157,70 @@ if (Astro.request.method === "POST") {
             if (updateScoreError) throw updateScoreError;
         }
 
+        if (action === "habilitar_tms") {
+            const { error } = await supabase
+                .from('pacientes')
+                .update({ tms_habilitado: true })
+                .eq('id', id);
+            if (error) console.error("Error habilitando TMS:", error);
+        }
+
+        if (action === "nueva_sesion_tms") {
+            const getInt = (k: string) => {
+                const v = formData.get(k);
+                return v && v.toString().trim() ? parseInt(v.toString()) : null;
+            };
+            const getStr = (k: string) => {
+                const v = formData.get(k);
+                return v ? v.toString().trim() : null;
+            };
+
+            const { error } = await supabase.from('tms_sesiones').insert({
+                paciente_id: id,
+                fecha_aplicacion: formData.get("fecha"),
+                observaciones: formData.get("observaciones"),
+                umbral_motor: getInt("umbral_motor"),
+                intensidad_tratamiento: getInt("intensidad_tratamiento"),
+                frecuencia: getStr("frecuencia"),
+                total_pulsos: getInt("total_pulsos"),
+                sitio_estimulacion: getStr("sitio_estimulacion"),
+                protocolo: getStr("protocolo")
+            });
+            
+            if (error) console.error("Error creando sesión:", error);
+        }
+
+        if (action === "subir_consentimiento_tms") {
+            const archivo = formData.get("archivo_pdf");
+
+            if (archivo && archivo instanceof File && archivo.size > 0) {
+                
+                // Ruta del archivo
+                const filePath = `${id}/consentimiento_tms.pdf`;
+
+                // 1. Subir a Supabase (Bucket PRIVADO)
+                const { error: uploadError } = await supabase.storage
+                    .from('expedientes')
+                    .upload(filePath, archivo, {
+                        upsert: true,
+                        contentType: 'application/pdf'
+                    });
+
+                if (uploadError) {
+                    console.error("Error subiendo archivo:", uploadError);
+                } else {
+                    // CAMBIO IMPORTANTE:
+                    // No pedimos getPublicUrl. Guardamos el PATH (la ruta) en la base de datos.
+                    // Esto es seguro porque la ruta por sí sola no sirve de nada sin las llaves.
+                    const { error: dbError } = await supabase
+                        .from('pacientes')
+                        .update({ tms_consentimiento_url: filePath }) // Guardamos "uuid/consentimiento.pdf"
+                        .eq('id', id);
+                        
+                    if (dbError) console.error("Error guardando ruta en DB:", dbError);
+                }
+            }
+        }
 
     } catch (error) {
         console.error("Error en acción:", error);
@@ -196,8 +230,9 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), pacientes_pagos(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), tms_sesiones(*)')
     .eq('id', id)
+    .order('fecha_aplicacion', { referencedTable: 'tms_sesiones', ascending: false })
     .single();
 
 if (error || !paciente) {
@@ -208,17 +243,34 @@ if (paciente.pacientes_seguimiento) {
     paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 }
 
-if (paciente.pacientes_pagos) {
-    paciente.pacientes_pagos.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+let urlConsentimientoFirmado = null;
+
+if (paciente?.tms_consentimiento_url) {
+    const { data: signedData } = await supabase.storage
+        .from('expedientes')
+        .createSignedUrl(paciente.tms_consentimiento_url, 3600);
+        
+    urlConsentimientoFirmado = signedData?.signedUrl;
 }
-const totalPagado = paciente.pacientes_pagos?.reduce((sum: number, p: any) => sum + p.monto, 0) || 0;
-// Formateador de moneda
-const formatMoney = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
-// Helpers
-const formatDate = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : "No registrado";
+const formatDate = (dateString: string) => {
+    if (!dateString) return "No registrado";
+    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+};
 
-const formatDateShort = (dateString: string) => dateString ? new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : "";
+const formatDateShort = (dateString: string) => {
+    if (!dateString) return "";
+    const fechaLimpia = dateString.substring(0, 10);
+    return new Date(fechaLimpia + 'T12:00:00').toLocaleDateString('es-MX', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+};
 
 const formatTime = (timeString: string) => {
     if (!timeString) return "—";
@@ -226,6 +278,9 @@ const formatTime = (timeString: string) => {
     return `${hours}:${minutes}`;
 };
 const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
+
+const sesionesTMS = paciente?.tms_sesiones || [];
+const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 ---
 
 <Layout title={`Expediente: ${paciente.nombre}`}>
@@ -236,14 +291,14 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         <div class="border-b-2 border-white/10 pb-6 mb-10 flex flex-col md:flex-row justify-between items-end gap-4">
             <div>
                 
-                <p class="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente Clínico</p>
+                <p class="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Expediente Transtorno de sueño</p>
                 <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
                 <div class="flex gap-4 mt-2 text-gray-400 text-sm items-center">
                     <span>ID: #{paciente.id}</span>
                     <span>•</span>
                     <span>Registrado: {formatDate(paciente.created_at)}</span>
                     <span>•</span>
-                    <a href={`/editar-paciente/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                    <a href={`/editar-paciente/sueno/${paciente.id}`} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                         Editar Expediente Completo
                     </a>
@@ -485,12 +540,73 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                 </div>
             </InfoCard>
 
-            <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-xl">
+            <InfoCard title="Protocolo TMS"> 
+                <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div>
+                        <p class="text-gray-400 max-w-xl">
+                            {paciente.tms_habilitado 
+                                ? `Seguimiento activo. Se han registrado ${sesionesTMS.length} sesiones hasta el momento.`
+                                : "Este paciente aún no tiene habilitado el seguimiento para Estimulación Magnética Transcraneal."}
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-3">
+                        {!paciente.tms_habilitado ? (
+                            <form method="POST">
+                                <input type="hidden" name="action" value="habilitar_tms" />
+                                <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105">
+                                    Habilitar Seguimiento
+                                </button>
+                            </form>
+                        ) : (
+                            <div class="flex flex-wrap justify-end gap-3">
+                                
+                                {urlConsentimientoFirmado ? (
+                                    // OPCIÓN A: YA EXISTE -> BOTÓN PARA VER
+                                    <a href={urlConsentimientoFirmado} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-medium rounded-xl transition-colors group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>Consentimiento Firmado</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                    </a>
+                                ) : (
+                                    // OPCIÓN B: NO EXISTE -> BOTÓN PARA SUBIR
+                                    <form method="POST" enctype="multipart/form-data" class="relative">
+                                        <input type="hidden" name="action" value="subir_consentimiento_tms" />
+                                        
+                                        <input 
+                                            type="file" 
+                                            name="archivo_pdf" 
+                                            id="file-consentimiento" 
+                                            accept="application/pdf"
+                                            class="hidden"
+                                            onchange="this.form.submit()"
+                                        />
+                                        
+                                        <label for="file-consentimiento" class="cursor-pointer flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-dashed border-gray-600 hover:border-blue-400 text-gray-300 hover:text-white font-medium rounded-xl transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            <span>Subir Consentimiento</span>
+                                        </label>
+                                    </form>
+                                )}
+
+                                <button onclick="document.getElementById('modal-tms').showModal()" class="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all">
+                                    <span>Ver Sesiones</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </InfoCard>
+
+            <InfoCard title="Enlaces de evaluación remota">
                 <div class="mb-6">
-                    <h3 class="text-white font-bold text-lg flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
-                        Enlaces de Evaluación Remota
-                    </h3>
                     <p class="text-sm text-gray-400 mt-1">1. Selecciona la fase del tratamiento.</p>
                     <p class="text-sm text-gray-400">2. Copia el enlace del cuestionario específico que deseas enviar.</p>
                 </div>
@@ -566,7 +682,7 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                         </div>
                     </div>
                 </div>
-            </div>
+            </InfoCard>
 
             <InfoCard title="Seguimiento">
                 <div class="flex justify-between items-center mb-6">
@@ -608,61 +724,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     ) : (
                         <div class="text-center py-8 border border-dashed border-gray-700 rounded-xl"><p class="text-gray-500 italic">No hay observaciones registradas.</p></div>
                     )}
-                </div>
-            </InfoCard>
-
-            <InfoCard title="Historial de Pagos y Gastos">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-                    <div>
-                        <p class="text-gray-400 text-xs uppercase font-bold tracking-widest mb-1">Total Acumulado</p>
-                        <p class="text-3xl font-mono font-bold text-emerald-400">{formatMoney(totalPagado)}</p>
-                    </div>
-                    <button onclick="document.getElementById('modal-pago').showModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 shadow-lg shadow-emerald-900/20 font-medium text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Registrar Nuevo Pago
-                    </button>
-                </div>
-
-                <div class="overflow-hidden rounded-xl border border-gray-800">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-800 text-gray-400 text-xs uppercase font-bold">
-                            <tr>
-                                <th class="p-4">Fecha</th>
-                                <th class="p-4">Concepto</th>
-                                <th class="p-4">Registrado por</th> <th class="p-4 text-right">Monto</th>
-                                <th class="p-4 text-center">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-800 bg-gray-900/50">
-                            {paciente.pacientes_pagos && paciente.pacientes_pagos.length > 0 ? (
-                                paciente.pacientes_pagos.map((pago: any) => (
-                                    <tr class="hover:bg-gray-800/50 transition-colors group">
-                                        <td class="p-4 text-gray-300 font-mono">{formatDateShort(pago.fecha)}</td>
-                                        <td class="p-4 text-white font-medium">{pago.concepto}</td>
-                                        
-                                        <td class="p-4 text-gray-400 text-sm">
-                                            {pago.registrado_por || "Sistema"}
-                                        </td>
-
-                                        <td class="p-4 text-right text-emerald-300 font-mono font-bold">{formatMoney(pago.monto)}</td>
-                                        <td class="p-4 text-center">
-                                            <button class="text-gray-500 hover:text-red-400 transition-colors btn-borrar-pago cursor-pointer" data-id={pago.id} title="Eliminar registro">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colspan="5" class="p-8 text-center text-gray-500 italic">No hay pagos registrados aún.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
                 </div>
             </InfoCard>
 
@@ -710,59 +771,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
                     Guardar
                 </button>
             </div>
-        </form>
-    </dialog>
-
-    <dialog id="modal-pago" class="m-auto bg-gray-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-md text-left">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                <span class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </span>
-                Registrar Pago
-            </h3>
-            <button onclick="document.getElementById('modal-pago').close()" class="text-gray-500 hover:text-white cursor-pointer">✕</button>
-        </div>
-        <form method="POST" class="space-y-4">
-            <input type="hidden" name="action" value="add_pago">
-            
-            <div class="flex flex-col">
-                <label class="text-xs text-gray-400 mb-1">Monto ($)</label>
-                <input type="number" step="0.01" name="monto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none text-lg font-mono" placeholder="0.00" required>
-            </div>
-            
-            <div class="flex flex-col">
-                <label class="text-xs text-gray-400 mb-1">Concepto</label>
-                <input type="text" name="concepto" class="bg-gray-800 border border-gray-600 rounded p-3 text-white focus:border-emerald-500 focus:outline-none" placeholder="Ej: Consulta Inicial, Estudio de Sueño..." required>
-            </div>
-
-            <div class="flex flex-col">
-                <label class="text-xs text-gray-400 mb-1">Fecha</label>
-                <input type="date" name="fecha" id="pago-fecha" class="bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-emerald-500 focus:outline-none" required style="color-scheme: dark;">
-            </div>
-
-            <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50 mt-2">
-                <button type="button" onclick="document.getElementById('modal-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
-                <button type="submit" class="px-6 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 cursor-pointer text-sm shadow-lg shadow-emerald-900/20">Guardar Pago</button>
-            </div>
-        </form>
-    </dialog>
-
-    <dialog id="modal-eliminar-pago" class="m-auto bg-gray-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
-        <div class="mb-4 text-red-500 flex justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        </div>
-        <h3 class="text-lg font-bold text-white mb-2">¿Eliminar este registro?</h3>
-        <p class="text-gray-400 text-xs mb-6">El monto se restará del total acumulado.</p>
-        
-        <form method="POST" class="flex gap-3 justify-center">
-            <input type="hidden" name="action" value="delete_pago" />
-            <input type="hidden" name="id_pago" id="input-id-borrar-pago" />
-            
-            <button type="button" onclick="document.getElementById('modal-eliminar-pago').close()" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer text-sm">Cancelar</button>
-            <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer text-sm">Sí, Borrar</button>
         </form>
     </dialog>
 
@@ -932,10 +940,140 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         </form>
     </dialog>
 
+    <dialog id="modal-tms" class="m-auto bg-transparent p-0 backdrop:bg-black/80 backdrop:backdrop-blur-sm w-full max-w-5xl">
+        <div class="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden m-4 max-h-[90vh] flex flex-col">
+            
+            <div class="p-6 border-b border-white/10 bg-slate-900/50 flex justify-between items-center sticky top-0 z-20">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-6 bg-blue-500 rounded-full"></span>
+                        Bitácora Técnica TMS
+                    </h3>
+                    <p class="text-sm text-gray-400">Paciente: <span class="text-white font-medium">{paciente.nombre}</span></p>
+                </div>
+                <button onclick="document.getElementById('modal-tms').close()" class="p-2 text-gray-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+                
+                <div class="bg-gradient-to-br from-blue-900/10 to-slate-900 border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                    
+                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        Registrar Sesión de Hoy
+                    </h4>
+                    
+                    <form method="POST" class="grid grid-cols-1 md:grid-cols-12 gap-5 relative z-10">
+                        <input type="hidden" name="action" value="nueva_sesion_tms" />
+                        
+                        <div class="md:col-span-3">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Fecha</label>
+                            <input type="date" name="fecha" required class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" style="color-scheme:dark;" />
+                        </div>
+                        <div class="md:col-span-5">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Protocolo / Diagnóstico</label>
+                            <input type="text" name="protocolo" placeholder="Ej. Insomnio Crónico" value={ultimaConfig.protocolo || ''} class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" />
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Sitio Estimulación</label>
+                            <select name="sitio_estimulacion" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer">
+                                <option value="" disabled selected={!ultimaConfig.sitio_estimulacion}>Seleccionar...</option>
+                                <option value="DLPFC Izquierdo">DLPFC Izquierdo</option>
+                                <option value="DLPFC Derecho">DLPFC Derecho</option>
+                                <option value="Corteza Motora M1">Corteza Motora (M1)</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Umbral Motor (MT)</label>
+                                <div class="relative">
+                                    <input type="number" name="umbral_motor" placeholder="60" value={ultimaConfig.umbral_motor || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                                    <span class="absolute right-0 top-1 text-xs text-gray-600">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Intensidad Tx</label>
+                                <div class="relative">
+                                    <input type="number" name="intensidad_tratamiento" placeholder="120" value={ultimaConfig.intensidad_tratamiento || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                                    <span class="absolute right-0 top-1 text-xs text-gray-600">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Frecuencia</label>
+                                <select name="frecuencia" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono text-sm cursor-pointer">
+                                    <option value="1Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '1Hz'}>1 Hz</option>
+                                    <option value="10Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '10Hz'}>10 Hz</option>
+                                    <option value="TBS" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'TBS'}>Theta Burst</option>
+                                    <option value="Otro" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'Otro'}>Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-blue-400 mb-1">Total Pulsos</label>
+                                <input type="number" name="total_pulsos" placeholder="1200" value={ultimaConfig.total_pulsos || ''} class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold" />
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-9">
+                            <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Notas Clínicas / Incidencias</label>
+                            <input type="text" name="observaciones" placeholder="Ej. Paciente durmió durante la sesión." class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" />
+                        </div>
+                        <div class="md:col-span-3 flex items-end">
+                            <button type="submit" class="w-full h-[40px] bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-lg transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 cursor-pointer">
+                                <span>Guardar Sesión</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div>
+                    <h4 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Historial de Aplicaciones</h4>
+                    <div class="space-y-3">
+                        {sesionesTMS.length > 0 ? sesionesTMS.map((sesion:any, index:any) => (
+                            <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4 hover:bg-slate-800/60 transition-colors group">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3 pb-3 border-b border-white/5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs">
+                                            #{sesionesTMS.length - index}
+                                        </div>
+                                        <div>
+                                            <p class="text-white font-bold text-sm">{formatDate(sesion.fecha_aplicacion)}</p>
+                                            <p class="text-xs text-blue-300">{sesion.protocolo || "Protocolo Estándar"}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-4 text-xs font-mono text-gray-400">
+                                        {sesion.umbral_motor && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">MT</span><span class="text-white">{sesion.umbral_motor}%</span></div>}
+                                        {sesion.intensidad_tratamiento && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Intensidad</span><span class="text-white">{sesion.intensidad_tratamiento}%</span></div>}
+                                        {sesion.frecuencia && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Hz</span><span class="text-emerald-400">{sesion.frecuencia}</span></div>}
+                                        {sesion.total_pulsos && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Pulsos</span><span class="text-sky-400">{sesion.total_pulsos}</span></div>}
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 items-start">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                                    <p class="text-gray-300 text-sm leading-relaxed">{sesion.observaciones || "Sin observaciones registradas."}</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl bg-slate-900/30">
+                                <p>No hay sesiones registradas en el historial.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </dialog>
+
 </Layout>
 
 <style>
-    @reference "../../styles/global.css";
+    @reference "../../../styles/global.css";
 
     .label {
         @apply block text-gray-500 text-xs uppercase tracking-wider font-bold mb-1;
@@ -960,14 +1098,38 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
         background: rgba(0, 0, 0, 0.7);
         backdrop-filter: blur(4px);
     }
+
+    dialog[open] {
+        animation: fade-in 0.3s ease-out;
+    }
+    @keyframes fade-in {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    details > summary {
+        list-style: none;
+    }
+    details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details[open] .chevron {
+        transform: rotate(180deg);
+    }
+    
+    details[open] p {
+        animation: fade-in-slide 0.3s ease-out;
+    }
+    
+    @keyframes fade-in-slide {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
 </style>
 
-<script define:vars={{ 
-    baseUrl: Astro.url.origin, 
-    token: paciente.token_cuestionarios,
-    // Pasamos las respuestas de la BD al cliente
-    respuestasGuardadas: paciente.respuestas_cuestionarios || [] 
-}}>
+<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [] }}>
     // DICCIONARIOS DE PREGUNTAS (Para traducir claves como 'epworth_1' a texto real)
     const DICCIONARIOS = {
         epworth: {
@@ -1038,6 +1200,22 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
             puntaje: "Puntaje Global PSQI"
         }
     };
+
+    const savedScroll = sessionStorage.getItem('scrollPos');
+    
+    if (savedScroll) {
+        window.scrollTo({
+            top: parseInt(savedScroll),
+            behavior: 'instant'
+        });
+        sessionStorage.removeItem('scrollPos');
+    }
+
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            sessionStorage.setItem('scrollPos', window.scrollY.toString());
+        });
+    });
 
     // Lógica para el modal de extras (Agregar / Eliminar filas)
     document.addEventListener('DOMContentLoaded', () => {
@@ -1339,26 +1517,6 @@ const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().get
 
         modal.showModal();
     }
-
-    const inputFechaPago = document.getElementById('pago-fecha');
-    // Pre-llenar fecha de hoy al abrir modal (opcional, o hacerlo al cargar)
-    if (inputFechaPago) {
-        inputFechaPago.valueAsDate = new Date();
-    }
-
-    // Manejar borrado de pagos
-    const modalBorrarPago = document.getElementById('modal-eliminar-pago');
-    const inputIdBorrarPago = document.getElementById('input-id-borrar-pago');
-
-    document.addEventListener('click', (e) => {
-        // Botón Borrar Pago
-        const btnBorrarPago = (e.target).closest('.btn-borrar-pago');
-        if (btnBorrarPago && modalBorrarPago && inputIdBorrarPago) {
-            const id = btnBorrarPago.getAttribute('data-id');
-            inputIdBorrarPago.value = id;
-            modalBorrarPago.showModal();
-        }
-    });
 
     // Inicializar
     setFase('pre');

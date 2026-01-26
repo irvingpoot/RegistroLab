@@ -16,67 +16,62 @@ export const calcularEpworth = (datos: Record<string, any>): number => {
     return total;
 };
 
-// --- BERLIN ---
-// Categoría 1: 2 o más respuestas positivas en preguntas de ronquido (preguntas 2-6)
-// Categoría 2: 2 o más respuestas positivas en somnolencia/fatiga (preguntas 7-9)
-// Categoría 3: 1 respuesta positiva (Hipertensión) O IMC > 30
+// --- BERLIN (CORREGIDO) ---
+// Categoría 1: 2 o más respuestas positivas en preguntas de ronquido
+// Categoría 2: 2 o más respuestas positivas en somnolencia/fatiga
+// Categoría 3: 1 respuesta positiva en hipertención
 export const calcularBerlin = (datos: Record<string, any>): { puntaje: number, extraData: Record<string, string> } => {
     let cat1Positivas = 0;
     let cat2Positivas = 0;
 
-    // Variables booleanas directas para cada categoría
     let esCat1 = false;
     let esCat2 = false;
     let esCat3 = false;
 
     // --- ANÁLISIS CATEGORÍA 1 (RONQUIDO) ---
-    // Puntos: Volumen alto, Frecuencia alta, Molesta a otros, Apnea observada
     if (datos.ronca_volumen === 'positivo') cat1Positivas++;
     if (datos.ronca_frecuencia === 'positivo') cat1Positivas++;
     if (datos.ronca_molesta === 'positivo') cat1Positivas++;
     if (datos.ronca_deja_de_respirar === 'positivo') cat1Positivas++;
     
-    // Regla: Positiva si hay 2 o más puntos
     esCat1 = cat1Positivas >= 2;
 
     // --- ANÁLISIS CATEGORÍA 2 (SOMNOLENCIA) ---
-    // Puntos: Despierta cansado, Se siente mal, Se quedó dormido conduciendo
     if (datos.despierta_cansado === 'positivo') cat2Positivas++;
     if (datos.se_siente_mal === 'positivo') cat2Positivas++;
     if (datos.se_quedo_dormido_frecuencia === 'positivo') cat2Positivas++;
 
-    // Regla: Positiva si hay 2 o más puntos
     esCat2 = cat2Positivas >= 2;
 
-    // --- ANÁLISIS CATEGORÍA 3 (HIPERTENSIÓN / IMC) ---
-    // IMC (Peso / Altura^2)
-    // Nota: El input altura suele ser cm, convertimos a metros.
+    // --- ANÁLISIS CATEGORÍA 3 (HIPERTENSIÓN) ---
+    
+    // 1. Calculamos IMC solo por registro
     const peso = parseFloat(datos.peso || '0');
     const alturaCm = parseFloat(datos.altura || '0');
     let imc = 0;
     
     if (peso > 0 && alturaCm > 0) {
-        const alturaM = alturaCm / 100; // Convertir a metros
+        // Asumimos que la altura viene en CM, convertimos a Metros
+        const alturaM = alturaCm / 100;
         imc = peso / (alturaM * alturaM);
     }
 
-    esCat3 = (datos.hipertension === 'positivo') || (imc > 30);
+    // 2.La categoría solo es positiva si hay hipertensión.
+    esCat3 = (datos.hipertension === 'positivo');
 
     // --- RESULTADO FINAL ---
-    // Sumar cuántas categorías son positivas (0, 1, 2 o 3)
     let totalScore = 0;
     if (esCat1) totalScore++;
     if (esCat2) totalScore++;
     if (esCat3) totalScore++;
 
-    // Devolvemos el puntaje Y los detalles para guardarlos en el JSON
     return {
         puntaje: totalScore,
         extraData: {
-            "IMC Calculado": imc.toFixed(1),
+            "IMC": imc.toFixed(1),
             "Resultado Categoría 1 (Ronquido)": esCat1 ? "POSITIVA (Alto Riesgo)" : "Negativa",
             "Resultado Categoría 2 (Somnolencia)": esCat2 ? "POSITIVA (Alto Riesgo)" : "Negativa",
-            "Resultado Categoría 3 (Presión/IMC)": esCat3 ? "POSITIVA (Alto Riesgo)" : "Negativa",
+            "Resultado Categoría 3 (Presión Arterial)": esCat3 ? "POSITIVA (Alto Riesgo)" : "Negativa",
             "Riesgo Global": totalScore >= 2 ? "ALTO RIESGO (2 o más categorías)" : "Bajo Riesgo"
         }
     };

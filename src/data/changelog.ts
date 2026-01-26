@@ -1,29 +1,34 @@
-export const currentVersion = "1.2.0";
+export const currentVersion = "2.0.0";
 
-export const isMajorUpdate = false; 
+export const isMajorUpdate = true; 
 
-export const updateDate = "28 de Enero, 2026";
+export const updateDate = "26 de Enero, 2026";
 
 // Opciones type: 'feature', 'fix', 'style'
 export const changes = [
     {
-        title: "Corrección de Calendario",
-        description: "Se arregló el desfase de zona horaria en el calendario. Ahora el día 'Hoy' coincide correctamente con el día actual.",
-        type: "fix"
-    },
-    {
-        title: "Corrección de las tarjetas de cita",
-        description: "Se corrigió el desbordamiento de texto en las tarjetas de cita cuando el campo era demasiado largo.",
-        type: "fix"
-    },
-    {
-        title: "Resumen de actualizaciones",
-        description: "Se agregó este modal para anunciar las grandes o pequeñas actualizaciones.",
+        title: "Tipos de paciente",
+        description: "Se agregó la funcionalidad para separar el registro de pacientes de sueño y ánimo.",
         type: "feature"
     },
     {
-        title: "Mejora de Contraste en Tarjetas",
-        description: "Se mejoró el contraste de las tarjetas para evitar líneas visibles en el modo vidrio.",
+        title: "Sesiones TMS",
+        description: "Se agregó la funcionalidad para gestionar sesiones de TMS para pacientes candidatos.",
+        type: "feature"
+    },
+    {
+        title: "Consentimiento TMS",
+        description: "Se agregó la funcionalidad para gestionar el almacenamiento del consentimiento informado para sesiones de TMS.",
+        type: "feature"
+    },
+    {
+        title: "IMC en Berlín",
+        description: "Se corrgió el algoritmo de la categoría 3 en la escala de Berlin para no considerar el IMC.",
+        type: "fix"
+    },
+    {
+        title: "Iconos actualizados",
+        description: "Se actualizaron los iconos de los tickets para evitar el desbordamiento de los mismos en /feedback.",
         type: "style"
     }
 ];

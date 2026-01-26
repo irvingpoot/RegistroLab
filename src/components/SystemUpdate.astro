@@ -5,12 +5,11 @@
  */
 import { currentVersion, isMajorUpdate, updateDate, changes } from "../data/changelog";
 
-// Configuración explicita de colores (Agregamos 'dot' para evitar que Tailwind los borre)
 const types: Record<string, { color: string, label: string, dot: string }> = {
     feature: { 
         color: "text-blue-400 border-blue-500/30 bg-blue-500/10 shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]", 
         label: "NUEVO",
-        dot: "bg-blue-400" // <--- Declarado explícitamente
+        dot: "bg-blue-400"
     },
     fix: { 
         color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]", 
@@ -66,7 +65,7 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
                             <h2 class="text-2xl font-bold text-white">Novedades</h2>
                             <p class="text-sm text-slate-400 flex items-center gap-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Todo funciona correctamente
+                                Todo funciona correctamente (gracias a diOs)
                             </p>
                         </div>
                         <button id="btn-close-modal" class="p-2 rounded-full text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
@@ -113,7 +112,7 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
 
                     </div>
                     
-                    <button id="btn-dismiss-update" class="mt-4 w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-slate-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]">
+                    <button id="btn-dismiss-update" class="mt-4 w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-slate-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] cursor-pointer">
                         Entendido
                     </button>
                 </div>
@@ -135,36 +134,48 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
         const hasNewVersion = storedVersion !== currentVersion;
 
         const openModal = () => {
+            if (!modal || !panel) return;
             modal.showModal();
-            requestAnimationFrame(() => {
+            
+            // CORRECCIÓN: Usamos setTimeout para asegurar que el navegador
+            // haya renderizado el diálogo antes de iniciar la animación.
+            setTimeout(() => {
                 panel.classList.remove('scale-95', 'opacity-0');
                 panel.classList.add('scale-100', 'opacity-100');
-            });
+            }, 10);
         };
 
         const closeModal = () => {
+            if (!modal || !panel) return;
+            
             panel.classList.remove('scale-100', 'opacity-100');
             panel.classList.add('scale-95', 'opacity-0');
+            
             setTimeout(() => {
                 modal.close();
-                badge.classList.add('hidden');
+                if(badge) badge.classList.add('hidden');
                 localStorage.setItem('app_version_seen', currentVersion);
-            }, 200);
+            }, 300); // Aumenté un poco el tiempo para que termine la animación de salida
         };
 
         if (hasNewVersion) {
             if (isMajorUpdate) setTimeout(openModal, 1000);
-            else badge.classList.remove('hidden');
+            else if (badge) badge.classList.remove('hidden');
         }
 
-        btnTrigger.addEventListener('click', () => {
-            openModal();
-            badge.classList.add('hidden');
-            localStorage.setItem('app_version_seen', currentVersion);
-        });
+        if (btnTrigger) {
+            btnTrigger.addEventListener('click', () => {
+                openModal();
+                if (badge) badge.classList.add('hidden');
+                localStorage.setItem('app_version_seen', currentVersion);
+            });
+        }
 
         [btnClose, btnDismiss].forEach(btn => btn?.addEventListener('click', closeModal));
-        modal.addEventListener('click', e => e.target === modal && closeModal());
+        
+        if (modal) {
+            modal.addEventListener('click', e => e.target === modal && closeModal());
+        }
     });
 </script>
 

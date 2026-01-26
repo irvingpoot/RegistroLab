@@ -12,7 +12,18 @@
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 
-const isProtectedRoute = createRouteMatcher(["/lista", "/registro", "/paciente/:id", "/editar-cita/:id", "/citas", "/nueva-cita", "/estadisticas", "/dashboard", "/404"]);
+const isProtectedRoute = createRouteMatcher([
+    '/dashboard',
+    '/estadisticas',
+    '/lista',
+    '/citas',
+    '/nueva-cita',
+    '/404',
+    '/registro(.*)',
+    '/paciente(.*)',
+    '/editar-paciente(.*)',
+    '/editar-cita(.*)',
+]);
 
 export const onRequest = clerkMiddleware((auth, context) => {
     const { userId } = auth()

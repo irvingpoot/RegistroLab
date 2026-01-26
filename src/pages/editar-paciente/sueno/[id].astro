@@ -18,10 +18,10 @@
  */
 
 
-import Layout from "../../layouts/Layout.astro"
-import ReturnButton from "../../components/ReturnButton.astro"
-import SintomaGroup from "../../components/SintomaGroup.astro"
-import PuntajeExtraGroup from "../../components/PuntajeExtraGroup.astro"
+import Layout from "../../../layouts/Layout.astro"
+import ReturnButton from "../../../components/ReturnButton.astro"
+import SintomaGroup from "../../../components/SintomaGroup.astro"
+import PuntajeExtraGroup from "../../../components/PuntajeExtraGroup.astro"
 import { createClient } from "@supabase/supabase-js"
 
 const { id } = Astro.params;
@@ -75,7 +75,7 @@ if (Astro.request.method === "POST") {
             donde_duerme: data.get("donde_duerme"),
             hora_acostarse: data.get("hora_acostarse"), 
             hora_dormir: data.get("hora_dormir"),
-            hora_despertar: data.get("hora_despertar"), // Nuevo
+            hora_despertar: data.get("hora_despertar"),
             hora_levantarse: data.get("hora_levantarse"),
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
@@ -159,7 +159,7 @@ if (Astro.request.method === "POST") {
             await supabase.from('pacientes_puntajes_extra').insert(extrasInsert);
         }
 
-        return Astro.redirect(`/paciente/${id}`);
+        return Astro.redirect(`/paciente/sueno/${id}`);
 
     } catch (e) {
         console.error(e);
@@ -183,7 +183,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 ---
 
 <Layout title={`Editar: ${p.nombre}`}>
-    <ReturnButton href={`/paciente/${id}`} text="Cancelar y Volver" />
+    <ReturnButton href={`/paciente/sueno/${id}`} text="Cancelar y Volver" />
 
     {error && (
         <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50">{mensaje}</div>
@@ -534,7 +534,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 </Layout>
 
 <style>
-    @reference "../../styles/global.css";
+    @reference "../../../styles/global.css";
     .section-title { @apply text-2xl md:text-3xl pb-2 mb-6 border-b border-white/50 text-center text-gray-200 w-fit mx-auto px-10; }
     .label { @apply text-lg font-medium text-gray-300; }
     .sub-label { @apply text-sm font-medium text-blue-300 block mb-1; }
