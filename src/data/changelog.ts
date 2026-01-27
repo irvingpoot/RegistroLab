@@ -1,6 +1,6 @@
-export const currentVersion = "2.0.0";
+export const currentVersion = "2.0.1";
 
-export const isMajorUpdate = false; 
+export const isMajorUpdate = true; 
 
 export const updateDate = "26 de Enero, 2026";
 
@@ -24,6 +24,11 @@ export const changes = [
     {
         title: "IMC en Berlín",
         description: "Se corrgió el algoritmo de la categoría 3 en la escala de Berlin para no considerar el IMC.",
+        type: "fix"
+    },
+    {
+        title: "Desborde del ChangeLog",
+        description: "Se corrgió un error en el que el ChangeLog se estiraba fuera de la pantalla al agregar demasiados cambios.",
         type: "fix"
     },
     {

@@ -1,7 +1,7 @@
 ---
 /**
  * @component SystemUpdates.astro
- * @description Diseño "Neural Timeline" - Corrección de color Fuchsia.
+ * @description Diseño "Neural Timeline" - Corrección de Scroll y Altura.
  */
 import { currentVersion, isMajorUpdate, updateDate, changes } from "../data/changelog";
 
@@ -49,23 +49,24 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
     <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         
         <div id="modal-panel-updates" class="
-            relative w-full max-w-lg overflow-hidden
+            relative w-full max-w-lg max-h-[90vh] flex flex-col
             bg-[#050505] rounded-[24px] border border-[#1e293b]
             shadow-[0_0_60px_-15px_rgba(59,130,246,0.15)]
             transform scale-95 opacity-0 transition-all duration-500 cubic-bezier(0.2, 0.8, 0.2, 1)
         ">
-            <div class="absolute top-0 left-0 w-full h-[180px] bg-gradient-to-b from-[#0f172a] to-[#050505] z-0"></div>
+            <div class="absolute top-0 left-0 w-full h-[180px] bg-gradient-to-b from-[#0f172a] to-[#050505] z-0 shrink-0"></div>
             <div class="absolute -top-20 -left-20 w-64 h-64 bg-blue-600/20 blur-[80px] rounded-full animate-pulse-slow z-0 pointer-events-none"></div>
             <div class="absolute -top-20 -right-20 w-64 h-64 bg-violet-600/10 blur-[80px] rounded-full animate-pulse-slow delay-1000 z-0 pointer-events-none"></div>
 
-            <div class="relative z-10">
-                <div class="px-8 pt-8 pb-4">
+            <div class="relative z-10 flex flex-col h-full overflow-hidden">
+                
+                <div class="px-8 pt-8 pb-4 shrink-0">
                     <div class="flex justify-between items-start">
                         <div>
                             <h2 class="text-2xl font-bold text-white">Novedades</h2>
                             <p class="text-sm text-slate-400 flex items-center gap-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Todo funciona correctamente (gracias a diOs)
+                                Todo funciona correctamente
                             </p>
                         </div>
                         <button id="btn-close-modal" class="p-2 rounded-full text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
@@ -85,22 +86,19 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
                     </div>
                 </div>
 
-                <div class="px-8 pb-8">
+                <div class="px-8 py-2 overflow-y-auto custom-scrollbar flex-1">
                     <div class="relative border-l border-slate-800 ml-3 space-y-8 py-4">
-                        
                         {changes.map((change, index) => {
                             const style = types[change.type] || types.fix;
                             return (
                                 <div class="relative pl-8 group" style={`animation-delay: ${index * 100}ms`}>
-                                    
                                     <div class={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[#050505] ${style.dot}`}></div>
-                                    
                                     <div class="flex flex-col gap-2">
                                         <div class="flex items-center gap-3">
                                             <span class={`px-2 py-0.5 text-[10px] font-bold rounded-md border backdrop-blur-sm uppercase tracking-wider ${style.color}`}>
                                                 {style.label}
                                             </span>
-                                            <h3 class="text-slate-200 font-medium text-sm">{change.title}</h3>
+                                            <h3 class="text-slate-200 font-medium text-sm sticky top-0">{change.title}</h3>
                                         </div>
                                         <p class="text-slate-400 text-xs leading-relaxed max-w-sm">
                                             {change.description}
@@ -109,13 +107,15 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
                                 </div>
                             );
                         })}
-
                     </div>
-                    
-                    <button id="btn-dismiss-update" class="mt-4 w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-slate-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] cursor-pointer">
+                </div>
+                
+                <div class="px-8 pb-8 pt-4 shrink-0 bg-gradient-to-t from-[#050505] to-transparent">
+                    <button id="btn-dismiss-update" class="w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-slate-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] cursor-pointer">
                         Entendido
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -136,9 +136,6 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
         const openModal = () => {
             if (!modal || !panel) return;
             modal.showModal();
-            
-            // CORRECCIÓN: Usamos setTimeout para asegurar que el navegador
-            // haya renderizado el diálogo antes de iniciar la animación.
             setTimeout(() => {
                 panel.classList.remove('scale-95', 'opacity-0');
                 panel.classList.add('scale-100', 'opacity-100');
@@ -147,7 +144,6 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
 
         const closeModal = () => {
             if (!modal || !panel) return;
-            
             panel.classList.remove('scale-100', 'opacity-100');
             panel.classList.add('scale-95', 'opacity-0');
             
@@ -155,7 +151,7 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
                 modal.close();
                 if(badge) badge.classList.add('hidden');
                 localStorage.setItem('app_version_seen', currentVersion);
-            }, 300); // Aumenté un poco el tiempo para que termine la animación de salida
+            }, 300);
         };
 
         if (hasNewVersion) {
@@ -172,7 +168,6 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
         }
 
         [btnClose, btnDismiss].forEach(btn => btn?.addEventListener('click', closeModal));
-        
         if (modal) {
             modal.addEventListener('click', e => e.target === modal && closeModal());
         }
@@ -184,4 +179,10 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
     @keyframes fade-in { from { background: transparent; } to { background: rgba(0,0,0,0.7); } }
     @keyframes pulse-slow { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.1); } }
     .animate-pulse-slow { animation: pulse-slow 4s infinite ease-in-out; }
+
+    /* Scrollbar minimalista para la lista */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 </style>
