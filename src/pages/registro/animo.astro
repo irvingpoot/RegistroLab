@@ -90,6 +90,15 @@ if (Astro.request.method === "POST") {
             ejercicio: data.get("ejercicio"),
             horas_ejercicio: data.get("horas_ejercicio"),
 
+            ideacion_suicida: data.get("ideacion_suicida"),
+            ideacion_suicida_desc: data.get("ideacion_suicida_desc"),
+            
+            planeacion_suicida: data.get("planeacion_suicida"),
+            planeacion_suicida_desc: data.get("planeacion_suicida_desc"),
+            
+            intento_suicida: data.get("intento_suicida"),
+            intento_suicida_desc: data.get("intento_suicida_desc"),
+
             // 5. Sustancias (Muy relevantes en psiquiatría)
             fuma: data.get("fuma"),
             cigarros_semana: getInt("cigarros_semana"),
@@ -116,7 +125,6 @@ if (Astro.request.method === "POST") {
             eva_inter: getInt('eva_inter'),
             eva_post: getInt('eva_post'),
             
-            // Campos de sueño que dejamos nulos o básicos por compatibilidad
             donde_duerme: null,
             
             registrado_por: nombreRegistrador
@@ -434,6 +442,31 @@ if (Astro.request.method === "POST") {
                                     name="ideacion_suicida_desc" 
                                     class="w-full p-2 border border-blue-500/30 bg-blue-900/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white placeholder-gray-500" 
                                     placeholder="Frecuencia, planificación, detonantes..."
+                                >
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col space-y-2 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
+                            <label class="text-lg font-medium text-gray-300">¿Ha presentado planeación suicida?</label>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer hover:text-white transition">
+                                    <input type="radio" name="planeacion_suicida" value="si" class="accent-blue-500 trigger-condicional" data-target="div_planeacion_desc"> 
+                                    Sí
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:text-white transition">
+                                    <input type="radio" name="planeacion_suicida" value="no" class="accent-blue-500 trigger-condicional" data-target="div_planeacion_desc"> 
+                                    No
+                                </label>
+                            </div>
+                            
+                            <div id="div_planeacion_desc" class="hidden mt-3 animate-fade-in-down">
+                                <label for="planeacion_suicida_desc" class="text-sm font-medium text-blue-300 block mb-1">Describa la planeación:</label>
+                                <input 
+                                    type="text" 
+                                    id="planeacion_suicida_desc" 
+                                    name="planeacion_suicida_desc" 
+                                    class="w-full p-2 border border-blue-500/30 bg-blue-900/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white placeholder-gray-500" 
+                                    placeholder="Detalles del plan, acceso a medios, fecha establecida..."
                                 >
                             </div>
                         </div>

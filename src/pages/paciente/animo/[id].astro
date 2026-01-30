@@ -358,6 +358,18 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                             )}
                         </div>
 
+                        <div class={`p-3 rounded-lg border ${paciente.planeacion_suicida === 'si' ? 'bg-red-900/10 border-red-500/30' : 'bg-green-900/10 border-green-500/20'}`}>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-gray-400 text-sm font-bold uppercase">Planeación Suicida</span>
+                                <span class={`font-bold ${paciente.planeacion_suicida === 'si' ? 'text-red-400' : 'text-green-400'}`}>
+                                    {paciente.planeacion_suicida === 'si' ? 'PRESENTE' : 'AUSENTE'}
+                                </span>
+                            </div>
+                            {paciente.planeacion_suicida === 'si' && (
+                                <p class="text-red-200 text-sm mt-1 border-t border-red-500/20 pt-2">{paciente.planeacion_suicida_desc}</p>
+                            )}
+                        </div>
+
                         <div class={`p-3 rounded-lg border ${paciente.intento_suicida === 'si' ? 'bg-red-900/10 border-red-500/30' : 'bg-green-900/10 border-green-500/20'}`}>
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-gray-400 text-sm font-bold uppercase">Intentos Previos</span>
