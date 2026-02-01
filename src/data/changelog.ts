@@ -4,17 +4,36 @@ export const isMajorUpdate = true;
 
 export const updateDate = "26 de Enero, 2026";
 
-// Opciones type: 'feature', 'fix', 'style'
 export const changes = [
     {
         title: "Manuales",
-        description: "Se agregó una categoría para los manuales.",
+        description: "Se agregó una página para los manuales.",
         type: "feature"
+    },
+    {
+        title: "Sesiones bilaterales de TMS",
+        description: "Ya es posible realizar sesiones bilaterales de TMS con diferentes frecuencias para cada lado en ambos tipos de paciente.",
+        type: "feature"
+    },
+    {
+        title: "Horas en Pittsburgh",
+        description: "Se corrigió un problema en el que el paciente podía enviar el formulario sin seleccionar ninguna hora.",
+        type: "fix"
     },
     {
         title: "Planeación de suicidio",
         description: "Ahora si muestra las 3 opciones de riesgo suicida.",
         type: "fix"
+    },
+    {
+        title: "Optimizaciones al dashboard",
+        description: "Ahora el dashboard carga usuarios y citas en paralelo para mejorar el rendimiento.",
+        type: "fix"
+    },
+    {
+        title: "Placeholders de reportes",
+        description: "Se creo la página provisional para la generación de reportes.",
+        type: "style"
     },
     {
         title: "Dashboard refactorizado",

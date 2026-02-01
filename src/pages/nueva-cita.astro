@@ -87,7 +87,7 @@ if (Astro.request.method === "POST") {
             observaciones: data.get("observaciones") || null,
             estado: 'pendiente',
             registrado_por_id: nombreRegistrador,
-            atendido_por: atendidoPor // Guardamos el psicólogo
+            atendido_por: atendidoPor
         };
 
         const { error: supabaseError } = await supabase

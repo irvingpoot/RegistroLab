@@ -1,14 +1,8 @@
 ---
-
 /**
  * @file dashboard.astro
  * @description Panel de control principal del usuario.
- * * CARACTERÍSTICAS PRINCIPALES:
- * 1. Cálculo Manual de Fecha: Se ajusta manualmente la fecha a UTC-6 (Mérida) para evitar
- * desfases cuando el servidor está en UTC (00:00 vs 06:00).
- * 2. Consulta Optimizada: Solo descarga las citas del día actual (Rango 00:00 - 23:59).
- * 3. Estado Inteligente: Detecta si la agenda ya se completó o si quedan citas pendientes
- * para cambiar el color de la interfaz (Azul = Pendiente, Verde = Completado).
+ * OPTIMIZACIÓN: Se implementó Promise.all para cargar usuarios y citas en paralelo.
  */
 
 import Layout from "../layouts/Layout.astro"
@@ -20,6 +14,7 @@ import PatientTypeModal from "../components/PatientTypeModal.astro";
 
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
+
 interface UsuarioClerk {
     firstName: string | null;
     lastName: string | null;
@@ -27,64 +22,59 @@ interface UsuarioClerk {
     lastActiveAt: number | null;
 }
 
-let usuariosRecientes: UsuarioClerk[] = [];
-try {
-    const client = clerkClient(Astro);
-    const response = await client.users.getUserList({
-        limit: 10, // Traemos más para el carrusel
-        orderBy: '-last_active_at'
-    });
-    usuariosRecientes = Array.isArray(response) ? response : (response.data || []);
-} catch (e) {
-    console.error("Error usuarios:", e);
-}
-
-// --- 1. CÁLCULO MANUAL DE FECHA (MÉRIDA UTC-6) ---
-const now = new Date();
-const offsetMerida = 6 * 60 * 60 * 1000; 
-const nowMerida = new Date(now.getTime() - offsetMerida);
-
-const year = nowMerida.getUTCFullYear();
-const month = String(nowMerida.getUTCMonth() + 1).padStart(2, '0');
-const day = String(nowMerida.getUTCDate()).padStart(2, '0');
-
-const fechaSQL = `${year}-${month}-${day}`;
-
-// Rango del día completo en Mérida
-const inicioDia = `${fechaSQL}T00:00:00-06:00`;
-const finDia = `${fechaSQL}T23:59:59-06:00`;
-
-// --- 2. CONSULTA A SUPABASE ---
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
+const client = clerkClient(Astro);
 
-// Agregamos 'estado' a la consulta para saber si ya se atendió
-const { data: dataCitas, error } = await supabase
+const now = new Date();
+const offsetMerida = 6 * 60 * 60 * 1000; 
+const nowMerida = new Date(now.getTime() - offsetMerida);
+const year = nowMerida.getUTCFullYear();
+const month = String(nowMerida.getUTCMonth() + 1).padStart(2, '0');
+const day = String(nowMerida.getUTCDate()).padStart(2, '0');
+const fechaSQL = `${year}-${month}-${day}`;
+const inicioDia = `${fechaSQL}T00:00:00-06:00`;
+const finDia = `${fechaSQL}T23:59:59-06:00`;
+
+const usersPromise = (async () => {
+    try {
+        const response = await client.users.getUserList({
+            limit: 10,
+            orderBy: '-last_active_at'
+        });
+        return Array.isArray(response) ? response : (response.data || []);
+    } catch (e) {
+        console.error("Error usuarios:", e);
+        return [];
+    }
+})();
+
+const citasPromise = supabase
     .from('citas')
     .select('id, fecha_hora, nombre, estado') 
     .gte('fecha_hora', inicioDia)
     .lte('fecha_hora', finDia)
     .order('fecha_hora', { ascending: true });
 
+
+const [usuariosRecientes, citasResult] = await Promise.all([usersPromise, citasPromise]);
+
+const { data: dataCitas, error } = citasResult;
 if (error) console.error("Error Dashboard:", error);
 
-// --- 3. PROCESAMIENTO INTELIGENTE ---
+
 const citasHoy = dataCitas || [];
 const totalCitasHoy = citasHoy.length;
-
-// Filtramos solo las que siguen pendientes
 const citasPendientes = citasHoy.filter(c => c.estado === 'pendiente');
 const cantidadPendientes = citasPendientes.length;
 
-// Lógica para determinar qué mostrar en "Próxima Cita"
 let proximaHora = "--:--";
 let proximaNombre = "";
-let estadoAgenda = "vacio"; // 'pendiente', 'completado', 'vacio'
+let estadoAgenda = "vacio";
 
 if (cantidadPendientes > 0) {
-    // Si hay pendientes, la próxima es la primera de la lista de pendientes
     const siguiente = citasPendientes[0];
     estadoAgenda = "pendiente";
     proximaNombre = siguiente.nombre || "Paciente";
@@ -96,7 +86,6 @@ if (cantidadPendientes > 0) {
         });
     }
 } else if (totalCitasHoy > 0) {
-    // Si hay citas hoy pero 0 pendientes, significa que ya acabamos
     estadoAgenda = "completado";
     proximaNombre = "Todas las citas finalizadas";
 }
@@ -377,8 +366,8 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <div class="p-2.5 bg-amber-500/20 rounded-xl text-amber-300 group-hover:text-white group-hover:bg-amber-500 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.443m-1.5.443a6.01 6.01 0 0 1-1.5-.443m4.75 6.24a3 3 0 1 0-4.5 0 3 3 0 0 0 4.5 0ZM12 4.5v5.25" />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 28 28" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                <path d="m10 10c0 1.105-.895 2-2 2-1.104 0-2-.896-2-2s.895-2 2-2c.552 0 1.052.224 1.414.586.361.351.586.841.586 1.384v.032zm6 0c0 1.105-.895 2-2 2-.552 0-1.052-.224-1.414-.586-.377-.364-.611-.874-.611-1.439 0-1.105.895-2 2-2 .565 0 1.074.234 1.438.61l.001.001c.362.351.587.841.587 1.385v.031-.002zm6 0c0 1.104-.896 2-2 2s-2-.895-2-2 .895-2 2-2c.552 0 1.052.224 1.414.586.361.351.586.841.586 1.384v.032zm-8-8c-.038 0-.083-.001-.128-.001-2.098 0-4.102.399-5.942 1.124l.11-.038c-1.74.644-3.217 1.645-4.4 2.922l-.007.007c-.99 1.036-1.608 2.436-1.633 3.98v.005c.013 1.258.432 2.415 1.131 3.351l-.011-.015c.835 1.131 1.885 2.053 3.096 2.719l.049.025 1.36.782-.426 1.498c-.272 1.021-.646 1.915-1.122 2.741l.029-.054c1.651-.691 3.071-1.59 4.313-2.686l-.017.014.672-.594.89.094c.607.077 1.312.122 2.028.125h.004c.038 0 .083.001.128.001 2.098 0 4.102-.399 5.942-1.124l-.11.038c1.74-.644 3.217-1.645 4.4-2.922l.007-.007c1.009-1.025 1.632-2.432 1.632-3.984s-.623-2.96-1.633-3.985l.001.001c-1.19-1.284-2.666-2.286-4.329-2.904l-.078-.025c-1.73-.687-3.735-1.086-5.833-1.086-.044 0-.088 0-.132.001h.007zm14 8c-.012 1.924-.72 3.681-1.884 5.033l.009-.01c-1.349 1.592-3.059 2.837-5.008 3.611l-.086.03c-2.023.846-4.374 1.337-6.839 1.337-.068 0-.135 0-.202-.001h.01c-.8-.002-1.588-.047-2.363-.134l.097.009c-1.981 1.759-4.399 3.072-7.069 3.756l-.118.026c-.503.145-1.107.266-1.726.339l-.055.005h-.08c-.163 0-.311-.062-.422-.164-.123-.111-.212-.258-.249-.424l-.001-.005v-.016c-.017-.029-.027-.064-.027-.102 0-.033.008-.063.021-.091l-.001.001c.02-.047.031-.101.031-.159 0-.001 0-.001 0-.002q-.008-.031.07-.149l.094-.141.11-.133.125-.141q.11-.125.484-.539l.539-.594q.164-.18.484-.617c.174-.231.343-.493.491-.767l.017-.033q.187-.359.422-.922c.137-.317.276-.712.39-1.117l.017-.07c-1.558-.861-2.852-2.018-3.844-3.405l-.024-.035c-.878-1.216-1.407-2.735-1.414-4.377v-.002c.005-1.438.418-2.779 1.128-3.914l-.018.031c.781-1.276 1.778-2.34 2.951-3.173l.033-.022c1.281-.904 2.766-1.632 4.361-2.105l.108-.027c1.603-.501 3.446-.789 5.357-.789h.085-.004.083c1.911 0 3.754.288 5.488.824l-.132-.035c1.703.501 3.188 1.229 4.517 2.165l-.048-.032c1.206.855 2.203 1.92 2.958 3.149l.026.046c.691 1.104 1.103 2.445 1.107 3.882v.001z"/>
                             </svg>
                         </div>
                     </div>
@@ -390,21 +379,44 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                 </div>
             </a>
 
-            <a href="/manuales" class="group relative md:col-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-900/20 hover:scale-[1.01]">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-amber-500/20"></div>
+            <a href="/manuales" class="group relative md:col-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-cyan-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-900/20 hover:scale-[1.01]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-cyan-500/20"></div>
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
-                        <div class="p-2.5 bg-amber-500/20 rounded-xl text-amber-300 group-hover:text-white group-hover:bg-amber-500 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.443m-1.5.443a6.01 6.01 0 0 1-1.5-.443m4.75 6.24a3 3 0 1 0-4.5 0 3 3 0 0 0 4.5 0ZM12 4.5v5.25" />
+                        <div class="p-2.5 bg-cyan-500/20 rounded-xl text-cyan-300 group-hover:text-white group-hover:bg-cyan-500 transition-colors">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M10.9436 1.25H13.0564C14.8942 1.24998 16.3498 1.24997 17.489 1.40314C18.6614 1.56076 19.6104 1.89288 20.3588 2.64124C21.1071 3.38961 21.4392 4.33856 21.5969 5.51098C21.75 6.65019 21.75 8.10583 21.75 9.94359V14.0564C21.75 15.8942 21.75 17.3498 21.5969 18.489C21.4392 19.6614 21.1071 20.6104 20.3588 21.3588C19.6104 22.1071 18.6614 22.4392 17.489 22.5969C16.3498 22.75 14.8942 22.75 13.0564 22.75H10.9436C9.10583 22.75 7.65019 22.75 6.51098 22.5969C5.33856 22.4392 4.38961 22.1071 3.64124 21.3588C2.89288 20.6104 2.56076 19.6614 2.40314 18.489C2.24997 17.3498 2.24998 15.8942 2.25 14.0564V9.94358C2.24998 8.10582 2.24997 6.65019 2.40314 5.51098C2.56076 4.33856 2.89288 3.38961 3.64124 2.64124C4.38961 1.89288 5.33856 1.56076 6.51098 1.40314C7.65019 1.24997 9.10582 1.24998 10.9436 1.25ZM6.71085 2.88976C5.70476 3.02502 5.12511 3.27869 4.7019 3.7019C4.27869 4.12511 4.02502 4.70476 3.88976 5.71085C3.75159 6.73851 3.75 8.09318 3.75 10V14C3.75 15.9068 3.75159 17.2615 3.88976 18.2892C4.02502 19.2952 4.27869 19.8749 4.7019 20.2981C5.12511 20.7213 5.70476 20.975 6.71085 21.1102C7.73851 21.2484 9.09318 21.25 11 21.25H13C14.9068 21.25 16.2615 21.2484 17.2892 21.1102C18.2952 20.975 18.8749 20.7213 19.2981 20.2981C19.7213 19.8749 19.975 19.2952 20.1102 18.2892C20.2484 17.2615 20.25 15.9068 20.25 14V10C20.25 8.09318 20.2484 6.73851 20.1102 5.71085C19.975 4.70476 19.7213 4.12511 19.2981 3.7019C18.8749 3.27869 18.2952 3.02502 17.2892 2.88976C16.2615 2.75159 14.9068 2.75 13 2.75H11C9.09318 2.75 7.73851 2.75159 6.71085 2.88976ZM7.25 8C7.25 7.58579 7.58579 7.25 8 7.25H16C16.4142 7.25 16.75 7.58579 16.75 8C16.75 8.41421 16.4142 8.75 16 8.75H8C7.58579 8.75 7.25 8.41421 7.25 8ZM7.25 12C7.25 11.5858 7.58579 11.25 8 11.25H16C16.4142 11.25 16.75 11.5858 16.75 12C16.75 12.4142 16.4142 12.75 16 12.75H8C7.58579 12.75 7.25 12.4142 7.25 12ZM7.25 16C7.25 15.5858 7.58579 15.25 8 15.25H13C13.4142 15.25 13.75 15.5858 13.75 16C13.75 16.4142 13.4142 16.75 13 16.75H8C7.58579 16.75 7.25 16.4142 7.25 16Z"/>
                             </svg>
                         </div>
                     </div>
 
                     <div class="mt-6">
-                        <h3 class="text-xl font-bold text-white mb-1 group-hover:text-amber-300 transition-colors">Manuales</h3>
+                        <h3 class="text-xl font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">Manuales</h3>
                         <p class="text-sm text-gray-400 font-medium group-hover:text-gray-300 transition-colors">Todos los manuales necesarios para el funcionamiento del laboratorio.</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="/reportes" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-rose-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-rose-900/20 hover:scale-[1.01]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-rose-500/20"></div>
+                
+                <div class="relative z-10 h-full flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2.5 bg-rose-500/20 rounded-xl text-rose-300 group-hover:text-white group-hover:bg-rose-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                <path d="M18.18 8.03933L18.6435 7.57589C19.4113 6.80804 20.6563 6.80804 21.4241 7.57589C22.192 8.34374 22.192 9.58868 21.4241 10.3565L20.9607 10.82M18.18 8.03933C18.18 8.03933 18.238 9.02414 19.1069 9.89309C19.9759 10.762 20.9607 10.82 20.9607 10.82M18.18 8.03933L13.9194 12.2999C13.6308 12.5885 13.4865 12.7328 13.3624 12.8919C13.2161 13.0796 13.0906 13.2827 12.9882 13.4975C12.9014 13.6797 12.8368 13.8732 12.7078 14.2604L12.2946 15.5L12.1609 15.901M20.9607 10.82L16.7001 15.0806C16.4115 15.3692 16.2672 15.5135 16.1081 15.6376C15.9204 15.7839 15.7173 15.9094 15.5025 16.0118C15.3203 16.0986 15.1268 16.1632 14.7396 16.2922L13.5 16.7054L13.099 16.8391M13.099 16.8391L12.6979 16.9728C12.5074 17.0363 12.2973 16.9867 12.1553 16.8447C12.0133 16.7027 11.9637 16.4926 12.0272 16.3021L12.1609 15.901M13.099 16.8391L12.1609 15.901" stroke-width="1.5"/>
+                                <path d="M8 13H10.5" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 9H14.5" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 17H9.5" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M3 14V10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157M21 14C21 17.7712 21 19.6569 19.8284 20.8284M4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284M19.8284 20.8284C20.7715 19.8853 20.9554 18.4796 20.9913 16" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold text-white mb-1 group-hover:text-rose-300 transition-colors">Reportes</h3>
+                        <p class="text-sm text-gray-400 font-medium group-hover:text-gray-300 transition-colors">Generación de reportes del laboratorio</p>
                     </div>
                 </div>
             </a>

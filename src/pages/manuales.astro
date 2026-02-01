@@ -1,7 +1,92 @@
 ---
-import Layout from "../layouts/Layout.astro"
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import ReturnButton from '../components/ReturnButton.astro';
+import ManualCard from '../components/ManualCard.astro';
+
+interface Manual {
+    titulo: string;
+    descripcion: string;
+    url: string;
+    tipo: "PDF" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB"; 
+}
+
+const listaManuales: Manual[] = [
+    {
+        titulo: "Protocolo de Estimulación TMS",
+        descripcion: "Guía completa para la configuración de umbrales y localización de DLPFC.",
+        url: "https://ejemplo.com/manual-tms.pdf",
+        tipo: "PDF"
+    },
+    {
+        titulo: "Carpeta de Recursos Gráficos",
+        descripcion: "Logos, tipografías y assets visuales del laboratorio en alta resolución.",
+        url: "#",
+        tipo: "DRIVE"
+    },
+    {
+        titulo: "Tutorial: Calibración Z80",
+        descripcion: "Video explicativo sobre el proceso de carga de firmware y pruebas de reloj.",
+        url: "#",
+        tipo: "VIDEO"
+    },
+    {
+        titulo: "Calculadora de Dosis y Umbrales",
+        descripcion: "Hoja de cálculo automatizada para determinar porcentajes de estimulación.",
+        url: "#",
+        tipo: "EXCEL"
+    },
+    {
+        titulo: "Consentimiento Informado (Plantilla)",
+        descripcion: "Documento oficial para imprimir. Versión actualizada 2026.",
+        url: "#",
+        tipo: "PDF"
+    },
+    {
+        titulo: "Portal de Citas (Admin)",
+        descripcion: "Acceso directo al panel administrativo de gestión de pacientes.",
+        url: "#",
+        tipo: "WEB"
+    }
+];
 ---
 
-<Layout>
-    
+<Layout title="Manuales | Lab-Somno">
+    <Icon />
+	<ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <div class="min-h-screen p-4 md:p-10">
+        
+        <div class="max-w-7xl mx-auto mb-12 text-center">
+            <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Biblioteca del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span></h1>
+            <p class=" pt-5 text-lg text-gray-400">
+                Todos los recursos, guías y documentos necesarios están aquí.
+            </p>
+        </div>
+
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+            {listaManuales.map((manual, index) => (
+                <ManualCard 
+                    titulo={manual.titulo}
+                    descripcion={manual.descripcion}
+                    url={manual.url}
+                    tipo={manual.tipo}
+                    delay={index * 100}
+                />
+            ))}
+        </div>
+    </div>
 </Layout>
+
+<style>
+    @keyframes enter-up { 
+        from { 
+            opacity: 0; transform: translateY(20px);
+        } to { 
+            opacity: 1; transform: translateY(0); 
+        } 
+    }
+    .animate-enter-up { 
+        animation: enter-up 0.6s ease-out forwards;
+    }
+</style>
