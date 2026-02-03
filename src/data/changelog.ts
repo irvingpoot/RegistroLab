@@ -1,39 +1,53 @@
-export const currentVersion = "2.0.1";
+export const currentVersion = "2.2.0";
 
 export const isMajorUpdate = true; 
 
-export const updateDate = "26 de Enero, 2026";
+export const updateDate = "2 de Febrero del 2026";
 
-// Opciones type: 'feature', 'fix', 'style'
 export const changes = [
     {
-        title: "Tipos de paciente",
-        description: "Se agregó la funcionalidad para separar el registro de pacientes de sueño y ánimo.",
+        title: "Manuales",
+        description: "Se agregó una página para los manuales.",
         type: "feature"
     },
     {
-        title: "Sesiones TMS",
-        description: "Se agregó la funcionalidad para gestionar sesiones de TMS para pacientes candidatos.",
+        title: "Sesiones bilaterales de TMS",
+        description: "Ya es posible realizar sesiones bilaterales de TMS con diferentes frecuencias para cada lado en ambos tipos de paciente.",
         type: "feature"
     },
     {
-        title: "Consentimiento TMS",
-        description: "Se agregó la funcionalidad para gestionar el almacenamiento del consentimiento informado para sesiones de TMS.",
+        title: "Reagendar citas",
+        description: "Ya es posible reagendar citas desde la vista del calendario.",
         type: "feature"
     },
     {
-        title: "IMC en Berlín",
-        description: "Se corrgió el algoritmo de la categoría 3 en la escala de Berlin para no considerar el IMC.",
+        title: "Horas en Pittsburgh",
+        description: "Se corrigió un problema en el que el paciente podía enviar el formulario sin seleccionar ninguna hora.",
         type: "fix"
     },
     {
-        title: "Desborde del ChangeLog",
-        description: "Se corrgió un error en el que el ChangeLog se estiraba fuera de la pantalla al agregar demasiados cambios.",
+        title: "Observaciones en citas",
+        description: "Se corrigió un error en el cual no se mostraban las observaciones en las tarjetas de cita.",
         type: "fix"
     },
     {
-        title: "Iconos actualizados",
-        description: "Se actualizaron los iconos de los tickets para evitar el desbordamiento de los mismos en /feedback.",
+        title: "Planeación de suicidio",
+        description: "Ahora si muestra las 3 opciones de riesgo suicida.",
+        type: "fix"
+    },
+    {
+        title: "Optimizaciones al dashboard",
+        description: "Ahora el dashboard carga usuarios y citas en paralelo para mejorar el rendimiento.",
+        type: "fix"
+    },
+    {
+        title: "Placeholders de reportes",
+        description: "Se creo la página provisional para la generación de reportes.",
+        type: "style"
+    },
+    {
+        title: "Dashboard refactorizado",
+        description: "Se modificó el orden de las opciones en el dashboard.",
         type: "style"
     }
 ];

@@ -10,6 +10,15 @@ import ReturnButton from "../../../components/ReturnButton.astro"
 import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
 
+let mensaje = "";
+const msgParam = Astro.url.searchParams.get('mensaje');
+
+if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
+if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
+if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
+if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
+if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
+
 const { id } = Astro.params;
 if (!id) return Astro.redirect("/lista");
 
@@ -39,7 +48,11 @@ if (Astro.request.method === "POST") {
                 registrado_por: nombreAutor
             };
             const { error } = await supabase.from('pacientes_seguimiento').insert([nuevaNota]);
-            if (error) throw error;
+            if (!error) {
+                return Astro.redirect(Astro.url.pathname + "?mensaje=seguimiento_guardado");
+            } else {
+                mensaje = "Error al guardar";
+            }
         }
 
         if (action === "delete_seguimiento") {
@@ -92,10 +105,10 @@ if (Astro.request.method === "POST") {
 
             if (extrasAInsertar.length > 0) {
                 await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
+                return Astro.redirect(`${Astro.url.pathname}?mensaje=puntajes_actualizados`);
             }
         }
 
-        // 5. TMS (Estimulación Magnética)
         if (action === "habilitar_tms") {
             const { error } = await supabase.from('pacientes').update({ tms_habilitado: true }).eq('id', id);
             if (error) console.error("Error habilitando TMS:", error);
@@ -111,20 +124,38 @@ if (Astro.request.method === "POST") {
                 return v ? v.toString().trim() : null;
             };
 
+            const sitio = getStr("sitio_estimulacion");
+            
+            let freqMain = null;
+            let freqRight = null;
+
+            if (sitio === "Bilateral") {
+                freqMain = getStr("frecuencia_izq");
+                freqRight = getStr("frecuencia_der");
+            } else {
+                freqMain = getStr("frecuencia");
+            }
+
             const { error } = await supabase.from('tms_sesiones').insert({
                 paciente_id: id,
                 fecha_aplicacion: formData.get("fecha"),
                 observaciones: formData.get("observaciones"),
-                // NUEVOS CAMPOS TÉCNICOS
+                
                 umbral_motor: getInt("umbral_motor"),
                 intensidad_tratamiento: getInt("intensidad_tratamiento"),
-                frecuencia: getStr("frecuencia"),
                 total_pulsos: getInt("total_pulsos"),
-                sitio_estimulacion: getStr("sitio_estimulacion"),
-                protocolo: getStr("protocolo")
+                sitio_estimulacion: sitio,
+                protocolo: getStr("protocolo"),
+
+                frecuencia: freqMain,
+                frecuencia_derecha: freqRight
             });
             
-            if (error) console.error("Error creando sesión:", error);
+            if (error) {
+                console.error("Error creando sesión:", error);
+            } else {
+                return Astro.redirect(`${Astro.url.pathname}?mensaje=tms_guardado`);
+            }
         }
 
         if (action === "subir_consentimiento_tms") {
@@ -166,7 +197,9 @@ if (paciente?.tms_consentimiento_url) {
 // Helpers visuales
 const formatDate = (dateString: string) => {
     if (!dateString) return "No registrado";
-    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX', { 
+    const fechaLimpia = dateString.substring(0, 10);
+    
+    return new Date(fechaLimpia + 'T12:00:00').toLocaleDateString('es-MX', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
@@ -355,6 +388,18 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                             </div>
                             {paciente.ideacion_suicida === 'si' && (
                                 <p class="text-red-200 text-sm mt-1 border-t border-red-500/20 pt-2">{paciente.ideacion_suicida_desc}</p>
+                            )}
+                        </div>
+
+                        <div class={`p-3 rounded-lg border ${paciente.planeacion_suicida === 'si' ? 'bg-red-900/10 border-red-500/30' : 'bg-green-900/10 border-green-500/20'}`}>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-gray-400 text-sm font-bold uppercase">Planeación Suicida</span>
+                                <span class={`font-bold ${paciente.planeacion_suicida === 'si' ? 'text-red-400' : 'text-green-400'}`}>
+                                    {paciente.planeacion_suicida === 'si' ? 'PRESENTE' : 'AUSENTE'}
+                                </span>
+                            </div>
+                            {paciente.planeacion_suicida === 'si' && (
+                                <p class="text-red-200 text-sm mt-1 border-t border-red-500/20 pt-2">{paciente.planeacion_suicida_desc}</p>
                             )}
                         </div>
 
@@ -689,14 +734,16 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                             <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Protocolo / Diagnóstico</label>
                             <input type="text" name="protocolo" placeholder="Ej. Insomnio Crónico" value={ultimaConfig.protocolo || ''} class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors" />
                         </div>
+                        
                         <div class="md:col-span-4">
                             <label class="block text-[10px] uppercase font-bold text-gray-500 mb-1">Sitio Estimulación</label>
-                            <select name="sitio_estimulacion" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer">
+                            <select id="select-sitio" name="sitio_estimulacion" class="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer">
                                 <option value="" disabled selected={!ultimaConfig.sitio_estimulacion}>Seleccionar...</option>
-                                <option value="DLPFC Izquierdo">DLPFC Izquierdo</option>
-                                <option value="DLPFC Derecho">DLPFC Derecho</option>
-                                <option value="Corteza Motora M1">Corteza Motora (M1)</option>
-                                <option value="Otro">Otro</option>
+                                <option value="DLPFC Izquierdo" selected={ultimaConfig.sitio_estimulacion === 'DLPFC Izquierdo'}>DLPFC Izquierdo</option>
+                                <option value="DLPFC Derecho" selected={ultimaConfig.sitio_estimulacion === 'DLPFC Derecho'}>DLPFC Derecho</option>
+                                <option value="Bilateral" selected={ultimaConfig.sitio_estimulacion === 'Bilateral'}>Bilateral (Izq + Der)</option>
+                                <option value="Corteza Motora M1" selected={ultimaConfig.sitio_estimulacion === 'Corteza Motora M1'}>Corteza Motora (M1)</option>
+                                <option value="Otro" selected={ultimaConfig.sitio_estimulacion === 'Otro'}>Otro</option>
                             </select>
                         </div>
 
@@ -715,14 +762,34 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                                     <span class="absolute right-0 top-1 text-xs text-gray-600">%</span>
                                 </div>
                             </div>
-                            <div>
+                            
+                            <div id="freq-simple" class="block">
                                 <label class="block text-[10px] text-blue-400 mb-1">Frecuencia</label>
-                                <select name="frecuencia" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono text-sm cursor-pointer">
+                                <select name="frecuencia" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold appearance-none cursor-pointer">
                                     <option value="1Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '1Hz'}>1 Hz</option>
                                     <option value="10Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '10Hz'}>10 Hz</option>
                                     <option value="TBS" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'TBS'}>Theta Burst</option>
                                     <option value="Otro" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'Otro'}>Otro</option>
                                 </select>
+                            </div>
+
+                            <div id="freq-bilateral" class="hidden col-span-2 md:col-span-1 grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-blue-400 mb-1 text-center">Izq (L)</label>
+                                    <select name="frecuencia_izq" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold appearance-none cursor-pointer">
+                                        <option value="1Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '1Hz'}>1 Hz</option>
+                                        <option value="10Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia === '10Hz'}>10 Hz</option>
+                                        <option value="TBS" class="bg-slate-950" selected={ultimaConfig.frecuencia === 'TBS'}>TBS</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-blue-400 mb-1 text-center">Der (R)</label>
+                                    <select name="frecuencia_der" class="w-full bg-transparent border-b border-white/10 py-1 text-white focus:border-blue-500 outline-none text-center font-mono font-bold appearance-none cursor-pointer">
+                                        <option value="1Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia_derecha === '1Hz'}>1 Hz</option>
+                                        <option value="10Hz" class="bg-slate-950" selected={ultimaConfig.frecuencia_derecha === '10Hz'}>10 Hz</option>
+                                        <option value="TBS" class="bg-slate-950" selected={ultimaConfig.frecuencia_derecha === 'TBS'}>TBS</option>
+                                    </select>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] text-blue-400 mb-1">Total Pulsos</label>
@@ -761,7 +828,21 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                                     <div class="flex gap-4 text-xs font-mono text-gray-400">
                                         {sesion.umbral_motor && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">MT</span><span class="text-white">{sesion.umbral_motor}%</span></div>}
                                         {sesion.intensidad_tratamiento && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Intensidad</span><span class="text-white">{sesion.intensidad_tratamiento}%</span></div>}
-                                        {sesion.frecuencia && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Hz</span><span class="text-emerald-400">{sesion.frecuencia}</span></div>}
+                                        
+                                        {sesion.frecuencia && (
+                                            <div class="flex flex-col items-center">
+                                                <span class="text-[10px] text-gray-500">Hz</span>
+                                                {sesion.frecuencia_derecha ? (
+                                                    <div class="flex flex-col text-[10px] leading-tight">
+                                                        <span class="text-emerald-400">L: {sesion.frecuencia}</span>
+                                                        <span class="text-blue-400">R: {sesion.frecuencia_derecha}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span class="text-emerald-400">{sesion.frecuencia}</span>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {sesion.total_pulsos && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Pulsos</span><span class="text-sky-400">{sesion.total_pulsos}</span></div>}
                                     </div>
                                 </div>
@@ -819,6 +900,35 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                 const newBtn = row.querySelector('.btn-remove-extra');
                 if(newBtn) setupRemoveBtn(newBtn);
             });
+        }
+
+        const selectSitio = document.getElementById('select-sitio') as HTMLSelectElement;
+        const freqSimple = document.getElementById('freq-simple');
+        const freqBilateral = document.getElementById('freq-bilateral');
+
+        if (selectSitio && freqSimple && freqBilateral) {
+            const toggle = () => {
+                const esBilateral = selectSitio.value === 'Bilateral';
+                if (esBilateral) {
+                    freqSimple.classList.remove('block');
+                    freqSimple.classList.add('hidden');
+                    freqSimple.querySelectorAll('select').forEach(s => s.disabled = true);
+
+                    freqBilateral.classList.remove('hidden');
+                    freqBilateral.classList.add('grid');
+                    freqBilateral.querySelectorAll('select').forEach(s => s.disabled = false);
+                } else {
+                    freqBilateral.classList.remove('grid');
+                    freqBilateral.classList.add('hidden');
+                    freqBilateral.querySelectorAll('select').forEach(s => s.disabled = true);
+
+                    freqSimple.classList.remove('hidden');
+                    freqSimple.classList.add('block');
+                    freqSimple.querySelectorAll('select').forEach(s => s.disabled = false);
+                }
+            };
+            selectSitio.addEventListener('change', toggle);
+            toggle();
         }
     });
 

@@ -69,6 +69,13 @@ if (Astro.request.method === "POST") {
             acompanante_parentesco: data.get('acompanante_parentesco'),
             acompanante_telefono: data.get('acompanante_telefono'),
 
+            ideacion_suicida: data.get("ideacion_suicida"),
+            ideacion_suicida_desc: data.get("ideacion_suicida_desc"),
+            planeacion_suicida: data.get("planeacion_suicida"),
+            planeacion_suicida_desc: data.get("planeacion_suicida_desc"),
+            intento_suicida: data.get("intento_suicida"),
+            intento_suicida_desc: data.get("intento_suicida_desc"),
+
             trastornos_animo: data.getAll('trastornos_animo'),
 
             farmacos_nombres: data.getAll('farmacos_nombres').filter(x => x.toString().trim() !== ''),
@@ -402,6 +409,25 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                                     class="w-full p-2 border border-blue-500/30 bg-blue-900/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white placeholder-gray-500" 
                                     placeholder="Frecuencia, planificación, detonantes..."
                                 >
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col space-y-2 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
+                            <label class="text-lg font-medium text-gray-300">¿Ha presentado planeación suicida?</label>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer hover:text-white transition">
+                                    <input type="radio" name="planeacion_suicida" value="si" checked={p.planeacion_suicida === 'si'} class="accent-blue-500 trigger-condicional" data-target="div_planeacion_desc"> 
+                                    Sí
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:text-white transition">
+                                    <input type="radio" name="planeacion_suicida" value="no" checked={p.planeacion_suicida === 'no'} class="accent-blue-500 trigger-condicional" data-target="div_planeacion_desc"> 
+                                    No
+                                </label>
+                            </div>
+                            
+                            <div id="div_planeacion_desc" class={`mt-3 animate-fade-in-down ${p.planeacion_suicida === 'si' ? '' : 'hidden'}`}>
+                                <label for="planeacion_suicida_desc" class="text-sm font-medium text-blue-300 block mb-1">Describa la planeación:</label>
+                                <input type="text" id="planeacion_suicida_desc" name="planeacion_suicida_desc" value={p.planeacion_suicida_desc || ''}class="w-full p-2 border border-blue-500/30 bg-blue-900/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-white placeholder-gray-500" placeholder="Detalles del plan, acceso a medios, fecha establecida...">
                             </div>
                         </div>
 
