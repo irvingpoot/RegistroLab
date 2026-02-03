@@ -2,7 +2,7 @@ export const currentVersion = "2.2.0";
 
 export const isMajorUpdate = true; 
 
-export const updateDate = "26 de Enero, 2026";
+export const updateDate = "2 de Febrero del 2026";
 
 export const changes = [
     {
@@ -16,8 +16,18 @@ export const changes = [
         type: "feature"
     },
     {
+        title: "Reagendar citas",
+        description: "Ya es posible reagendar citas desde la vista del calendario.",
+        type: "feature"
+    },
+    {
         title: "Horas en Pittsburgh",
         description: "Se corrigió un problema en el que el paciente podía enviar el formulario sin seleccionar ninguna hora.",
+        type: "fix"
+    },
+    {
+        title: "Observaciones en citas",
+        description: "Se corrigió un error en el cual no se mostraban las observaciones en las tarjetas de cita.",
         type: "fix"
     },
     {

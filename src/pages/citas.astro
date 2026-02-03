@@ -47,19 +47,68 @@ const nextLink = `?month=${nextDate.getMonth()}&year=${nextDate.getFullYear()}`;
 const startDateStr = new Date(currentYear, currentMonth, 1).toISOString();
 const endDateStr = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
 
+const user = await Astro.locals.currentUser();
+const nombreRegistrador = user 
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
+    : "Anónimo";
+
 // --- LÓGICA PARA ACTUALIZAR ESTADO ---
 if (Astro.request.method === "POST") {
     try {
-        const formData = await Astro.request.formData();
-        const citaId = formData.get("id_cita");
-        const accion = formData.get("accion");
+        const data = await Astro.request.formData();
+        const citaId = data.get("id_cita");
+        const accion = data.get("accion");
 
         if (citaId && accion) {
-            const nuevoEstado = accion === 'completar' ? 'completada' : 'cancelada';
-            await supabase.from('citas').update({ estado: nuevoEstado }).eq('id', citaId);
+            if (accion === 'reagendar') {
+                const nuevaFecha = data.get("nueva_fecha") as string;
+                const fechaObj = new Date(`${nuevaFecha}-06:00`);
+                const nuevaFechaISO = fechaObj.toISOString();
+                
+                const { data: citaOriginal, error: errorFetch } = await supabase
+                    .from('citas')
+                    .select('*')
+                    .eq('id', citaId)
+                    .single();
+
+                if (!errorFetch && citaOriginal) {
+                    const { error: insertError } = await supabase
+                        .from('citas')
+                        .insert({
+                            fecha_hora: nuevaFechaISO, 
+                            nombre: citaOriginal.nombre,
+                            telefono: citaOriginal.telefono,
+                            motivo: citaOriginal.motivo,
+                            sintoma: citaOriginal.sintoma,
+                            referencia: citaOriginal.referencia,
+                            atendido_por: citaOriginal.atendido_por,
+                            observaciones: citaOriginal.observaciones,
+                            estado: 'pendiente', 
+                            registrado_por_id: nombreRegistrador 
+                        });
+
+                    if (!insertError) {
+                        const notaReagenda = `\n[Cita reagendada para el: ${fechaObj.toLocaleString()} por ${nombreRegistrador}]`;
+                        
+                        await supabase
+                            .from('citas')
+                            .update({ 
+                                estado: 'cancelada',
+                                observaciones: (citaOriginal.observaciones || '') + notaReagenda
+                            })
+                            .eq('id', citaId);
+                            
+                        // Recargar para ver cambios
+                        return Astro.redirect(Astro.url.href);
+                    }
+                }
+            } else {
+                const nuevoEstado = accion === 'completar' ? 'completada' : 'cancelada';
+                await supabase.from('citas').update({ estado: nuevoEstado }).eq('id', citaId);
+            }
         }
     } catch (e) {
-        console.error("Error actualizando cita:", e);
+        console.error("Error procesando cita:", e);
     }
 }
 

@@ -10,6 +10,15 @@ import ReturnButton from "../../../components/ReturnButton.astro"
 import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
 
+let mensaje = "";
+const msgParam = Astro.url.searchParams.get('mensaje');
+
+if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
+if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
+if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
+if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
+if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
+
 const { id } = Astro.params;
 if (!id) return Astro.redirect("/lista");
 
@@ -39,7 +48,11 @@ if (Astro.request.method === "POST") {
                 registrado_por: nombreAutor
             };
             const { error } = await supabase.from('pacientes_seguimiento').insert([nuevaNota]);
-            if (error) throw error;
+            if (!error) {
+                return Astro.redirect(Astro.url.pathname + "?mensaje=seguimiento_guardado");
+            } else {
+                mensaje = "Error al guardar";
+            }
         }
 
         if (action === "delete_seguimiento") {
@@ -92,6 +105,7 @@ if (Astro.request.method === "POST") {
 
             if (extrasAInsertar.length > 0) {
                 await supabase.from('pacientes_puntajes_extra').insert(extrasAInsertar);
+                return Astro.redirect(`${Astro.url.pathname}?mensaje=puntajes_actualizados`);
             }
         }
 
@@ -137,7 +151,11 @@ if (Astro.request.method === "POST") {
                 frecuencia_derecha: freqRight
             });
             
-            if (error) console.error("Error creando sesión:", error);
+            if (error) {
+                console.error("Error creando sesión:", error);
+            } else {
+                return Astro.redirect(`${Astro.url.pathname}?mensaje=tms_guardado`);
+            }
         }
 
         if (action === "subir_consentimiento_tms") {
@@ -179,7 +197,9 @@ if (paciente?.tms_consentimiento_url) {
 // Helpers visuales
 const formatDate = (dateString: string) => {
     if (!dateString) return "No registrado";
-    return new Date(dateString + 'T12:00:00').toLocaleDateString('es-MX', { 
+    const fechaLimpia = dateString.substring(0, 10);
+    
+    return new Date(fechaLimpia + 'T12:00:00').toLocaleDateString('es-MX', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
