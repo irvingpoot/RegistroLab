@@ -19,6 +19,51 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
+const trastornosOptions = [
+    {
+        categoria: "Ansiedad, TOC y Trauma",
+        opciones: [
+            "Ansiedad generalizada",
+            "Ansiedad inducida por sustancia o medicamento",
+            "Ansiedad debida a afección médica",
+            "Ansiedad por enfermedad",
+            "TOC",
+            "Dismórfico corporal",
+            "TEPT"
+        ]
+    },
+    {
+        categoria: "Espectro Esquizofrénico y Psicótico",
+        opciones: [
+            "Esquizofreniforme",
+            "Esquizoafectivo",
+            "Esquizofrenia (Paranoide, catatónica, desorganizada, indiferenciada, simple)",
+            "Psicótico breve",
+            "Delirante (Erotomaníaco, celotípico, grandeza, mixto, persecutorio, somático, no especificado)",
+        ]
+    },
+    {
+        categoria: "Bipolar y Depresivos",
+        opciones: [
+            "Bipolar I (Predominan episodios maníacos)",
+            "Bipolar II (Predominan episodios depresivos)",
+            "Ciclotímico: Cíclico, tiempo especifico",
+            "Depresión mayor",
+            "Distimia",
+            "Disfórico premenstrual"
+        ]
+    },
+    {
+        categoria: "Conducta Alimentaria y Sustancias",
+        opciones: [
+            "Anorexia",
+            "Bulimia",
+            "Atracones",
+            "Consumo de sustancias"
+        ]
+    }
+];
+
 let mensaje = "";
 let error = false;
 
@@ -542,82 +587,39 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 
                 <section class="w-full max-w-4xl px-2 md:px-0 mt-8">
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">
-                        Trastornos del estado de ánimo
+                        Trastornos del Estado de Ánimo
                     </h2>
                     
-                    <div class="flex flex-col space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-gray-700/50 rounded-xl bg-gray-800/20">
-                            
-                            <p class="col-span-full text-xs text-blue-300 font-bold uppercase tracking-wider mb-2 text-center md:text-right">
-                                * Puedes seleccionar múltiples opciones
-                            </p>
+                    <div class="flex flex-col space-y-6">
+                        <p class="text-xs text-blue-400 font-bold uppercase tracking-wider text-center md:text-right">
+                            * Modifique la selección según sea necesario
+                        </p>
 
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="abuso_sustancias" 
-                                    checked={p.trastornos_animo?.includes('abuso_sustancias')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Abuso de sustancias</span>
-                            </label>
-
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="depresion" 
-                                    checked={p.trastornos_animo?.includes('depresion')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Depresión</span>
-                            </label>
-
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="ansiedad" 
-                                    checked={p.trastornos_animo?.includes('ansiedad')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Ansiedad</span>
-                            </label>
-
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="trastorno_psicotico" 
-                                    checked={p.trastornos_animo?.includes('trastorno_psicotico')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Trastorno psicótico</span>
-                            </label>
-
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="esquizofrenia" 
-                                    checked={p.trastornos_animo?.includes('esquizofrenia')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Esquizofrenia</span>
-                            </label>
-
-                            <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-3 rounded-lg border border-transparent group hover:bg-blue-900/10 hover:border-blue-500/30">
-                                <input 
-                                    type="checkbox" 
-                                    name="trastornos_animo" 
-                                    value="trastorno_sueno" 
-                                    checked={p.trastornos_animo?.includes('trastorno_sueno')}
-                                    class="accent-blue-500 w-5 h-5 rounded focus:ring-blue-500"
-                                >
-                                <span class="group-hover:translate-x-1 transition-transform text-gray-300 group-hover:text-white">Trastorno del sueño</span>
-                            </label>
-
+                        <div class="grid grid-cols-1 gap-6">
+                            {trastornosOptions.map((grupo) => (
+                                <div class="bg-gray-800/20 border border-gray-700/50 rounded-xl overflow-hidden">
+                                    <div class="px-4 py-2 border-b border-gray-700/50 flex items-center gap-2">
+                                        <h3 class="text-sm font-bold text-gray-200 uppercase tracking-wide">{grupo.categoria}</h3>
+                                    </div>
+                                    
+                                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+                                        {grupo.opciones.map((opcion) => (
+                                            <label class="flex items-start gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors group/check">
+                                                <input 
+                                                    type="checkbox" 
+                                                    name="trastornos_animo" 
+                                                    value={opcion} 
+                                                    checked={p.trastornos_animo && Array.isArray(p.trastornos_animo) && p.trastornos_animo.includes(opcion)}
+                                                    class="accent-blue-500 w-5 h-5 rounded mt-0.5 shrink-0 focus:ring-blue-500 cursor-pointer"
+                                                />
+                                                <span class="text-sm text-gray-400 group-hover/check:text-white transition-colors leading-tight">
+                                                    {opcion}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>

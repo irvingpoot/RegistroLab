@@ -13,11 +13,50 @@ import { createClient } from "@supabase/supabase-js"
 let mensaje = "";
 const msgParam = Astro.url.searchParams.get('mensaje');
 
-if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
-if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
-if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
-if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
-if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
+const GROUPS_TRASTORNOS = [
+    {
+        categoria: "Ansiedad, TOC y Trauma",
+        opciones: [
+            "Ansiedad generalizada",
+            "Ansiedad inducida por sustancia o medicamento",
+            "Ansiedad debida a afección médica",
+            "Ansiedad por enfermedad",
+            "TOC",
+            "Dismórfico corporal",
+            "TEPT"
+        ]
+    },
+    {
+        categoria: "Espectro Esquizofrénico y Psicótico",
+        opciones: [
+            "Esquizofreniforme",
+            "Esquizoafectivo",
+            "Esquizofrenia (Paranoide, catatónica, desorganizada, indiferenciada, simple)",
+            "Psicótico breve",
+            "Delirante (Erotomaníaco, celotípico, grandeza, mixto, persecutorio, somático, no especificado)",
+        ]
+    },
+    {
+        categoria: "Bipolar y Depresivos",
+        opciones: [
+            "Bipolar I (Predominan episodios maníacos)",
+            "Bipolar II (Predominan episodios depresivos)",
+            "Ciclotímico: Cíclico, tiempo especifico",
+            "Depresión mayor",
+            "Distimia",
+            "Disfórico premenstrual"
+        ]
+    },
+    {
+        categoria: "Conducta Alimentaria y Sustancias",
+        opciones: [
+            "Anorexia",
+            "Bulimia",
+            "Atracones",
+            "Consumo de sustancias"
+        ]
+    }
+];
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect("/lista");
@@ -29,8 +68,14 @@ const supabase = createClient(
 
 const user = await Astro.locals.currentUser();
 const nombreAutor = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
-    : "Sistema";
+? `${user.firstName} ${user.lastName}`.trim() || user.username 
+: "Sistema";
+
+if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
+if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
+if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
+if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
+if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
 
 // --- LÓGICA DE ACCIONES (POST) ---
 // Mantenemos la lógica vital (TMS, Seguimiento) pero limpiamos lo de sueño.
@@ -363,17 +408,22 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InfoCard title="Trastornos del Ánimo">
-                    {paciente.trastornos_animo && paciente.trastornos_animo.length > 0 ? (
-                        <div class="flex flex-wrap gap-2">
-                            {paciente.trastornos_animo.map((t: string) => (
-                                <span class="px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-200 capitalize font-medium">
-                                    {t.replace(/_/g, ' ')}
-                                </span>
+                <InfoCard title="Síntomas Latentes">
+                    {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
+                        <div class="flex flex-col gap-3">
+                            {paciente.pacientes_sintomas.map((s: any, index: number) => (
+                                <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg relative">
+                                    <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
+                                    <h4 class="text-base font-bold text-blue-200 capitalize mb-1">{s.sintoma}</h4>
+                                    <div class="text-xs text-gray-400 flex gap-4">
+                                        {s.gravedad && <span>Intensidad: {s.gravedad}</span>}
+                                        {s.frecuencia && <span>Frec: {s.frecuencia}</span>}
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     ) : (
-                        <p class="text-gray-500 italic">No se seleccionaron trastornos específicos.</p>
+                        <div class="text-gray-500 italic py-4 text-center">No hay síntomas desglosados.</div>
                     )}
                 </InfoCard>
 
@@ -419,22 +469,56 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             </div>
 
             <div class="grid grid-cols-1 gap-8">
-                <InfoCard title="Síntomas Latentes">
-                    {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
-                        <div class="flex flex-col gap-3">
-                            {paciente.pacientes_sintomas.map((s: any, index: number) => (
-                                <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg relative">
-                                    <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
-                                    <h4 class="text-base font-bold text-blue-200 capitalize mb-1">{s.sintoma}</h4>
-                                    <div class="text-xs text-gray-400 flex gap-4">
-                                        {s.gravedad && <span>Intensidad: {s.gravedad}</span>}
-                                        {s.frecuencia && <span>Frec: {s.frecuencia}</span>}
+                <InfoCard title="Trastornos del Ánimo">
+                    {paciente.trastornos_animo && paciente.trastornos_animo.length > 0 ? (
+                        <div class="flex flex-col gap-4">
+                            {GROUPS_TRASTORNOS.map((grupo) => {
+                                const matches = grupo.opciones.filter(opcion => 
+                                    paciente.trastornos_animo.includes(opcion)
+                                );
+
+                                if (matches.length === 0) return null;
+                                return (
+                                    <div class="bg-gray-800/30 border border-white/5 rounded-xl p-3">
+                                        <h4 class="text-[10px] font-bold text-white uppercase tracking-widest mb-3 border-b border-white/5 pb-2 flex items-center gap-2">
+                                            {grupo.categoria}
+                                        </h4>
+                                        
+                                        <div class="flex flex-wrap gap-2">
+                                            {matches.map((t: string) => (
+                                                <span class="px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-200 text-sm font-medium hover:bg-blue-600/20 transition-colors">
+                                                    {t}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
+
+                            {(() => {
+                                const todosLosCatalogados = GROUPS_TRASTORNOS.flatMap(g => g.opciones);
+                                const sinCategoria = paciente.trastornos_animo.filter((t: string) => !todosLosCatalogados.includes(t));
+                                
+                                if (sinCategoria.length === 0) return null;
+
+                                return (
+                                    <div class="bg-gray-800/30 border border-white/5 rounded-xl p-3">
+                                        <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Otros / Sin clasificar</h4>
+                                        <div class="flex flex-wrap gap-2">
+                                            {sinCategoria.map((t: string) => (
+                                                <span class="px-3 py-1.5 rounded-lg bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm font-medium">
+                                                    {t.replace(/_/g, ' ')}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     ) : (
-                        <div class="text-gray-500 italic py-4 text-center">No hay síntomas desglosados.</div>
+                        <div class="text-center py-6 border border-dashed border-gray-700 rounded-xl bg-white/[0.02]">
+                            <p class="text-gray-500 italic text-sm">No se han registrado diagnósticos específicos.</p>
+                        </div>
                     )}
                 </InfoCard>
             </div>
@@ -670,9 +754,15 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                                         .replace('banfe', 'BANFE')
                                         .replace('eva', 'Escala de Dolor (EVA)')}
                                 </td>
-                                <td class="py-3 text-center font-mono text-blue-200">{paciente[`${score}_pre`] ?? "-"}</td>
-                                <td class="py-3 text-center font-mono text-blue-200">{paciente[`${score}_inter`] ?? "-"}</td>
-                                <td class="py-3 text-center font-mono text-emerald-200">{paciente[`${score}_post`] ?? "-"}</td>
+                                <td class="p-2">
+                                    <input type="number" name={`${score}_pre`} value={paciente[`${score}_pre`]} class="score-input w-full" placeholder="-" />
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" name={`${score}_inter`} value={paciente[`${score}_inter`]} class="score-input w-full" placeholder="-" />
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" name={`${score}_post`} value={paciente[`${score}_post`]} class="score-input w-full" placeholder="-" />
+                                </td>
                             </tr>
                         ))}
                     </tbody>
