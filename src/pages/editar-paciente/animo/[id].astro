@@ -124,7 +124,19 @@ if (Astro.request.method === "POST") {
             trastornos_animo: data.getAll('trastornos_animo'),
 
             farmacos_nombres: data.getAll('farmacos_nombres').filter(x => x.toString().trim() !== ''),
+            farmacos_motivos: data.getAll('farmacos_motivos').filter((_, index) => {
+                const nombres = data.getAll('farmacos_nombres');
+                return nombres[index] && nombres[index].toString().trim() !== '';
+            }),
+            farmacos_frecuencias: data.getAll('farmacos_frecuencias').filter((_, index) => {
+                const nombres = data.getAll('farmacos_nombres');
+                return nombres[index] && nombres[index].toString().trim() !== '';
+            }),
             farmacos_tiempos: data.getAll('farmacos_tiempos').filter((_, index) => {
+                const nombres = data.getAll('farmacos_nombres');
+                return nombres[index] && nombres[index].toString().trim() !== '';
+            }),
+            farmacos_dosis: data.getAll('farmacos_dosis').filter((_, index) => {
                 const nombres = data.getAll('farmacos_nombres');
                 return nombres[index] && nombres[index].toString().trim() !== '';
             }),
@@ -630,61 +642,84 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                     </h2>
                     
                     <div class="p-6 border border-gray-700/50 rounded-xl bg-gray-800/20">
-                        <div class="flex justify-between items-center mb-4">
-                            <label class="text-lg font-medium text-gray-300">Medicamentos actuales</label>
-                            <button type="button" id="btn-add-farmaco" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                                Agregar Fármaco
-                            </button>
-                        </div>
 
-                        <div id="lista-farmacos" class="space-y-3">
+                        <div id="lista-farmacos" class="space-y-4">
                             {(p.farmacos_nombres && p.farmacos_nombres.length > 0) ? (
-                                p.farmacos_nombres.map((nombre: string, index: number) => (
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/50 rounded-lg border border-white/5 relative group">
-                                        <div>
-                                            <input 
-                                                type="text" 
-                                                name="farmacos_nombres" 
-                                                value={nombre}
-                                                placeholder="Nombre del fármaco" 
-                                                class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"
-                                            />
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <input 
-                                                type="text" 
-                                                name="farmacos_tiempos" 
-                                                value={p.farmacos_tiempos?.[index] || ''}
-                                                placeholder="Tiempo (ej. 6 meses)" 
-                                                class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"
-                                            />
-                                            <button type="button" class="btn-remove-farmaco text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                /* CASO POR DEFECTO: FILA VACÍA */
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/50 rounded-lg border border-white/5 relative group">
-                                    <div>
-                                        <input type="text" name="farmacos_nombres" placeholder="Nombre del fármaco" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="text" name="farmacos_tiempos" placeholder="Tiempo (ej. 6 meses)" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
-                                        <button type="button" class="btn-remove-farmaco text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                                p.farmacos_nombres.map((nombre: string, index: number) => {
+                                    const motivo = p.farmacos_motivos?.[index] || '';
+                                    const frecuenciaStr = p.farmacos_frecuencias?.[index] || '';
+                                    const tiempo = p.farmacos_tiempos?.[index] || '';
+                                    const dosis = p.farmacos_dosis?.[index] || '';
 
+                                    return (
+                                        <div class="p-4 bg-slate-900/50 rounded-xl border border-white/5 relative group transition-all hover:border-blue-500/30 item-farmaco">
+                                            <div class="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-4">
+                                                
+                                                <div class="md:col-span-8">
+                                                    <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Medicamento</label>
+                                                    <input type="text" name="farmacos_nombres" value={nombre} placeholder="Ej. Fluoxetina" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
+                                                </div>
+                                                <div class="md:col-span-4">
+                                                    <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Dosis</label>
+                                                    <input type="text" name="farmacos_dosis" value={dosis} placeholder="Ej. 20mg" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
+                                                </div>
+
+                                                <div class="md:col-span-8">
+                                                    <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Motivo / Diagnóstico</label>
+                                                    <input type="text" name="farmacos_motivos" value={motivo} placeholder="Ej. Depresión" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
+                                                </div>
+                                                <div class="md:col-span-4">
+                                                    <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Tiempo de consumo</label>
+                                                    <div class="flex items-center gap-3">
+                                                        <input type="text" name="farmacos_tiempos" value={tiempo} placeholder="Ej. 6 meses" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600"/>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex justify-between md:col-span-12 freq-container pt-2 border-t border-white/5">
+                                                    <div>
+                                                        <label class="block text-[10px] uppercase font-bold text-blue-400 mb-2">Frecuencia (Horario)</label>
+                                                        <input type="hidden" name="farmacos_frecuencias" class="input-frecuencia-real" value={frecuenciaStr}/>
+                                                        
+                                                        <div class="flex gap-4">
+                                                            {['Mañana', 'Tarde', 'Noche'].map(opt => (
+                                                                <label class="flex items-center gap-2 cursor-pointer group/chk">
+                                                                    <input 
+                                                                        type="checkbox" 
+                                                                        value={opt} 
+                                                                        checked={frecuenciaStr.includes(opt)} 
+                                                                        class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer"
+                                                                    />
+                                                                    <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">{opt}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <button type="button" class="btn-remove-farmaco w-7 text-gray-500 text-center hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer bg-gray-800 p-1.5 rounded-md hover:bg-red-900/20 shrink-0" title="Eliminar fila">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p class="text-gray-500 italic text-sm text-center py-4">No hay medicamentos registrados.</p>
+                            )}
                         </div>
                         
-                        <p class="text-[10px] text-gray-500 mt-4 text-center">
-                            Si no consume medicamentos, deje los campos vacíos o elimine las filas.
-                        </p>
+                        <div class="flex justify-between mt-4">
+                            <p class="text-[10px] text-gray-500 text-center">
+                                Si no consume medicamentos, deje los campos vacíos.
+                            </p>
+                            <div class="flex justify-between items-center mb-6">
+                                <button type="button" id="btn-add-farmaco" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer shadow-lg shadow-blue-900/20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                    Agregar Fármaco
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -772,43 +807,88 @@ const listaExtras = p.pacientes_puntajes_extra || [];
         const btnAdd = document.getElementById('btn-add-farmaco');
         const lista = document.getElementById('lista-farmacos');
 
-        // Función para activar el botón eliminar de una fila
-        const initRemoveBtn = (btn) => {
-            btn.addEventListener('click', (e) => {
-                const row = e.target.closest('.grid');
-                // Permitimos eliminar incluso si es la última, para dejar limpio, 
-                // o puedes forzar que quede 1 si prefieres. Aquí permito borrar todo visualmente (se envía vacío).
-                if (lista.children.length > 1) {
-                    row.remove();
-                } else {
-                    // Si es la última, limpiamos inputs
-                    row.querySelectorAll('input').forEach(i => i.value = '');
-                }
+        const setupFilaFarmaco = (elemento) => {
+            const checkboxes = elemento.querySelectorAll('.chk-freq');
+            const inputOculto = elemento.querySelector('.input-frecuencia-real');
+            const btnBorrar = elemento.querySelector('.btn-remove-farmaco');
+
+            checkboxes.forEach(chk => {
+                chk.addEventListener('change', () => {
+                    const seleccionados = Array.from(checkboxes)
+                        .filter(c => c.checked)
+                        .map(c => c.value);
+                    inputOculto.value = seleccionados.join(', ');
+                });
             });
+
+            if (btnBorrar) {
+                btnBorrar.addEventListener('click', () => {
+                    elemento.remove();
+                });
+            }
         };
 
-        // Inicializar botones existentes (los que vienen del servidor)
-        document.querySelectorAll('.btn-remove-farmaco').forEach(initRemoveBtn);
+        document.querySelectorAll('.item-farmaco').forEach(setupFilaFarmaco);
 
         if (btnAdd && lista) {
             btnAdd.addEventListener('click', () => {
+                const mensajeVacio = lista.querySelector('p.italic');
+                if (mensajeVacio) mensajeVacio.remove();
+
                 const div = document.createElement('div');
-                div.className = "grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-900/50 rounded-lg border border-white/5 relative group animate-fade-in";
+                div.className = "p-4 bg-slate-900/50 rounded-xl border border-white/5 relative group transition-all hover:border-blue-500/30 animate-fade-in item-farmaco";
+                
                 div.innerHTML = `
-                    <div>
-                        <input type="text" name="farmacos_nombres" placeholder="Nombre del fármaco" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="text" name="farmacos_tiempos" placeholder="Tiempo (ej. 6 meses)" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
-                        <button type="button" class="btn-remove-farmaco text-gray-600 hover:text-red-400 transition-colors cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-4">
+                        <div class="md:col-span-8">
+                            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Medicamento</label>
+                            <input type="text" name="farmacos_nombres" placeholder="Ej. Fluoxetina" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Dosis</label>
+                            <input type="text" name="farmacos_dosis" placeholder="Ej. 20mg" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+                        </div>
+
+                        <div class="md:col-span-8">
+                            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Motivo / Diagnóstico</label>
+                            <input type="text" name="farmacos_motivos" placeholder="Ej. Trastorno depresivo mayor" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Tiempo de consumo</label>
+                            <div class="flex items-center gap-3">
+                                <input type="text" name="farmacos_tiempos" placeholder="Ej. 6 meses" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between md:col-span-12 freq-container pt-2 border-t border-white/5">
+                            <div>
+                                <label class="block text-[10px] uppercase font-bold text-blue-400 mb-2">Frecuencia (Horario)</label>
+                                <input type="hidden" name="farmacos_frecuencias" class="input-frecuencia-real" value="">
+                                <div class="flex flex-wrap gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                                        <input type="checkbox" value="Mañana" class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Mañana</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                                        <input type="checkbox" value="Tarde" class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Tarde</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                                        <input type="checkbox" value="Noche" class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Noche</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <button type="button" class="btn-remove-farmaco text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer bg-gray-800 p-1.5 rounded-md hover:bg-red-900/20 shrink-0" title="Eliminar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 lista.appendChild(div);
-                
-                // Activar el nuevo botón eliminar
-                initRemoveBtn(div.querySelector('.btn-remove-farmaco'));
+                setupFilaFarmaco(div);
             });
         }
     });
