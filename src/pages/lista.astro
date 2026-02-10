@@ -36,8 +36,14 @@ const to = from + PAGE_SIZE - 1;
 let queryBuilder = supabase
     .from('pacientes')
     .select(`
-        *,
-        pacientes_seguimiento ( registrado_por, fecha ).order('fecha', { ascending: false }).limit(1)
+        id,
+        nombre,
+        tipo_paciente,
+        edad,
+        referencia,
+        registrado_por,
+        created_at,
+        pacientes_seguimiento ( registrado_por, fecha )
     `, { count: 'exact' })
     .order('created_at', { ascending: false });
 

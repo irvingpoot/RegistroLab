@@ -3,19 +3,26 @@ interface Props {
     titulo: string;
     descripcion: string;
     url: string;
-    tipo?: "PDF" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
+    tipo?: "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB"; 
     delay?: number;
 }
 
 const { titulo, descripcion, url, tipo = "WEB", delay = 0 } = Astro.props;
 
 const typeStyles = {
-    "PDF": { 
-        badge: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-        icon: "📄 PDF",
-        hoverTitle: "group-hover:text-rose-300",
-        hoverIcon: "group-hover:bg-rose-600 group-hover:text-white",
-        shadow: "hover:shadow-rose-900/20" 
+    "CANVA": { 
+        badge: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+        icon: "🎨 Canva",
+        hoverTitle: "group-hover:text-cyan-300",
+        hoverIcon: "group-hover:bg-cyan-600 group-hover:text-white",
+        shadow: "hover:shadow-cyan-900/20" 
+    },
+    "WORD": { 
+        badge: "bg-blue-600/20 text-blue-400 border-blue-600/30",
+        icon: "📝 Word",
+        hoverTitle: "group-hover:text-blue-400",
+        hoverIcon: "group-hover:bg-blue-700 group-hover:text-white",
+        shadow: "hover:shadow-blue-900/30"
     },
     "DRIVE": { 
         badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
