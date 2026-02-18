@@ -10,8 +10,28 @@ import ReturnButton from "../../../components/ReturnButton.astro"
 import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
 
-let mensaje = "";
+const { id } = Astro.params;
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+if (!id) return Astro.redirect("/lista");
+
+const user = await Astro.locals.currentUser();
+const nombreAutor = user 
+? `${user.firstName} ${user.lastName}`.trim() || user.username 
+: "Sistema";
+
 const msgParam = Astro.url.searchParams.get('mensaje');
+const notifId = Astro.url.searchParams.get('marcar_leido');
+let mensaje = "";
+
+if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
+if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
+if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
+if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
+if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
 
 const GROUPS_TRASTORNOS = [
     {
@@ -58,27 +78,15 @@ const GROUPS_TRASTORNOS = [
     }
 ];
 
-const { id } = Astro.params;
-if (!id) return Astro.redirect("/lista");
-
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
-
-const user = await Astro.locals.currentUser();
-const nombreAutor = user 
-? `${user.firstName} ${user.lastName}`.trim() || user.username 
-: "Sistema";
-
-if (msgParam === 'tms_guardado') mensaje = "Sesión TMS registrada correctamente.";
-if (msgParam === 'puntajes_actualizados') mensaje = "Los puntajes se han actualizado.";
-if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exitosamente.";
-if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
-if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
+if (notifId) {
+    await supabase
+        .from('respuestas_cuestionarios')
+        .update({ visto: true })
+        .eq('paciente_id', id)
+        .eq('visto', false);
+}
 
 // --- LÓGICA DE ACCIONES (POST) ---
-// Mantenemos la lógica vital (TMS, Seguimiento) pero limpiamos lo de sueño.
 if (Astro.request.method === "POST") {
     try {
         const formData = await Astro.request.formData();

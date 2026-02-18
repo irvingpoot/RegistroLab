@@ -15,13 +15,6 @@ import PatientTypeModal from "../components/PatientTypeModal.astro";
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
 
-interface UsuarioClerk {
-    firstName: string | null;
-    lastName: string | null;
-    imageUrl: string;
-    lastActiveAt: number | null;
-}
-
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
@@ -58,11 +51,30 @@ const citasPromise = supabase
     .lte('fecha_hora', finDia)
     .order('fecha_hora', { ascending: true });
 
+const notificacionesPromise = supabase
+    .from('respuestas_cuestionarios')
+    .select(`
+        id,
+        cuestionario,
+        updated_at,
+        pacientes ( id, nombre, tipo_paciente )
+    `)
+    .eq('visto', false)
+    .order('updated_at', { ascending: false })
+    .limit(10);
 
-const [usuariosRecientes, citasResult] = await Promise.all([usersPromise, citasPromise]);
+
+const [usuariosRecientes, citasResult, notificacionesResult] = await Promise.all([
+    usersPromise, 
+    citasPromise, 
+    notificacionesPromise
+]);
 
 const { data: dataCitas, error } = citasResult;
 if (error) console.error("Error Dashboard:", error);
+
+const notificaciones = notificacionesResult.data || [];
+const hayNotificaciones = notificaciones.length > 0;
 
 
 const citasHoy = dataCitas || [];
@@ -88,6 +100,29 @@ if (cantidadPendientes > 0) {
 } else if (totalCitasHoy > 0) {
     estadoAgenda = "completado";
     proximaNombre = "Todas las citas finalizadas";
+}
+
+// --- MARCAR TODO COMO VISTO ---
+if (Astro.request.method === "POST") {
+    try {
+        const formData = await Astro.request.formData();
+        const action = formData.get("action");
+
+        if (action === "mark_all_read") {
+            // Actualizamos TODAS las notificaciones no vistas a true
+            const { error } = await supabase
+                .from('respuestas_cuestionarios')
+                .update({ visto: true })
+                .eq('visto', false);
+            
+            if (!error) {
+                // Recargamos para limpiar la UI
+                return Astro.redirect(Astro.url.href);
+            }
+        }
+    } catch (e) {
+        console.error("Error marcando notificaciones:", e);
+    }
 }
 
 const fechaHoyTexto = new Date().toLocaleDateString('es-MX', { 
@@ -130,24 +165,18 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
 
                 
 
-                <div class="hidden md:block text-right">
-                    {usuariosRecientes.length > 0 && (
-                        <div class="mb-4 flex justify-end">
-                            <div class="relative w-80 h-12 bg-[#0f0f11]/60 border border-gray-800/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg group">
-                                
+                <div class="hidden md:flex flex-col items-end gap-4 text-right">
+                    
+                    <div class="flex items-center gap-4">
+                        {usuariosRecientes.length > 0 && (
+                            <div class="relative w-60 h-12 bg-[#0f0f11]/60 border border-gray-800/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg group">
                                 <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
                                 <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
-
                                 <div class="flex items-center gap-4 py-2 px-4 animate-infinite-scroll w-max hover:[animation-play-state:paused]">
-                                    
                                     {usuariosRecientes.map((u) => (
                                         <div class="flex items-center gap-2 shrink-0 select-none">
                                             <div class="relative">
-                                                <img 
-                                                    src={u.imageUrl} 
-                                                    class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover"
-                                                    alt={u.firstName}
-                                                />
+                                                <img src={u.imageUrl} class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover" alt={u.firstName} />
                                                 <div class="absolute bottom-0 right-0 w-2 h-2 bg-[#0f0f11] rounded-full flex items-center justify-center">
                                                     <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
                                                 </div>
@@ -155,15 +184,10 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                                             <span class="text-xs font-medium text-gray-400 whitespace-nowrap">{u.firstName}</span>
                                         </div>
                                     ))}
-
                                     {usuariosRecientes.map((u) => (
                                         <div class="flex items-center gap-2 shrink-0 select-none" aria-hidden="true">
                                             <div class="relative">
-                                                <img 
-                                                    src={u.imageUrl} 
-                                                    class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover" 
-                                                    alt={u.firstName}
-                                                />
+                                                <img src={u.imageUrl} class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover" alt={u.firstName} />
                                                 <div class="absolute bottom-0 right-0 w-2 h-2 bg-[#0f0f11] rounded-full flex items-center justify-center">
                                                     <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
                                                 </div>
@@ -173,8 +197,63 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                                     ))}
                                 </div>
                             </div>
+                        )}
+                        <div class="relative group z-50">
+                            <button class="relative p-3 text-gray-400 hover:text-white transition-colors rounded-full bg-gray-900/50 border border-gray-800 hover:bg-gray-800 hover:border-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                </svg>
+                                {hayNotificaciones && (
+                                    <span class="absolute top-2 right-2.5 flex h-2.5 w-2.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                    </span>
+                                )}
+                            </button>
+
+                            <div class="absolute right-0 mt-2 w-80 bg-[#0f172a] border border-gray-700 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 origin-top-right transform">
+                                
+                                <div class="p-3 border-b border-gray-700/50 flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-sm font-bold text-white">Actividad</h4>
+                                        {hayNotificaciones && <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full">{notificaciones.length}</span>}
+                                    </div>
+
+                                    {hayNotificaciones && (
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="mark_all_read" />
+                                            <button type="submit" class="text-[10px] font-bold text-blue-400 hover:text-white transition-colors uppercase tracking-wider cursor-pointer">
+                                                Marcar todo como visto
+                                            </button>
+                                        </form>
+                                    )}
+                                </div>
+                                <div class="max-h-64 overflow-y-auto py-1 custom-scrollbar text-left">
+                                    {hayNotificaciones ? (
+                                        notificaciones.map((notif: any) => (
+                                            <a 
+                                                href={`/paciente/${notif.pacientes?.tipo_paciente || 'sueno'}/${notif.pacientes?.id}?marcar_leido=${notif.id}#evaluacion`}
+                                                class="block px-4 py-3 hover:bg-white/5 border-b border-gray-800/50 last:border-0 transition-colors"
+                                            >
+                                                <div class="flex justify-between items-start mb-1">
+                                                    <span class="text-sm font-bold text-blue-300 capitalize">{notif.pacientes?.nombre || 'Paciente'}</span>
+                                                    <span class="text-[10px] text-gray-500">{new Date(notif.updated_at).toLocaleDateString('es-MX', {day: '2-digit', month:'short'})}</span>
+                                                </div>
+                                                <p class="text-xs text-gray-300">
+                                                    Respondió: <span class="font-mono text-purple-300 uppercase">{notif.cuestionario}</span>
+                                                </p>
+                                            </a>
+                                        ))
+                                    ) : (
+                                        <div class="px-4 py-6 text-center text-gray-500 text-xs italic">
+                                            No hay nuevas respuestas.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    )}
+                    </div>
+
                     <div class="group flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
                         <div class="bg-gray-800 p-2.5 rounded-xl group-hover:bg-blue-600/20 group-hover:text-blue-400 transition-colors text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

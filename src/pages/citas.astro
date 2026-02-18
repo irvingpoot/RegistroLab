@@ -99,7 +99,14 @@ if (Astro.request.method === "POST") {
                         });
 
                     if (!insertError) {
-                        const notaReagenda = `\n[Cita reagendada para el: ${fechaObj.toLocaleString()} por ${nombreRegistrador}]`;
+                        // CORRECCIÓN AQUÍ: Forzamos la zona horaria a Mérida para el texto
+                        const fechaTexto = fechaObj.toLocaleString('es-MX', { 
+                            timeZone: 'America/Merida',
+                            year: 'numeric', month: 'numeric', day: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+
+                        const notaReagenda = `\n[Cita reagendada para el: ${fechaTexto} por ${nombreRegistrador}]`;
                         
                         await supabase
                             .from('citas')
@@ -109,7 +116,6 @@ if (Astro.request.method === "POST") {
                             })
                             .eq('id', citaId);
                             
-                        // Recargar para ver cambios
                         return Astro.redirect(Astro.url.href);
                     }
                 }
@@ -309,7 +315,7 @@ citasRaw?.forEach((cita) => {
         <div class="p-6 max-h-[50vh] overflow-y-auto" id="modal-lista-citas"></div>
 
         <div class="p-4 bg-gray-950/30 border-t border-gray-800/50 flex justify-center">
-            <a href="/nueva-cita" class="text-xs font-bold text-gray-400 hover:text-blue-400 flex items-center gap-2 transition-colors uppercase tracking-widest py-2">
+            <a id="btn-agendar-modal" href="/nueva-cita" class="text-xs font-bold text-gray-400 hover:text-blue-400 flex items-center gap-2 transition-colors uppercase tracking-widest py-2">
                 <span class="text-lg leading-none">+</span> Agendar cita
             </a>
         </div>
@@ -334,28 +340,34 @@ citasRaw?.forEach((cita) => {
     }
 </style>
 
-<script define:vars={{ displayMonth, currentYear }}>
-    window.mesActual = displayMonth;
-    window.anioActual = currentYear;
+<script define:vars={{ displayMonth, currentYear, currentMonth }}>
+    window.mesNombre = displayMonth;
+    window.anio = currentYear;
+    window.mesNumero = currentMonth;
 
     window.openDayModal = (day) => {
         const modal = document.getElementById('modal-dia');
         const listaContainer = document.getElementById('modal-lista-citas');
+        const btnAgendar = document.getElementById('btn-agendar-modal');
         
-        // 1. Actualizar Textos
         document.getElementById('modal-dia-num').textContent = day;
-        document.getElementById('modal-mes-anio').textContent = `${window.mesActual} ${window.anioActual}`;
+        document.getElementById('modal-mes-anio').textContent = `${window.mesNombre} ${window.anio}`;
 
-        // 2. Buscar las tarjetas pre-renderizadas para este día
+        if (btnAgendar) {
+            const m = String(window.mesNumero + 1).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            const fechaISO = `${window.anio}-${m}-${d}`;
+            
+            btnAgendar.href = `/nueva-cita?fecha=${fechaISO}`;
+        }
+
         const tarjetasGuardadas = document.querySelector(`#citas-store div[data-day="${day}"]`);
-        // 3. Inyectar contenido
+        
         if (tarjetasGuardadas && tarjetasGuardadas.children.length > 0) {
-            // Si hay tarjetas, clonamos el contenido HTML del almacén al modal
             listaContainer.innerHTML = tarjetasGuardadas.outerHTML;
             listaContainer.firstElementChild.classList.remove('hidden');
             listaContainer.firstElementChild.classList.add('block');
         } else {
-            // Si no hay tarjetas, mostramos mensaje de vacío
             listaContainer.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-12 text-gray-500 border-2 border-dashed border-gray-800 rounded-2xl">
                     <p class="font-medium">Sin citas programadas</p>
@@ -364,6 +376,6 @@ citasRaw?.forEach((cita) => {
             `;
         }
 
-            modal.showModal();
-        }
+        modal.showModal();
+    }
 </script>
