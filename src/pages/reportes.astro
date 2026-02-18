@@ -5,40 +5,13 @@ import ReturnButton from '../components/ReturnButton.astro';
 
 const reportesDisponibles = [
     {
-        titulo: "Resumen Clínico del Paciente",
-        descripcion: "Informe completo con historial, diagnósticos, evolución de escalas y notas psiquiátricas recientes.",
-        icono: "medical",
-        color: "blue",
-        tag: "Clínico"
-    },
-    {
-        titulo: "Bitácora de Sesiones TMS",
-        descripcion: "Registro detallado de parámetros de estimulación, umbrales motores y observaciones por sesión.",
-        icono: "activity",
-        color: "emerald",
-        tag: "Técnico"
-    },
-    {
-        titulo: "Evolución de Escalas (Gráficas)",
-        descripcion: "Comparativa visual Pre, Inter y Post tratamiento de escalas Hamilton, Beck y PSQI.",
+        titulo: "Cama vs Hamaca",
+        descripcion: "Exportación en CSV para investigación. Cruce de variables: Lugar de sueño vs Escalas (Epworth, PSQI, Berlin).",
         icono: "chart",
-        color: "purple",
-        tag: "Estadística"
+        color: "rose", 
+        tag: "Investigación",
+        id: "csv-habitos"
     },
-    {
-        titulo: "Constancia de Asistencia",
-        descripcion: "Documento formal para justificación de faltas laborales o escolares por tratamiento médico.",
-        icono: "document",
-        color: "amber",
-        tag: "Admin"
-    },
-    {
-        titulo: "Reporte de Calidad de Sueño",
-        descripcion: "Desglose específico de variables del PSQI e ISI con interpretación de resultados.",
-        icono: "moon",
-        color: "indigo",
-        tag: "Clínico"
-    }
 ];
 
 const getColors = (color: string) => {
@@ -48,6 +21,7 @@ const getColors = (color: string) => {
         purple: "bg-purple-500/10 text-purple-400 border-purple-500/20 group-hover:border-purple-500/50 group-hover:shadow-purple-900/20",
         amber: "bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:border-amber-500/50 group-hover:shadow-amber-900/20",
         indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 group-hover:border-indigo-500/50 group-hover:shadow-indigo-900/20",
+        rose: "bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:border-rose-500/50 group-hover:shadow-rose-900/20",
     };
     return map[color] || map.blue;
 };
@@ -76,7 +50,8 @@ const getColors = (color: string) => {
                         return (
                             <button 
                                 data-titulo={rep.titulo}
-                                class={`btn-generar group relative p-6 rounded-2xl border text-left transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800/40 ${styles}`}
+                                data-id={rep.id}
+                                class={`btn-generar group relative p-6 rounded-2xl border text-left transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800/40 cursor-pointer ${styles}`}
                             >
                                 <div class="flex justify-between items-start mb-4">
                                     <span class={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-black/20 border border-white/5`}>
@@ -96,7 +71,7 @@ const getColors = (color: string) => {
                                 <p class="text-sm text-gray-400 leading-relaxed mb-6">{rep.descripcion}</p>
 
                                 <div class="flex items-center gap-2 text-xs font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <span>Generar PDF</span>
+                                    <span>Generar archivo</span>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                                 </div>
                             </button>
@@ -127,23 +102,6 @@ const getColors = (color: string) => {
                                 </div>
                             </div>
                         </div>
-
-                        <div class="space-y-3 pt-2">
-                            <label class="flex items-center justify-between cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
-                                <span class="text-sm text-gray-400 group-hover:text-white transition-colors">Incluir Gráficas</span>
-                                <input type="checkbox" checked class="accent-blue-500 w-4 h-4 rounded border-gray-600 bg-slate-700 cursor-pointer">
-                            </label>
-                            
-                            <label class="flex items-center justify-between cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
-                                <span class="text-sm text-gray-400 group-hover:text-white transition-colors">Notas Psiquiátricas</span>
-                                <input type="checkbox" checked class="accent-blue-500 w-4 h-4 rounded border-gray-600 bg-slate-700 cursor-pointer">
-                            </label>
-
-                            <label class="flex items-center justify-between cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
-                                <span class="text-sm text-gray-400 group-hover:text-white transition-colors">Firma Digital</span>
-                                <input type="checkbox" class="accent-blue-500 w-4 h-4 rounded border-gray-600 bg-slate-700 cursor-pointer">
-                            </label>
-                        </div>
                     </form>
 
                     <div class="mt-6 pt-4 border-t border-white/5">
@@ -157,14 +115,6 @@ const getColors = (color: string) => {
                         </div>
                     </div>
                 </div>
-
-                <div class="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-purple-900/40 to-slate-900 border border-purple-500/20 group cursor-pointer hover:border-purple-500/40 transition-colors">
-                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl group-hover:bg-purple-500/30 transition-colors"></div>
-                    <h3 class="relative z-10 text-white font-bold text-sm mb-1">¿Necesitas ayuda?</h3>
-                    <p class="relative z-10 text-xs text-purple-200/70 mb-3">Si no encuentras el formato que buscas, contacta a sistemas.</p>
-                    <span class="relative z-10 text-[10px] font-bold text-white border-b border-purple-400 pb-0.5">Contactar Soporte &rarr;</span>
-                </div>
-
             </div>
         </div>
     </div>
@@ -177,6 +127,7 @@ const getColors = (color: string) => {
         botones.forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const titulo = btn.getAttribute('data-titulo');
+                const reporteId = btn.getAttribute('data-id');
                 const originalHtml = btn.innerHTML;
                 
                 btn.classList.add('opacity-75', 'cursor-not-allowed');
@@ -184,17 +135,40 @@ const getColors = (color: string) => {
                 btn.innerHTML = `
                     <div class="flex items-center justify-center gap-2 h-full">
                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span>Procesando...</span>
+                        <span>Generando...</span>
                     </div>
                 `;
                 
-                await new Promise(r => setTimeout(r, 2000));
-
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('opacity-75', 'cursor-not-allowed');
-                btn.removeAttribute('disabled');
-                
-                alert(`Configuración aplicada para: ${titulo}\n(Aquí se descargaría el PDF)`);
+                try {
+                    if (reporteId === 'csv-habitos') {
+                        const response = await fetch('/api/exportar-habitos');
+                        
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `reporte_habitos_${new Date().toISOString().split('T')[0]}.csv`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            a.remove();
+                        } else {
+                            throw new Error('Error en el servidor al generar CSV');
+                        }
+                    } else {
+                        await new Promise(r => setTimeout(r, 1500));
+                        alert(`El módulo para "${titulo}" está en construcción.`);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert("Hubo un error al generar el reporte.");
+                } finally {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    btn.removeAttribute('disabled');
+                }
             });
         });
     });

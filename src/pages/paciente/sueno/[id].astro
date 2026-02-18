@@ -22,6 +22,18 @@ import { createClient } from "@supabase/supabase-js"
 import { calcularpsqi } from "../../../utils/calculos"
 
 const { id } = Astro.params;
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+if (!id) return Astro.redirect("/lista");
+
+const user = await Astro.locals.currentUser();
+const nombreAutor = user 
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
+    : "Sistema";
+
 let mensaje = "";
 const msgParam = Astro.url.searchParams.get('mensaje');
 
@@ -31,17 +43,19 @@ if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exito
 if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
 if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
 
-if (!id) return Astro.redirect("/lista");
 
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
 
-const user = await Astro.locals.currentUser();
-const nombreAutor = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
-    : "Sistema";
+
+
+const notifId = Astro.url.searchParams.get('marcar_leido');
+
+if (notifId) {
+    await supabase
+        .from('respuestas_cuestionarios')
+        .update({ visto: true })
+        .eq('paciente_id', id) 
+        .eq('visto', false);
+}
 
 // LÓGICA DE ACCIONES
 if (Astro.request.method === "POST") {
