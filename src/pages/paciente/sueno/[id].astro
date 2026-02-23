@@ -331,9 +331,9 @@ if (paciente?.tms_consentimiento_url) {
 const baseUrl = Astro.url.origin;
 const token = paciente.token_cuestionarios;
 
-const linkPsqi = `${baseUrl}/formulario/psqi/${token}`;
-const linkBerlin = `${baseUrl}/formulario/berlin/${token}`;
-const linkEpworth = `${baseUrl}/formulario/epworth/${token}`;
+const linkPsqi = `${baseUrl}/cuestionarios/psqi/${token}?fase=pre`;
+const linkBerlin = `${baseUrl}/cuestionarios/berlin/${token}?fase=pre`;
+const linkEpworth = `${baseUrl}/cuestionarios/epworth/${token}?fase=pre`;
 
 const mensajeWhatsApp = `Buen día. Soy ${nombreAutor}, del laboratorio del sueño y neurociencias de la UADY. Estos son los formularios para complementar el estudio de Apnea. Si tiene oportunidad de contestarlo con alguien más, por si hay algún dato que desconoce y alguien más pueda ayudarlo a responder.
 
@@ -1600,7 +1600,7 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
 </style>
 
-<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [] }}>
+<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [], nombreAutor}}>
     const DICCIONARIOS = {
         epworth: {
             epworth_1: "Al estar sentado leyendo",
@@ -1901,39 +1901,46 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         psqi: document.getElementById('row-psqi'),
     };
     
-    // Función setFase ahora gestiona la visibilidad
     window.setFase = (fase) => {
         currentFase = fase;
 
-        // 1. Generamos los 3 links dinámicamente (por si se necesitan)
-        inputs.epworth.value = `${baseUrl}/cuestionarios/epworth/${token}?fase=${fase}`;
-        inputs.berlin.value = `${baseUrl}/cuestionarios/berlin/${token}?fase=${fase}`;
-        inputs.psqi.value = `${baseUrl}/cuestionarios/psqi/${token}?fase=${fase}`;
+        const urlEpworth = `${baseUrl}/cuestionarios/epworth/${token}?fase=${fase}`;
+        const urlBerlin = `${baseUrl}/cuestionarios/berlin/${token}?fase=${fase}`;
+        const urlPsqi = `${baseUrl}/cuestionarios/psqi/${token}?fase=${fase}`;
 
-        // 2. Actualizamos estilos de botones de fase
+        inputs.epworth.value = urlEpworth;
+        inputs.berlin.value = urlBerlin;
+        inputs.psqi.value = urlPsqi;
+
+        const textareaWpp = document.getElementById('texto-plantilla-wpp');
+        if (textareaWpp) {
+            textareaWpp.value = `Buen día. Soy ${nombreAutor}, del laboratorio del sueño y neurociencias de la UADY. Estos son los formularios para complementar el estudio de Apnea. Si tiene oportunidad de contestarlo con alguien más, por si hay algún dato que desconoce y alguien más pueda ayudarlo a responder.\n\nAquí le dejo los links:\n\nIndice de calidad de sueño de pitsburgh:\n${urlPsqi}\n\nCuestionario Berlin:\n${urlBerlin}\n\nEscala Epworth de somnolencia:\n${urlEpworth}`;
+        }
+
         ['pre', 'inter', 'post'].forEach(f => {
             const btn = document.getElementById(`btn-${f}`);
-            btn.className = f === fase 
-                ? "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow"
-                : "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
+            if(btn) {
+                btn.className = f === fase 
+                    ? "px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow"
+                    : "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
+            }
         });
 
-        // 3. Verificamos si ya hay respuesta para mostrar Botón o Link
         ['epworth', 'berlin', 'psqi'].forEach(cuestionario => {
             const row = rows[cuestionario];
-            // Buscamos los contenedores dentro de la fila
+            if(!row) return;
+
             const containerLink = row.querySelector('.container-link');
             const containerBtn = row.querySelector('.container-btn');
 
-            // Buscar si existe respuesta en la BD para este cuestionario y la fase actual
             const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === fase);
 
             if (respuesta) {
-                // SÍ HAY RESPUESTA: Ocultar link, mostrar botón "Ver Respuestas"
+                // SÍ HAY RESPUESTA
                 containerLink.classList.add('hidden');
                 containerBtn.classList.remove('hidden');
             } else {
-                // NO HAY RESPUESTA: Mostrar link, ocultar botón
+                // NO HAY RESPUESTA
                 containerLink.classList.remove('hidden');
                 containerBtn.classList.add('hidden');
             }
