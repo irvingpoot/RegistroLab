@@ -1,6 +1,6 @@
-export const currentVersion = "2.5.0";
+export const currentVersion = "2.5.1";
 
-export const isMajorUpdate = true; 
+export const isMajorUpdate = true;
 
 export const updateDate = "23 de Febrero del 2026";
 
