@@ -43,10 +43,6 @@ if (msgParam === 'seguimiento_guardado') mensaje = "Seguimiento registrado exito
 if (msgParam === 'nota_guardada') mensaje = "Nota clínica guardada.";
 if (msgParam === 'error') mensaje = "Ocurrió un error al procesar la solicitud.";
 
-
-
-
-
 const notifId = Astro.url.searchParams.get('marcar_leido');
 
 if (notifId) {
@@ -265,6 +261,42 @@ if (Astro.request.method === "POST") {
             }
         }
 
+        if (action === "registrar_reporte") {
+            const getNum = (k: string) => { 
+                const v = formData.get(k) as string;
+                return v && v.toString().trim() !== '' ? parseFloat(v) : null; 
+            };
+            
+            // Construir strings de tiempo
+            const durReg = `${formData.get("dur_reg_h") || 0}h ${formData.get("dur_reg_m") || 0}m`;
+            const durEval = `${formData.get("dur_eval_h") || 0}h ${formData.get("dur_eval_m") || 0}m`;
+
+            const reporteData = {
+                paciente_id: id, // El ID que viene de la URL
+                duracion_registro: durReg,
+                duracion_evaluacion: durEval,
+                iah: getNum("iah"),
+                indice_apneas: getNum("indice_apneas"),
+                indice_hipopnea: getNum("indice_hipopnea"),
+                iai: getNum("iai"),
+                iao: getNum("iao"),
+                iac: getNum("iac"),
+                iam: getNum("iam"),
+                saturacion_promedio: getNum("saturacion_promedio"),
+                pulso_promedio: getNum("pulso_promedio"),
+                ronquidos: getNum("ronquidos"),
+                sat_90_min: getNum("sat_90_min"),
+                sat_90_porc: getNum("sat_90_porc")
+            };
+
+            // Estrategia: Borrar anterior e insertar nuevo (para evitar duplicados simples)
+            await supabase.from('pacientes_reportes_sueno').delete().eq('paciente_id', id);
+            const { error } = await supabase.from('pacientes_reportes_sueno').insert(reporteData);
+
+            if (error) console.error("Error guardando reporte:", error);
+            else return Astro.redirect(`${Astro.url.pathname}?mensaje=reporte_guardado`);
+        }
+
     } catch (error) {
         console.error("Error en acción:", error);
     }
@@ -273,7 +305,7 @@ if (Astro.request.method === "POST") {
 // --- 2. CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
-    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), tms_sesiones(*)')
+    .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*), pacientes_seguimiento(*), respuestas_cuestionarios(*), tms_sesiones(*), pacientes_reportes_sueno(*)')
     .eq('id', id)
     .order('fecha_aplicacion', { referencedTable: 'tms_sesiones', ascending: false })
     .single();
@@ -295,6 +327,39 @@ if (paciente?.tms_consentimiento_url) {
         
     urlConsentimientoFirmado = signedData?.signedUrl;
 }
+
+const baseUrl = Astro.url.origin;
+const token = paciente.token_cuestionarios;
+
+const linkPsqi = `${baseUrl}/formulario/psqi/${token}`;
+const linkBerlin = `${baseUrl}/formulario/berlin/${token}`;
+const linkEpworth = `${baseUrl}/formulario/epworth/${token}`;
+
+const mensajeWhatsApp = `Estos son los formularios para complementar el estudio de Apnea. Si tiene oportunidad de contestarlo con alguien más, por si hay algún dato que desconoce y alguien más pueda ayudarlo a responder.
+
+Aquí le dejo los links:
+
+Indice de calidad de sueño de pitsburgh:
+${linkPsqi}
+
+Cuestionario Berlin:
+${linkBerlin}
+
+Escala Epworth de somnolencia:
+${linkEpworth}`;
+
+const reporteResultados = paciente?.pacientes_reportes_sueno?.[0] || null;
+
+// Helper para extraer "7" y "30" de "7h 30m"
+const extraerTiempo = (texto: string | null) => {
+    if (!texto) return { h: '', m: '' };
+    const match = texto.match(/(\d+)h\s*(\d+)m/);
+    if (match) return { h: match[1], m: match[2] };
+    return { h: '', m: '' };
+};
+
+const regTiempo = extraerTiempo(reporteResultados?.duracion_registro);
+const evalTiempo = extraerTiempo(reporteResultados?.duracion_evaluacion);
 
 const formatDate = (dateString: string) => {
     if (!dateString) return "No registrado";
@@ -381,6 +446,7 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                     <a href="#habitos" class="nav-link">Hábitos</a>
                     <a href="#alteraciones" class="nav-link">Alteraciones</a>
                     <a href="#puntajes" class="nav-link">Puntajes</a>
+                    <a href="#reporte-resultados" class="nav-link">Resultados</a>
                     <a href="#tms" class="nav-link">TMS</a>
                     <a href="#evaluacion" class="nav-link">Evaluaciones</a>
                     <a href="#seguimiento" class="nav-link">Seguimiento</a>
@@ -616,6 +682,100 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                     </div>
                 </InfoCard>
             </section>
+
+            <section id="reporte-resultados" class="mb-10 animate-fade-in-up delay-100">
+                <InfoCard title="Reporte de Resultados">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-lg font-bold text-gray-400 flex items-center gap-2">
+                            Resultados del reporte del estudio de poligrafía del sueño.
+                        </p>
+                        
+                        <button onclick="document.getElementById('modal-resultados').showModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            {reporteResultados ? 'Editar Resultados' : 'Registrar Resultados'}
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-900/50 border border-gray-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+                        {reporteResultados ? (
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-2 gap-4 bg-gray-800/40 p-4 rounded-xl border border-gray-700/50">
+                                    <div class="text-center">
+                                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Duración Registro</span>
+                                        <p class="text-xl text-white font-mono mt-1">{reporteResultados.duracion_registro}</p>
+                                    </div>
+                                    <div class="text-center border-l border-gray-700/50">
+                                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Duración Evaluación</span>
+                                        <p class="text-xl text-white font-mono mt-1">{reporteResultados.duracion_evaluacion}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-1">Análisis Respiratorio</h4>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg text-center">
+                                            <span class="text-xs text-indigo-300 font-bold block">IAH</span>
+                                            <span class="text-2xl font-bold text-white">{reporteResultados.iah}</span>
+                                        </div>
+                                        <div class="bg-gray-800 p-3 rounded-lg text-center">
+                                            <span class="text-xs text-gray-400 block">Índice Apneas</span>
+                                            <span class="text-xl font-bold text-gray-200">{reporteResultados.indice_apneas}</span>
+                                        </div>
+                                        <div class="bg-gray-800 p-3 rounded-lg text-center">
+                                            <span class="text-xs text-gray-400 block">Índice Hipopnea</span>
+                                            <span class="text-xl font-bold text-gray-200">{reporteResultados.indice_hipopnea}</span>
+                                        </div>
+                                        <div class="bg-gray-800 p-3 rounded-lg text-center">
+                                            <span class="text-xs text-gray-400 block">Ronquidos</span>
+                                            <span class="text-xl font-bold text-gray-200">{reporteResultados.ronquidos}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-4 gap-2 mt-3 text-center">
+                                        <div class="bg-gray-800/30 rounded py-1"><span class="text-[10px] text-gray-500 block">IAI</span><span class="text-sm font-mono text-gray-300">{reporteResultados.iai}</span></div>
+                                        <div class="bg-gray-800/30 rounded py-1"><span class="text-[10px] text-gray-500 block">IAO</span><span class="text-sm font-mono text-gray-300">{reporteResultados.iao}</span></div>
+                                        <div class="bg-gray-800/30 rounded py-1"><span class="text-[10px] text-gray-500 block">IAC</span><span class="text-sm font-mono text-gray-300">{reporteResultados.iac}</span></div>
+                                        <div class="bg-gray-800/30 rounded py-1"><span class="text-[10px] text-gray-500 block">IAM</span><span class="text-sm font-mono text-gray-300">{reporteResultados.iam}</span></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-1">Oximetría y Pulso</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-lg">
+                                            <span class="text-xs text-emerald-400 font-bold">Sat. Promedio</span>
+                                            <span class="text-xl font-bold text-white">{reporteResultados.saturacion_promedio}%</span>
+                                        </div>
+                                        <div class="flex items-center justify-between bg-rose-500/5 border border-rose-500/10 p-3 rounded-lg">
+                                            <span class="text-xs text-rose-400 font-bold">Pulso Promedio</span>
+                                            <span class="text-xl font-bold text-white">{reporteResultados.pulso_promedio} <span class="text-xs">bpm</span></span>
+                                        </div>
+                                        <div class="flex flex-col justify-center bg-gray-800/50 p-2 rounded-lg text-center">
+                                            <span class="text-[10px] text-gray-500 uppercase">Sat &lt; 90%</span>
+                                            <div class="flex justify-center gap-3 text-sm font-mono">
+                                                <span class="text-white">{reporteResultados.sat_90_min} min</span>
+                                                <span class="text-gray-600">|</span>
+                                                <span class="text-white">{reporteResultados.sat_90_porc}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div class="flex flex-col items-center justify-center py-8 text-center">
+                                <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <p class="text-gray-400 font-medium">Sin resultados registrados</p>
+                                <p class="text-sm text-gray-600 mb-4">No hay datos de polismnografía o estudio simplificado.</p>
+                                <button onclick="document.getElementById('modal-resultados').showModal()" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700">
+                                    Registrar ahora
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </InfoCard>
+            </section>
             
             <section id="tms" class="scroll-mt-32">
                 <InfoCard title="Protocolo TMS"> 
@@ -684,11 +844,20 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
             <section id="evaluacion" class="scroll-mt-32">
                 <InfoCard title="Enlaces de evaluación remota">
-                    <div class="mb-6">
-                        <p class="text-sm text-gray-400 mt-1">1. Selecciona la fase del tratamiento.</p>
-                        <p class="text-sm text-gray-400">2. Copia el enlace del cuestionario específico que deseas enviar.</p>
+                    <div class="flex flex-col justify-between items-start gap-6 md:flex-row">
+                        <div class="mb-6">
+                            <p class="text-sm text-gray-400 mt-1">1. Selecciona la fase del tratamiento.</p>
+                            <p class="text-sm text-gray-400">2. Copia el enlace del cuestionario específico que deseas enviar.</p>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <button onclick="document.getElementById('modal-copy-forms').showModal()" class="text-xs bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-600/50 px-3 py-1.5 rounded-lg transition-all flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                Copiar mensaje para el paciente
+                            </button>
+                        </div>
                     </div>
-                    
+
                     <div class="flex gap-2 p-1 bg-gray-800 rounded-lg w-fit mb-6">
                         <button onclick="setFase('pre')" id="btn-pre" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-blue-600 text-white shadow">Pre-Tratamiento</button>
                         <button onclick="setFase('inter')" id="btn-inter" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white">Intermedio</button>
@@ -819,6 +988,146 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
         </div>
     </main>
+
+    <dialog id="modal-copy-forms" class="bg-gray-900 border border-gray-700 rounded-3xl p-0 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-xl text-left m-auto outline-none">
+        <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                Enviar a Paciente
+            </h3>
+            <button onclick="document.getElementById('modal-copy-forms').close()" class="text-gray-500 hover:text-white transition-colors cursor-pointer text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-6 space-y-5">
+            <textarea id="texto-plantilla-wpp" class="w-full h-72 bg-gray-800/80 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:border-green-500 resize-none font-sans" readonly>{mensajeWhatsApp}</textarea>
+            
+            <button id="btn-copiar-plantilla" onclick="copiarMensajeWpp()" class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-green-900/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                Copiar Mensaje
+            </button>
+        </div>
+    </dialog>
+
+    <dialog id="modal-resultados" class="bg-gray-900 border border-gray-700 rounded-3xl p-0 shadow-2xl backdrop:backdrop-blur-xl w-full max-w-2xl text-left m-auto">
+        <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
+            <h3 class="text-xl font-bold text-white">Resultados de Estudio</h3>
+            <button onclick="document.getElementById('modal-resultados').close()" class="text-gray-500 hover:text-white transition-colors cursor-pointer text-2xl leading-none">&times;</button>
+        </div>
+        
+        <form method="POST" class="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+            <input type="hidden" name="action" value="registrar_reporte" />
+            
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Duración Registro</label>
+                    <div class="flex gap-2">
+                        <div class="relative w-full">
+                            <input type="number" name="dur_reg_h" placeholder="0" value={regTiempo.h} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-gray-500 text-sm">hr</span>
+                        </div>
+                        <div class="relative w-full">
+                            <input type="number" name="dur_reg_m" placeholder="0" value={regTiempo.m} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Duración Evaluación</label>
+                    <div class="flex gap-2">
+                        <div class="relative w-full">
+                            <input type="number" name="dur_eval_h" placeholder="0" value={evalTiempo.h} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-gray-500 text-sm">hr</span>
+                        </div>
+                        <div class="relative w-full">
+                            <input type="number" name="dur_eval_m" placeholder="0" value={evalTiempo.m} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6 mb-8">
+                <h4 class="text-sm font-bold text-white border-b border-gray-800 pb-2">Índices Respiratorios</h4>
+                
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs text-indigo-400 font-bold ml-1">IAH (Total)</label>
+                        <input type="number" step="0.1" name="iah" value={reporteResultados?.iah ?? ''} class="w-full bg-indigo-900/20 border border-indigo-500/50 rounded-lg p-2.5 text-white focus:border-indigo-400 outline-none font-bold" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-gray-400 ml-1">Índice Apneas</label>
+                        <input type="number" step="0.1" name="indice_apneas" value={reporteResultados?.indice_apneas ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-gray-400 ml-1">Índice Hipopneas</label>
+                        <input type="number" step="0.1" name="indice_hipopnea" value={reporteResultados?.indice_hipopnea ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-3 bg-gray-800/30 p-3 rounded-xl border border-gray-800">
+                    <div class="space-y-1 text-center">
+                        <label class="text-[10px] text-gray-500">IAI</label>
+                        <input type="number" step="0.1" name="iai" value={reporteResultados?.iai ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                    </div>
+                    <div class="space-y-1 text-center">
+                        <label class="text-[10px] text-gray-500">IAO</label>
+                        <input type="number" step="0.1" name="iao" value={reporteResultados?.iao ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                    </div>
+                    <div class="space-y-1 text-center">
+                        <label class="text-[10px] text-gray-500">IAC</label>
+                        <input type="number" step="0.1" name="iac" value={reporteResultados?.iac ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                    </div>
+                    <div class="space-y-1 text-center">
+                        <label class="text-[10px] text-gray-500">IAM</label>
+                        <input type="number" step="0.1" name="iam" value={reporteResultados?.iam ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h4 class="text-sm font-bold text-white border-b border-gray-800 pb-2">Oximetría y Eventos</h4>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs text-emerald-400 font-bold ml-1">Sat. Promedio</label>
+                        <div class="relative">
+                            <input type="number" name="saturacion_promedio" value={reporteResultados?.saturacion_promedio ?? ''} class="w-full bg-emerald-900/10 border border-emerald-500/30 rounded-lg p-2.5 text-white focus:border-emerald-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-emerald-500 text-sm">%</span>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-rose-400 font-bold ml-1">Pulso Promedio</label>
+                        <div class="relative">
+                            <input type="number" name="pulso_promedio" value={reporteResultados?.pulso_promedio ?? ''} class="w-full bg-rose-900/10 border border-rose-500/30 rounded-lg p-2.5 text-white focus:border-rose-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-rose-500 text-sm">bpm</span>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-gray-400 ml-1">Ronquidos</label>
+                        <div class="relative">
+                            <input type="number" name="ronquidos" value={reporteResultados?.ronquidos ?? ''} class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                            <span class="absolute right-3 top-2.5 text-gray-500 text-xs">evt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <div class="col-span-2 text-xs font-bold text-gray-500 uppercase">Desaturación &lt; 90%</div>
+                    <div class="relative">
+                        <input type="number" name="sat_90_min" value={reporteResultados?.sat_90_min ?? ''} placeholder="Minutos" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                    </div>
+                    <div class="relative">
+                        <input type="number" step="0.1" name="sat_90_porc" value={reporteResultados?.sat_90_porc ?? ''} placeholder="Porcentaje" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 mt-6 border-t border-gray-800 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-resultados').close()" class="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer font-medium">Cancelar</button>
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 transition-all cursor-pointer font-bold">Guardar Informe</button>
+            </div>
+        </form>
+    </dialog>
 
     <dialog id="modal-psqi-estudio" class="m-auto bg-gray-900 border border-purple-500 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center">
         <div class="mb-4 text-purple-400 flex justify-center">
@@ -1737,6 +2046,28 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
         contenido.innerHTML = html;
         modal.showModal();
+    }
+
+    window.copiarMensajeWpp = () => {
+        const textarea = document.getElementById('texto-plantilla-wpp');
+        const btn = document.getElementById('btn-copiar-plantilla');
+        
+        // Seleccionar y copiar el texto
+        textarea.select();
+        navigator.clipboard.writeText(textarea.value);
+        
+        // Feedback visual
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> ¡Mensaje Copiado!`;
+        btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+        btn.classList.add('bg-emerald-500');
+        
+        // Restaurar botón después de 2 segundos
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('bg-emerald-500');
+            btn.classList.add('bg-green-600', 'hover:bg-green-500');
+        }, 2000);
     }
 
     window.copiarLink = (inputId) => {
