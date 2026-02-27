@@ -16,6 +16,11 @@ export const changes = [
         type: "feature"
     },
     {
+        title: "Error HTTP 405",
+        description: "Se corrigió el error HTTP 405 que salía al intentar registrar pacientes o recargar la página.",
+        type: "fix"
+    },
+    {
         title: "¿Dónde duerme?",
         description: "Se corrigió un detalle en el que el campo no era obligatorio.",
         type: "fix"
