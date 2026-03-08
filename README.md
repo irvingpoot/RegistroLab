@@ -10,12 +10,13 @@
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Clerk](https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white)](https://clerk.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
 
 [![Deploy](https://img.shields.io/badge/▲_Vercel-Live-black?style=flat-square&logo=vercel)](https://pacientes-lab.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-[🌐 Ver demo en vivo](https://pacientes-lab.vercel.app) · [🐛 Reportar bug](https://github.com/irvingpoot/RegistroLab/issues) · [💡 Solicitar feature](https://github.com/irvingpoot/RegistroLab/issues)
+[🐛 Reportar bug](https://github.com/irvingpoot/RegistroLab/issues) · [💡 Solicitar feature](https://github.com/irvingpoot/RegistroLab/issues)
 
 </div>
 
@@ -46,6 +47,7 @@
 | [Astro](https://astro.build/) | Framework principal de frontend |
 | [TailwindCSS](https://tailwindcss.com/) | Estilos utilitarios y diseño |
 | [Clerk](https://clerk.com/) | Autenticación y gestión de usuarios |
+| [Supabase](https://supabase.com/) | Base de datos y backend (PostgreSQL) |
 | [TypeScript](https://www.typescriptlang.org/) | Tipado estático |
 | [pnpm](https://pnpm.io/) | Gestor de paquetes |
 
@@ -83,6 +85,9 @@ Crea un archivo `.env` en la raíz del proyecto con las siguientes claves (obten
 ```env
 PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
+
+PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
 ### Ejecutar en desarrollo
@@ -158,5 +163,5 @@ El proyecto está configurado para desplegarse en **Vercel** de forma automátic
 ---
 
 <div align="center">
-  <sub>Hecho con ❤️ usando Astro + TailwindCSS + Clerk</sub>
+  <sub>Hecho con ❤️ usando Astro + TailwindCSS + Clerk + Supabase</sub>
 </div>
