@@ -7,19 +7,21 @@
 
 import Layout from "../layouts/Layout.astro"
 import { createClient } from "@supabase/supabase-js"
-import { UserButton } from "@clerk/astro/components";
-import { clerkClient } from "@clerk/astro/server";
 import SystemUpdates from "../components/SystemUpdate.astro";
 import PatientTypeModal from "../components/PatientTypeModal.astro";
+import { getLocalUser } from "../utils/localUser";
 
-const user = await Astro.locals.currentUser();
-const nombreUsuario = user?.firstName || user?.username || "Usuario";
+const user = getLocalUser(Astro.cookies);
+
+if (!user) {
+    return Astro.redirect('/');
+}
+const nombreUsuario = user?.firstName || "Usuario";
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
-const client = clerkClient(Astro);
 
 const now = new Date();
 const offsetMerida = 6 * 60 * 60 * 1000; 
@@ -30,19 +32,6 @@ const day = String(nowMerida.getUTCDate()).padStart(2, '0');
 const fechaSQL = `${year}-${month}-${day}`;
 const inicioDia = `${fechaSQL}T00:00:00-06:00`;
 const finDia = `${fechaSQL}T23:59:59-06:00`;
-
-const usersPromise = (async () => {
-    try {
-        const response = await client.users.getUserList({
-            limit: 10,
-            orderBy: '-last_active_at'
-        });
-        return Array.isArray(response) ? response : (response.data || []);
-    } catch (e) {
-        console.error("Error usuarios:", e);
-        return [];
-    }
-})();
 
 const citasPromise = supabase
     .from('citas')
@@ -64,8 +53,7 @@ const notificacionesPromise = supabase
     .limit(10);
 
 
-const [usuariosRecientes, citasResult, notificacionesResult] = await Promise.all([
-    usersPromise, 
+const [citasResult, notificacionesResult] = await Promise.all([
     citasPromise, 
     notificacionesPromise
 ]);
@@ -153,7 +141,7 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                         <span class="relative inline-block">
                             <span class="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-500 blur-xl opacity-30 select-none" aria-hidden="true">{nombreUsuario}</span>
                             <span class="relative text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 filter drop-shadow-sm">
-                                {nombreUsuario} <UserButton />
+                                {nombreUsuario}
                             </span>
                         </span>
                     </h1>
@@ -161,6 +149,16 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                     <p class="text-gray-400 text-lg font-light max-w-lg leading-relaxed">
                         Que bueno tenerte de vuelta. ¿Qué quieres hacer hoy?
                     </p>
+
+                    <button 
+                        onclick="document.cookie='user_session=;path=/;max-age=0';window.location.href='/'"
+                        class="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-gray-400 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400 rounded-xl transition-all duration-300 text-sm font-bold group"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 group-hover:-translate-x-1 transition-transform">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                        </svg>
+                        Cambiar Usuario
+                    </button>
                 </div>
 
                 
@@ -168,36 +166,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                 <div class="hidden md:flex flex-col items-end gap-4 text-right">
                     
                     <div class="flex items-center gap-4">
-                        {usuariosRecientes.length > 0 && (
-                            <div class="relative w-60 h-12 bg-[#0f0f11]/60 border border-gray-800/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg group">
-                                <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
-                                <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
-                                <div class="flex items-center gap-4 py-2 px-4 animate-infinite-scroll w-max hover:[animation-play-state:paused]">
-                                    {usuariosRecientes.map((u) => (
-                                        <div class="flex items-center gap-2 shrink-0 select-none">
-                                            <div class="relative">
-                                                <img src={u.imageUrl} class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover" alt={u.firstName} />
-                                                <div class="absolute bottom-0 right-0 w-2 h-2 bg-[#0f0f11] rounded-full flex items-center justify-center">
-                                                    <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                                                </div>
-                                            </div>
-                                            <span class="text-xs font-medium text-gray-400 whitespace-nowrap">{u.firstName}</span>
-                                        </div>
-                                    ))}
-                                    {usuariosRecientes.map((u) => (
-                                        <div class="flex items-center gap-2 shrink-0 select-none" aria-hidden="true">
-                                            <div class="relative">
-                                                <img src={u.imageUrl} class="w-8 h-8 rounded-full border border-gray-700 bg-gray-800 object-cover" alt={u.firstName} />
-                                                <div class="absolute bottom-0 right-0 w-2 h-2 bg-[#0f0f11] rounded-full flex items-center justify-center">
-                                                    <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                                                </div>
-                                            </div>
-                                            <span class="text-xs font-medium text-gray-400 whitespace-nowrap">{u.firstName}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         <div class="relative group z-50">
                             <button class="relative p-3 text-gray-400 hover:text-white transition-colors rounded-full bg-gray-900/50 border border-gray-800 hover:bg-gray-800 hover:border-gray-700">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">

@@ -15,19 +15,24 @@
  */
 
 import Layout from "../layouts/Layout.astro"
-import Icon from "../components/Icon.astro"
 import { createClient } from "@supabase/supabase-js"
 import ReturnButton from "../components/ReturnButton.astro"
-import { clerkClient } from "@clerk/astro/server";
+import { getLocalUser } from "../utils/localUser";
+
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
 
-const user = await Astro.locals.currentUser();
+const user = getLocalUser(Astro.cookies);
+
+if (!user) {
+    return Astro.redirect('/');
+}
+
 const nombreRegistrador = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
+    ? `${user.firstName} ${user.lastName}`.trim() || "Usuario desconocido"
     : "Anónimo";
 
 const fechaParam = Astro.url.searchParams.get('fecha');
@@ -37,23 +42,7 @@ if (fechaParam) {
     fechaDefault = `${fechaParam}T09:00`;
 }
 
-let listaPsicologos = [];
-try {
-    const client = clerkClient(Astro);
-    const response = await client.users.getUserList({
-        limit: 20, // Ajusta si tienes más personal
-        orderBy: 'created_at' 
-    });
-    const users = Array.isArray(response) ? response : (response.data || []);
-    
-    // Mapeamos solo lo que nos interesa: El nombre completo
-    listaPsicologos = users.map(u => {
-        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
-        return nombre || u.username || u.emailAddresses[0].emailAddress; // Fallback si no tiene nombre
-    });
-} catch (e) {
-    console.error("Error cargando psicologos:", e);
-}
+let listaPsicologos = ["Dr. Juan Pérez", "Dra. Ana Gómez", "Dr. Carlos Ruiz"];
 
 let mensaje = "";
 let error = false;
@@ -112,7 +101,6 @@ if (Astro.request.method === "POST") {
 ---
 
 <Layout title="Agendar Nueva Cita | Lab-Somno">
-    <Icon />
     <ReturnButton href="/citas" text="Volver a la Agenda" />
 
     {registroExitoso && (

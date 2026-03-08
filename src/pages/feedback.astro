@@ -2,6 +2,7 @@
 import Layout from "../layouts/Layout.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
+import { getLocalUser } from "../utils/localUser";
 
 // --- 1. CONFIGURACIÓN Y SEGURIDAD ---
 const supabase = createClient(
@@ -9,14 +10,16 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// Verificación de Usuario (Clerk)
-const user = await Astro.locals.currentUser();
-if (!user) return Astro.redirect("/");
+const user = getLocalUser(Astro.cookies);
+
+if (!user) {
+    return Astro.redirect('/');
+}
 
 // Obtener nombre para mostrar
 const nombreAutor = user.firstName 
     ? `${user.firstName} ${user.lastName}`.trim() 
-    : user.username || "Usuario";
+    : "Usuario";
 
 // --- 2. LÓGICA BACKEND (POST) ---
 let mensaje = "";

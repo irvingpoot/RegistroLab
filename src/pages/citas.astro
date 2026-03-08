@@ -15,6 +15,7 @@ import Layout from "../layouts/Layout.astro"
 import CitaCard from "../components/CitaCard.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
+import { getLocalUser } from "../utils/localUser";
 
 // 1. CONFIGURACIÓN
 const supabase = createClient(
@@ -58,9 +59,13 @@ const nextLink = `?month=${nextDate.getMonth()}&year=${nextDate.getFullYear()}`;
 const startDateStr = new Date(currentYear, currentMonth, 1).toISOString();
 const endDateStr = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
 
-const user = await Astro.locals.currentUser();
+const user = getLocalUser(Astro.cookies);
+if (!user) {
+    return Astro.redirect('/');
+}
+
 const nombreRegistrador = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
+    ? `${user.firstName} ${user.lastName}`.trim()
     : "Sistema";
 
 // --- LÓGICA PARA ACTUALIZAR ESTADO ---

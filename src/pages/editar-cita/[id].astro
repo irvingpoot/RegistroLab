@@ -18,7 +18,6 @@
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
-import { clerkClient } from "@clerk/astro/server";
 
 const { id } = Astro.params;
 
@@ -32,18 +31,7 @@ const supabase = createClient(
 let mensaje = "";
 let error = false;
 
-let listaEspecialistas = [];
-try {
-    const client = clerkClient(Astro);
-    const response = await client.users.getUserList({ limit: 20 });
-    const users = Array.isArray(response) ? response : (response.data || []);
-    listaEspecialistas = users.map(u => {
-        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
-        return nombre || u.username || "Usuario Sin Nombre";
-    });
-} catch (e) {
-    console.error("Error users:", e);
-}
+let listaEspecialistas = ["Dr. Juan Pérez", "Dra. Ana Gómez", "Dr. Carlos Ruiz"];
 
 // Actualizar Datos (Si es POST)
 if (Astro.request.method === "POST") {

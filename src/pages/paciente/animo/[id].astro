@@ -9,6 +9,7 @@ import Layout from "../../../layouts/Layout.astro"
 import ReturnButton from "../../../components/ReturnButton.astro"
 import InfoCard from "../../../components/InfoCard.astro"
 import { createClient } from "@supabase/supabase-js"
+import { getLocalUser } from "../../../utils/localUser";
 
 const { id } = Astro.params;
 const supabase = createClient(
@@ -18,9 +19,14 @@ const supabase = createClient(
 
 if (!id) return Astro.redirect("/lista");
 
-const user = await Astro.locals.currentUser();
+const user = getLocalUser(Astro.cookies);
+
+if (!user) {
+    return Astro.redirect('/');
+}
+
 const nombreAutor = user 
-? `${user.firstName} ${user.lastName}`.trim() || user.username 
+? `${user.firstName} ${user.lastName}`.trim()
 : "Sistema";
 
 const msgParam = Astro.url.searchParams.get('mensaje');

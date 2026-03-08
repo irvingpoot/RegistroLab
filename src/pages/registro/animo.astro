@@ -6,19 +6,24 @@
  */
 
 import Layout from "../../layouts/Layout.astro"
-import Icon from "../../components/Icon.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import SintomaGroup from "../../components/SintomaGroup.astro"
 import { createClient } from "@supabase/supabase-js"
+import { getLocalUser } from "../../utils/localUser";
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
 
-const user = await Astro.locals.currentUser();
+const user = getLocalUser(Astro.cookies);
+
+if (!user) {
+    return Astro.redirect('/');
+}
+
 const nombreRegistrador = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
+    ? `${user.firstName} ${user.lastName}`.trim() || "Usuario desconocido"
     : "Anónimo";
 
 let mensaje = "";
@@ -257,7 +262,6 @@ if (Astro.request.method === "POST") {
 ---
 
 <Layout title="Registro: Estado de Ánimo | Lab-Somno">
-    <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
 
     {registroExitoso && (

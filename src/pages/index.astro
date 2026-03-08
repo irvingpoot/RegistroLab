@@ -1,64 +1,87 @@
 ---
-
-/**
- * @file index.astro
- * @description Página de aterrizaje (Landing Page) y Login.
- * * AUTENTICACIÓN (Clerk):
- * - Actúa como el "Gatekeeper" de la aplicación.
- * - Utiliza componentes de `@clerk/astro` para gestionar el estado de sesión.
- * * ESTADOS:
- * 1. No Autenticado (`<SignIn />`): Muestra el formulario de inicio de sesión de Clerk.
- * 2. Autenticado (`<SignedIn />`): Muestra un mensaje de transición ("Redirigiendo...").
- */
-
+// src/pages/index.astro
 import Layout from '../layouts/Layout.astro';
-import {
-	SignedIn,
-	SignIn
-} from '@clerk/astro/components';
+
+const usuarios = [
+    { id: "irvingpoot", nombre: "Irving", lastName: "Poot", avatar:"https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzM4UERLeVFyektNc2lWM21xcUVneENIUXB6MCJ9", color:"group-hover:ring-blue-500" },
+    { id: "lizcristobal", nombre: "Liz", lastName: "Cristóbal", avatar:"https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzM4MXNBd2gwUjNha2xqTlBGSjZZRWNHV21TVCJ9", color:"group-hover:ring-blue-500" },
+    { id: "jesusmoo", nombre: "Jesús", lastName: "Moo", avatar:"https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCIsImlpZCI6Imluc18zMmwyUmJNdkxPemFPNWtNd1Z4ZVduMkc5QkkiLCJyaWQiOiJ1c2VyXzMycHhaaEVZY2xsTW9EZUtCSmpKSldPU0VhdCIsImluaXRpYWxzIjoiSk0ifQ", color:"group-hover:ring-purple-500" },
+    { id: "jacqiravell", nombre: "Jacquelin", lastName: "Ravell", avatar:"https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCIsImlpZCI6Imluc18zMmwyUmJNdkxPemFPNWtNd1Z4ZVduMkc5QkkiLCJyaWQiOiJ1c2VyXzM4TGdsa0VBeGZZT3VWdXlFM1lhWVZnUUVGaCIsImluaXRpYWxzIjoiSlIifQ", color:"group-hover:ring-pink-500" },
+    { id: "sorayashurair", nombre: "Soraya", lastName: "Shurair", avatar:"https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzM4TGdGM0NEV29ibHoxcDVDUjl1alVlc1E4biJ9", color:"group-hover:ring-yellow-500" },
+    { id: "litzybalam", nombre: "Litzy", lastName: "Balam", avatar:"https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzM4YTR3akZvVEdTcXpaRjRrT0NGY2FndnVWciJ9", color:"group-hover:ring-red-500" },
+    { id: "fridaflores", nombre: "Frida", lastName: "Flores", avatar:"https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzM4d1pYVXdKTjVPQVFYRVR6UUJTa1gxVUd4eiJ9", color:"group-hover:ring-green-500" }
+];
 ---
 
-<Layout title="Lab-Somno"> 
-	<div class="flex flex-col min-h-screen">
-		<main class="flex-grow max-w-2xl mx-auto py-12 text-center">
-		<div class="flex flex-col items-center justify-center">
-			<h1 class="text-7xl font-extrabold">Laboratorio del <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">sueño</span></h1>
-			<h2 class="text-3xl py-15">Te damos la bienvenida al registro de pacientes</h2>
-			<SignIn />
-		</div>
-		<div>
-			<SignedIn>
-				<div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
-					
-					<div class="relative flex items-center justify-center mb-8">
-						<div class="absolute -inset-4 bg-blue-500/30 rounded-full blur-xl animate-pulse"></div>
-						
-						<div class="w-16 h-16 border-4 border-blue-900 border-t-blue-400 rounded-full animate-spin"></div>
-						
-						<div class="absolute text-blue-400">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-							</svg>
-						</div>
-					</div>
+<Layout title="Lab-Somno | Selección de Perfil">
+    <div class="relative flex flex-col min-h-screen text-white overflow-hidden">
+        
+        <div id="loader" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0f172a] opacity-0 pointer-events-none transition-opacity duration-500">
+            <div class="relative">
+                <img id="loader-avatar" src="" class="w-32 h-32 md:w-44 md:h-44 rounded-2xl border-4 border-blue-500 shadow-[0_0_50px_rgba(37,99,235,0.3)] animate-pulse" />
+                <div class="absolute -bottom-12 left-1/2 -translate-x-1/2">
+                    <div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+            </div>
+            <h2 id="loader-name" class="mt-20 text-2xl font-bold tracking-widest uppercase animate-pulse">Iniciando Sesión...</h2>
+        </div>
 
-					<h2 class="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">
-						Iniciando Sesión
-					</h2>
-					
-					<p class="text-blue-400/80 font-mono text-sm uppercase tracking-widest animate-pulse">
-						Accediendo al sistema...
-					</p>
+        <main id="main-content" class="flex-grow flex flex-col items-center justify-center px-6 relative z-10 transition-transform duration-700">
+            <div class="text-center mb-16">
+                <h1 class="text-4xl md:text-5xl font-black tracking-tight mb-4">¿Quién está trabajando <span class="text-blue-500">hoy?</span></h1>
+                <p class="text-gray-400 text-lg">Selecciona tu perfil para acceder al sistema</p>
+            </div>
 
-				</div>
-			</SignedIn>
-		</div>
-		</main>
-
-		<footer class="text-center pb-7">
-			<h3>
-				&copy; {new Date().getFullYear()} Laboratorio del sueño - UADY
-			</h3>
-		</footer>
-	</div>
+            <div class="flex flex-wrap justify-center gap-8 md:gap-12 max-w-5xl">
+                {usuarios.map((user) => (
+                    <button 
+                        class="group flex flex-col items-center gap-4 transition-all duration-300"
+                        onclick={`iniciarSesion('${user.id}', '${user.nombre}', '${user.avatar}')`}
+                    >
+                        <div class="relative">
+                            <div class={`w-32 h-32 md:w-44 md:h-44 rounded-2xl overflow-hidden ring-4 ring-transparent transition-all duration-300 transform group-hover:scale-105 group-hover:ring-offset-4 group-hover:ring-offset-[#0f172a] shadow-2xl ${user.color}`}>
+                                <img src={user.avatar} alt={user.nombre} class="w-full h-full object-cover" />
+                            </div>
+                        </div>
+                        <h3 class="text-lg md:text-xl font-bold text-gray-400 group-hover:text-white transition-colors">{user.nombre}</h3>
+                    </button>
+                ))}
+            </div>
+        </main>
+    </div>
 </Layout>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<script is:inline>
+    function iniciarSesion(id, nombre, avatar) {
+        const loader = document.getElementById('loader');
+        const mainContent = document.getElementById('main-content');
+        const loaderAvatar = document.getElementById('loader-avatar');
+        const loaderName = document.getElementById('loader-name');
+
+        loaderAvatar.src = avatar;
+        loaderName.innerText = `Hola, ${nombre}`;
+
+        document.cookie = `user_session=${id}; path=/; max-age=${60 * 60 * 24 * 7}`;
+
+        mainContent.style.transform = 'scale(0.9) translateY(20px)';
+        mainContent.style.opacity = '0';
+        
+        loader.classList.remove('opacity-0', 'pointer-events-none');
+        loader.classList.add('opacity-100');
+
+        setTimeout(() => {
+            window.location.href = '/dashboard';
+        }, 1200);
+    }
+</script>
