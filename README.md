@@ -142,6 +142,15 @@ El proyecto está configurado para desplegarse en **Vercel** de forma automátic
 
 ---
 
+## 🔗 Versiones del proyecto
+
+| Versión | Repositorio | Descripción |
+|---|---|---|
+| 🖥️ Desktop | [RegistroLab - Desktop](https://github.com/irvingpoot/RegistroLab-Desktop) | App instalable para Windows |
+| 🌐 Web | Este repositorio | Desplegada en Vercel |
+
+---
+
 ## 🤝 Contribuciones
 
 ¡Las contribuciones son bienvenidas! Si tienes ideas o encuentras algún bug:
