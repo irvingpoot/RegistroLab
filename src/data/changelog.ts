@@ -1,28 +1,23 @@
-export const currentVersion = "2.5.2";
+export const currentVersion = "3.0.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "23 de Febrero del 2026";
+export const updateDate = "09 de Marzo del 2026";
 
 export const changes = [
     {
-        title: "Reporte de poligrafía",
-        description: "Se agregó una sección para guardar los datos del reporte de poligrafía.",
+        title: "Lanzamiento App de Escritorio",
+        description: "Se habilita la versión instalable para Windows como alternativa de alto rendimiento para procesos pesados y respaldo operativo.",
         type: "feature"
     },
     {
-        title: "Mensaje copy-paste",
-        description: "Se agregó un botón para copiar un mensaje con todos los formularios.",
+        title: "Integración Web-Escritorio",
+        description: "Implementación de Deep Linking para abrir la aplicación de escritorio directamente desde un botón en el dashboard.",
         type: "feature"
     },
     {
-        title: "Error HTTP 405",
-        description: "Se corrigió el error HTTP 405 que salía al intentar registrar pacientes o recargar la página.",
-        type: "fix"
-    },
-    {
-        title: "¿Dónde duerme?",
-        description: "Se corrigió un detalle en el que el campo no era obligatorio.",
-        type: "fix"
+        title: "Acceso Local Optimizado",
+        description: "La versión de escritorio incluye un selector de perfiles exclusivo que permite operar con mayor estabilidad ante fallos de internet.",
+        type: "feature"
     }
 ];
