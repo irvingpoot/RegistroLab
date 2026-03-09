@@ -11,6 +11,7 @@ import { UserButton } from "@clerk/astro/components";
 import { clerkClient } from "@clerk/astro/server";
 import SystemUpdates from "../components/SystemUpdate.astro";
 import PatientTypeModal from "../components/PatientTypeModal.astro";
+import ExternalLinkIcon from "../components/icons/ExternalLinkIcon.astro";
 
 const user = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
@@ -142,10 +143,10 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                 <div class="space-y-3">
                     <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest w-fit backdrop-blur-sm">
                         <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                         </span>
-                        Panel de Control
+                        Panel de Control - Lab-Somno
                     </div>
 
                     <h1 class="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight">
@@ -161,9 +162,14 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                     <p class="text-gray-400 text-lg font-light max-w-lg leading-relaxed">
                         Que bueno tenerte de vuelta. ¿Qué quieres hacer hoy?
                     </p>
-                </div>
 
-                
+                    <a href="labsomno://" class="flex items-center justify-center px-3 py-3 w-50 rounded-2xl font-semibold border border-gray-800 backdrop-blur-md hover:border-teal-400 hover:scale-105 transition-all duration-300 shadow-lg shadow-black/20">
+                        <span class="flex flex-row justify-center items-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 filter drop-shadow-sm">
+                            Abrir Lab-Somno App <ExternalLinkIcon class="w-4 h-4 ml-1 text-teal-400" />
+                        </span>
+                    </a>
+
+                </div>
 
                 <div class="hidden md:flex flex-col items-end gap-4 text-right">
                     
