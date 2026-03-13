@@ -27,7 +27,7 @@ const supabase = createClient(
 // 1. RECUPERAR PARÁMETROS (Búsqueda y Paginación)
 const busqueda = Astro.url.searchParams.get('q') || '';
 const page = parseInt(Astro.url.searchParams.get('page') || '1');
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 const from = (page - 1) * PAGE_SIZE;
 const to = from + PAGE_SIZE - 1;
 
