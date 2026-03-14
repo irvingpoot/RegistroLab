@@ -6,6 +6,11 @@ export const updateDate = "13 de Marzo del 2026";
 
 export const changes = [
     {
+        title: "Lista de tareas pendientes",
+        description: "Se agregó la funcionalidad para poder crear, asignar y gestionar tareas pendientes del laboratorio.",
+        type: "feature"
+    },
+    {
         title: "Días inhabiles",
         description: "Se agregó la funcionalidad para marcar o desmarcar días inhábiles o vacacionales.",
         type: "feature"
