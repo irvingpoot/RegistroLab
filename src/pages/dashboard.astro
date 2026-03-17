@@ -375,19 +375,35 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[180px]">
 
-            <a href="/citas" class="group relative md:col-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-8 overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/20 hover:scale-[1.01]">
+            <a href="/citas" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-8 overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/20 hover:scale-[1.01]">
                 <div class="absolute top-0 right-0 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-purple-600/30"></div>
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <div class="p-3 bg-purple-500/20 rounded-2xl text-purple-300 group-hover:text-white group-hover:bg-purple-500 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" /></svg>
                         </div>
                         <span class="px-3 py-1 bg-white/5 rounded-full text-xs font-medium text-gray-400 border border-white/5 group-hover:border-purple-500/30 transition-colors">Gestión de Citas</span>
                     </div>
                     <div>
-                        <h3 class="text-3xl font-bold text-white mb-1 group-hover:translate-x-1 transition-transform">Agenda</h3>
+                        <h3 class="text-2xl font-bold text-white mb-1 group-hover:translate-x-1 transition-transform">Agenda</h3>
                         <p class="text-gray-400 group-hover:text-purple-200 transition-colors">Visualizar calendario y citas pendientes</p>
+                    </div>
+                </div>
+            </a>
+
+            <a href="/pendientes/lista-pendientes" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-lime-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-lime-900/20 hover:scale-[1.01]">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-lime-500/20"></div>
+                
+                <div class="relative z-10 h-full flex flex-col justify-between">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2.5 bg-lime-500/20 rounded-xl text-lime-300 group-hover:text-white group-hover:bg-lime-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-checklist"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9.615 20h-2.615a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8" /><path d="M14 19l2 2l4 -4" /><path d="M9 8h4" /><path d="M9 12h2" /></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white group-hover:text-lime-200 transition-colors">Tareas pendientes</h3>
+                        <p class="text-xs text-gray-400 mt-1">Gestionar las tareas pendientes por hacer</p>
                     </div>
                 </div>
             </a>
