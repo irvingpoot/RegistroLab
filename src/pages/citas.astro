@@ -355,7 +355,7 @@ citasRaw?.forEach((cita) => {
         </div>
     </main>
 
-    <div id="citas-store" class="hidden" style="content-visibility: auto;">
+    <dialog id="citas-store" class="hidden" style="content-visibility: auto;">
         {Array.from(citasPorDia.entries()).map(([dia, citas]) => (
             <div data-day={dia} class="space-y-4">
                 {citas.map((cita: any) => (
@@ -363,7 +363,7 @@ citasRaw?.forEach((cita) => {
                 ))}
             </div>
         ))}
-    </div>
+    </dialog>
 
     <dialog id="modal-periodo" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-md text-left p-0 overflow-hidden outline-none">
         <div class="relative bg-gray-800/30 p-6 border-b border-gray-700/50 flex justify-between items-center">

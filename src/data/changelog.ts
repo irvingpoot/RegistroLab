@@ -1,4 +1,4 @@
-export const currentVersion = "3.1.1";
+export const currentVersion = "3.2.0";
 
 export const isMajorUpdate = true;
 
@@ -18,6 +18,11 @@ export const changes = [
     {
         title: "Resultados Berlín",
         description: "Se corrigió un error en donde la tercera categoría no se mostraba correctamente si era positiva.",
+        type: "fix"
+    },
+    {
+        title: "Scroll con modal abierto",
+        description: "Se corrigió un bug en el que la página se desplazaba mientras algún modal estaba abierto.",
         type: "fix"
     },
     {
