@@ -44,7 +44,7 @@ if (Astro.request.method === "POST") {
         }
 
         if (accion === "completar_tarea") {
-            const idTarea = parseInt(data.get("id_tarea") as string);
+            const idTarea = data.get("id_tarea") as string; 
             await completarTarea(idTarea, nombreCreador as string);
         }
 

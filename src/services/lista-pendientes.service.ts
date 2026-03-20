@@ -9,7 +9,7 @@
 import { supabase } from "../lib/supabase";
 
 export interface Tarea {
-    id: number;
+    id: string;
     titulo: string;
     descripcion: string | null;
     responsable: string;
@@ -60,7 +60,7 @@ export async function crearTarea(params: {
     if (error) throw new Error(`crearTarea: ${error.message}`);
 }
 
-export async function completarTarea(idTarea: number, completadoPor: string): Promise<void> {
+export async function completarTarea(idTarea: string, completadoPor: string): Promise<void> { // <-- idTarea: string
     const { error } = await supabase
         .from("tareas_pendientes")
         .update({
