@@ -39,7 +39,7 @@ if (Astro.request.method === "POST") {
         }
 
         if (action === "completar_tarea_sidebar") {
-            const idTarea = parseInt(formData.get("id_tarea") as string);
+            const idTarea = formData.get("id_tarea") as string;
             await completarTarea(idTarea, nombreCompleto as string);
         }
     } catch (e) {
