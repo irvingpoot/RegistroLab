@@ -2,133 +2,65 @@
 /**
  * @file dashboard.astro
  * @description Panel de control principal del usuario.
- * OPTIMIZACIÓN: Se implementó Promise.all para cargar usuarios y citas en paralelo.
+ *
+ * La lógica de acceso a datos vive en: src/services/dashboard.service.ts
  */
 
 import Layout from "../layouts/Layout.astro"
-import { createClient } from "@supabase/supabase-js"
 import { UserButton } from "@clerk/astro/components";
-import { clerkClient } from "@clerk/astro/server";
 import SystemUpdates from "../components/SystemUpdate.astro";
 import PatientTypeModal from "../components/PatientTypeModal.astro";
 import ExternalLinkIcon from "../components/icons/ExternalLinkIcon.astro";
+import {
+    getCitasHoy,
+    getNotificaciones,
+    getUsuariosRecientes,
+    marcarTodasLeidas,
+} from "../services/dashboard.service";
+import {
+    getTareasDeUsuario,
+    completarTarea,
+} from "../services/lista-pendientes.service";
 
-const user = await Astro.locals.currentUser();
+const user          = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
-
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
-const client = clerkClient(Astro);
-
-const now = new Date();
-const offsetMerida = 6 * 60 * 60 * 1000; 
-const nowMerida = new Date(now.getTime() - offsetMerida);
-const year = nowMerida.getUTCFullYear();
-const month = String(nowMerida.getUTCMonth() + 1).padStart(2, '0');
-const day = String(nowMerida.getUTCDate()).padStart(2, '0');
-const fechaSQL = `${year}-${month}-${day}`;
-const inicioDia = `${fechaSQL}T00:00:00-06:00`;
-const finDia = `${fechaSQL}T23:59:59-06:00`;
-
-const usersPromise = (async () => {
-    try {
-        const response = await client.users.getUserList({
-            limit: 10,
-            orderBy: '-last_active_at'
-        });
-        return Array.isArray(response) ? response : (response.data || []);
-    } catch (e) {
-        console.error("Error usuarios:", e);
-        return [];
-    }
-})();
-
-const citasPromise = supabase
-    .from('citas')
-    .select('id, fecha_hora, nombre, estado') 
-    .gte('fecha_hora', inicioDia)
-    .lte('fecha_hora', finDia)
-    .order('fecha_hora', { ascending: true });
-
-const notificacionesPromise = supabase
-    .from('respuestas_cuestionarios')
-    .select(`
-        id,
-        cuestionario,
-        updated_at,
-        pacientes ( id, nombre, tipo_paciente )
-    `)
-    .eq('visto', false)
-    .order('updated_at', { ascending: false })
-    .limit(10);
+const nombreCompleto = user
+    ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || ""
+    : "";
 
 
-const [usuariosRecientes, citasResult, notificacionesResult] = await Promise.all([
-    usersPromise, 
-    citasPromise, 
-    notificacionesPromise
-]);
-
-const { data: dataCitas, error } = citasResult;
-if (error) console.error("Error Dashboard:", error);
-
-const notificaciones = notificacionesResult.data || [];
-const hayNotificaciones = notificaciones.length > 0;
-
-
-const citasHoy = dataCitas || [];
-const totalCitasHoy = citasHoy.length;
-const citasPendientes = citasHoy.filter(c => c.estado === 'pendiente');
-const cantidadPendientes = citasPendientes.length;
-
-let proximaHora = "--:--";
-let proximaNombre = "";
-let estadoAgenda = "vacio";
-
-if (cantidadPendientes > 0) {
-    const siguiente = citasPendientes[0];
-    estadoAgenda = "pendiente";
-    proximaNombre = siguiente.nombre || "Paciente";
-    
-    if (siguiente.fecha_hora) {
-        const dateObj = new Date(siguiente.fecha_hora);
-        proximaHora = dateObj.toLocaleTimeString('es-MX', { 
-            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Merida'
-        });
-    }
-} else if (totalCitasHoy > 0) {
-    estadoAgenda = "completado";
-    proximaNombre = "Todas las citas finalizadas";
-}
-
-// --- MARCAR TODO COMO VISTO ---
 if (Astro.request.method === "POST") {
     try {
         const formData = await Astro.request.formData();
-        const action = formData.get("action");
+        const action   = formData.get("action");
 
         if (action === "mark_all_read") {
-            // Actualizamos TODAS las notificaciones no vistas a true
-            const { error } = await supabase
-                .from('respuestas_cuestionarios')
-                .update({ visto: true })
-                .eq('visto', false);
-            
-            if (!error) {
-                // Recargamos para limpiar la UI
-                return Astro.redirect(Astro.url.href);
-            }
+            await marcarTodasLeidas();
+        }
+
+        if (action === "completar_tarea_sidebar") {
+            const idTarea = parseInt(formData.get("id_tarea") as string);
+            await completarTarea(idTarea, nombreCompleto as string);
         }
     } catch (e) {
         console.error("Error marcando notificaciones:", e);
     }
+    return Astro.redirect(Astro.url.href);
 }
 
-const fechaHoyTexto = new Date().toLocaleDateString('es-MX', { 
-    timeZone: 'America/Merida',
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+const [agenda, notificaciones, usuariosRecientes, tareasUsuario] = await Promise.all([
+    getCitasHoy(),
+    getNotificaciones(),
+    getUsuariosRecientes(Astro),
+    getTareasDeUsuario(nombreCompleto as string),
+]);
+
+const { totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaNombre } = agenda;
+const hayNotificaciones = notificaciones.length > 0;
+
+const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
+    timeZone: "America/Merida",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
 });
 ---
 
@@ -168,7 +100,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                             Abrir Lab-Somno App <ExternalLinkIcon class="w-4 h-4 ml-1 text-teal-400" />
                         </span>
                     </a>
-
                 </div>
 
                 <div class="hidden md:flex flex-col items-end gap-4 text-right">
@@ -236,7 +167,7 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                                 </div>
                                 <div class="max-h-64 overflow-y-auto py-1 custom-scrollbar text-left">
                                     {hayNotificaciones ? (
-                                        notificaciones.map((notif: any) => (
+                                        notificaciones.map((notif) => (
                                             <a 
                                                 href={`/paciente/${notif.pacientes?.tipo_paciente || 'sueno'}/${notif.pacientes?.id}?marcar_leido=${notif.id}#evaluacion`}
                                                 class="block px-4 py-3 hover:bg-white/5 border-b border-gray-800/50 last:border-0 transition-colors"
@@ -279,7 +210,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
 
         <div class="mb-10 animate-fade-in-up">
             {totalCitasHoy > 0 ? (
-                // CASO A: HAY CITAS HOY (Pendientes o Terminadas)
                 <div class={`relative overflow-hidden rounded-2xl border p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg transition-all duration-500 ${
                     estadoAgenda === 'completado' 
                         ? 'bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border-emerald-500/30 shadow-emerald-900/10' 
@@ -352,7 +282,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
                     </div>
                 </div>
             ) : (
-                // CASO B: NO HAY CITAS (Día Libre)
                 <div class="relative overflow-hidden rounded-2xl bg-gray-800/40 border border-gray-700/50 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div class="flex items-center gap-5">
                         <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
@@ -545,6 +474,69 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
         </div>
 
     </main>
+
+    <aside class="hidden xl:block absolute top-28 right-12 w-64 z-40">
+        <div class="bg-gray-900/70 border border-white/8 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]"></div>
+                    <span class="text-[11px] font-bold text-gray-300 uppercase tracking-widest">Mis tareas</span>
+                    {tareasUsuario.length > 0 && (
+                        <span class="text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                            {tareasUsuario.length}
+                        </span>
+                    )}
+                </div>
+                <a href="/pendientes/lista-pendientes" class="text-[10px] font-bold text-gray-500 hover:text-blue-400 transition-colors uppercase tracking-wider">
+                    Ver todas
+                </a>
+            </div>
+            {tareasUsuario.length > 0 ? (
+                <div class="flex flex-col divide-y divide-white/5">
+                    {tareasUsuario.map((tarea) => (
+                        <div class="group flex items-center gap-3 px-4 py-3 hover:bg-white/4 transition-colors duration-150">
+                            <!-- Check button -->
+                            <form method="POST" class="m-0 shrink-0">
+                                <input type="hidden" name="action" value="completar_tarea_sidebar" />
+                                <input type="hidden" name="id_tarea" value={tarea.id} />
+                                <button
+                                    type="submit"
+                                    title="Marcar como completada"
+                                    class="w-4 h-4 rounded-full border border-gray-600 group-hover:border-emerald-500 hover:bg-emerald-500/15 flex items-center justify-center transition-all duration-150 cursor-pointer shrink-0"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-2.5 h-2.5 text-transparent group-hover:text-emerald-400 transition-colors">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </form>
+                            <p class="text-xs text-gray-400 group-hover:text-gray-200 transition-colors leading-snug line-clamp-2 flex-1 min-w-0">
+                                {tarea.titulo}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
+                    <div class="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-emerald-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                    </div>
+                    <p class="text-xs font-medium text-gray-500">¡Sin pendientes!</p>
+                </div>
+            )}
+            <div class="px-4 py-3 border-t border-white/5">
+                <a
+                    href="/pendientes/lista-pendientes"
+                    class="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-white/4 hover:bg-white/8 border border-white/6 hover:border-white/10 text-[11px] font-semibold text-gray-500 hover:text-gray-300 transition-all duration-150"
+                >
+                    Ver todas las tareas
+                </a>
+            </div>
+        </div>
+    </aside>
+
     <SystemUpdates />
     <PatientTypeModal />
 </Layout>
@@ -557,7 +549,6 @@ const fechaHoyTexto = new Date().toLocaleDateString('es-MX', {
     .animate-infinite-scroll {
         animation: scroll 20s linear infinite;
     }
-    /* Pausar al pasar el mouse para ver detalles */
     .animate-infinite-scroll:hover {
         animation-play-state: paused;
     }
