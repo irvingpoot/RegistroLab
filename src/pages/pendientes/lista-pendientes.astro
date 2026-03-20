@@ -2,96 +2,71 @@
 /**
  * @file pendientes.astro
  * @description Módulo de tareas y pendientes del laboratorio.
+ *
+ * La lógica de acceso a datos vive en: src/services/pendientes.service.ts
  */
 
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
-import { createClient } from "@supabase/supabase-js"
 import { clerkClient } from "@clerk/astro/server"
+import { getTareasPendientes, crearTarea, completarTarea } from "../../services/lista-pendientes.service"
 
-// 1. CONFIGURACIÓN SUPABASE
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
-
-// 2. OBTENER USUARIO ACTUAL Y LISTA DEL PERSONAL (CLERK)
 const currentUser = await Astro.locals.currentUser();
-const nombreCreador = currentUser 
-    ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username 
+const nombreCreador = currentUser
+    ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || currentUser.username
     : "Sistema";
 
-// Obtenemos todos los usuarios de Clerk
 const userList = await clerkClient(Astro).users.getUserList();
-
 
 const listaPersonal: string[] = [];
 const mapaAvatares: Record<string, string> = {};
+
 userList.data.forEach(u => {
-    const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username;
+    const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username;
     if (nombre) {
         listaPersonal.push(nombre);
-        mapaAvatares[nombre] = u.imageUrl; // Guardamos la foto de Clerk
+        mapaAvatares[nombre] = u.imageUrl;
     }
 });
 
-// 3. PROCESAR FORMULARIOS (CREAR O COMPLETAR TAREA)
 if (Astro.request.method === "POST") {
     try {
-        const data = await Astro.request.formData();
+        const data   = await Astro.request.formData();
         const accion = data.get("accion");
 
         if (accion === "crear_tarea") {
-            const titulo = data.get("titulo") as string;
-            const descripcion = data.get("descripcion") as string;
-            const responsable = data.get("responsable") as string;
-
-            await supabase.from('tareas_pendientes').insert({
-                titulo,
-                descripcion,
-                responsable,
-                creado_por: nombreCreador,
-                estado: 'pendiente'
+            await crearTarea({
+                titulo:      data.get("titulo")      as string,
+                descripcion: data.get("descripcion") as string,
+                responsable: data.get("responsable") as string,
+                creadoPor:   nombreCreador as string,
             });
-            
-            return Astro.redirect('/pendientes/lista-pendientes');
         }
 
         if (accion === "completar_tarea") {
-            const idTarea = data.get("id_tarea");
-            
-            await supabase.from('tareas_pendientes').update({ 
-                estado: 'completada',
-                completado_por: nombreCreador,
-                completado_el: new Date().toISOString()
-            }).eq('id', idTarea);
-            
-            return Astro.redirect('/pendientes/lista-pendientes');
+            const idTarea = parseInt(data.get("id_tarea") as string);
+            await completarTarea(idTarea, nombreCreador as string);
         }
+
     } catch (error) {
         console.error("Error procesando tarea:", error);
     }
+
+    return Astro.redirect("/pendientes/lista-pendientes");
 }
 
-// 4. OBTENER TAREAS PENDIENTES
-const { data: tareas, error } = await supabase
-    .from('tareas_pendientes')
-    .select('*')
-    .eq('estado', 'pendiente')
-    .order('creado_el', { ascending: false });
-
-if (error) console.error("Error fetching tareas:", error);
+const tareas = await getTareasPendientes();
 
 const getInitials = (name: string) => {
-    if (!name) return '?';
-    const words = name.trim().split(' ');
+    if (!name) return "?";
+    const words = name.trim().split(" ");
     if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
 };
 
 const formatCorto = (fechaStr: string) => {
-    if (!fechaStr) return '';
-    return new Date(fechaStr).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+    if (!fechaStr) return "";
+    return new Date(fechaStr).toLocaleDateString("es-MX", { month: "short", day: "numeric" });
 };
 ---
 
@@ -121,7 +96,7 @@ const formatCorto = (fechaStr: string) => {
             </div>
         </div>
 
-        {tareas && tareas.length > 0 ? (
+        {tareas.length > 0 ? (
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tareas.map((tarea) => (
                     <div class="bg-slate-900 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-5 hover:bg-gray-800/90 hover:border-blue-500/50 transition-all duration-300 shadow-lg hover:shadow-blue-900/20 flex flex-col h-full relative group hover:-translate-y-1">
@@ -137,7 +112,7 @@ const formatCorto = (fechaStr: string) => {
                         </div>
 
                         <p class="text-gray-400 text-sm mb-6 flex-grow text-pretty whitespace-pre-wrap line-clamp-3 group-hover:line-clamp-none transition-all">
-                            {tarea.descripcion || 'Sin descripción adicional.'}
+                            {tarea.descripcion || "Sin descripción adicional."}
                         </p>
 
                         <div class="flex items-center justify-between mt-auto mb-5 pt-4 border-t border-gray-700/50">

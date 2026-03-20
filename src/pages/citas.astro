@@ -9,206 +9,105 @@
  * - Renderizado: Genera una cuadrícula de días reales + días de relleno (padding)
  * para alinear correctamente el primer día del mes (Lunes, Martes, etc.).
  * - Interactividad: Usa <dialog> nativo para ver los detalles de las citas de un día.
+ *
+ * La lógica de acceso a datos vive en: src/services/citas.service.ts
  */
 
 import Layout from "../layouts/Layout.astro"
 import CitaCard from "../components/CitaCard.astro"
 import ReturnButton from "../components/ReturnButton.astro"
-import { createClient } from "@supabase/supabase-js"
-
-// 1. CONFIGURACIÓN
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
+import {
+    getCitasDelMes,
+    getDiasInhabilesDelMes,
+    completarCita,
+    cancelarCita,
+    reagendarCita,
+    toggleDiaInhabil,
+    procesarPeriodoInhabil,
+    type CitaResumen,
+} from "../services/citas.service"
 
 const getMeridaDate = () => {
     const d = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Merida',
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric'
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Merida",
+        year: "numeric", month: "numeric", day: "numeric",
     });
     const parts = formatter.formatToParts(d);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    const year  = parseInt(parts.find(p => p.type === "year")?.value  || "0");
+    const month = parseInt(parts.find(p => p.type === "month")?.value || "0") - 1;
+    const day   = parseInt(parts.find(p => p.type === "day")?.value   || "0");
     return new Date(year, month, day);
 };
 
-const today = getMeridaDate();
-const currentYear = parseInt(Astro.url.searchParams.get('year') || today.getFullYear().toString());
-const currentMonth = parseInt(Astro.url.searchParams.get('month') || today.getMonth().toString());
+const today        = getMeridaDate();
+const currentYear  = parseInt(Astro.url.searchParams.get("year")  || today.getFullYear().toString());
+const currentMonth = parseInt(Astro.url.searchParams.get("month") || today.getMonth().toString());
 
-const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const monthNames   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const displayMonth = monthNames[currentMonth];
 
 const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-const baseYear = new Date().getFullYear();
-const yearsRange = Array.from({ length: 3 }, (_, i) => baseYear - 1 + i);
+const daysInMonth     = new Date(currentYear, currentMonth + 1, 0).getDate();
+const baseYear        = new Date().getFullYear();
+const yearsRange      = Array.from({ length: 3 }, (_, i) => baseYear - 1 + i);
 
 const prevDate = new Date(currentYear, currentMonth - 1, 1);
 const nextDate = new Date(currentYear, currentMonth + 1, 1);
 const prevLink = `?month=${prevDate.getMonth()}&year=${prevDate.getFullYear()}`;
 const nextLink = `?month=${nextDate.getMonth()}&year=${nextDate.getFullYear()}`;
 
-const startDateStr = new Date(currentYear, currentMonth, 1).toISOString();
-const endDateStr = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
-
 const user = await Astro.locals.currentUser();
-const nombreRegistrador = user 
-    ? `${user.firstName} ${user.lastName}`.trim() || user.username 
+const nombreRegistrador = user
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username
     : "Sistema";
 
-// --- LÓGICA PARA ACTUALIZAR ESTADO ---
 if (Astro.request.method === "POST") {
     try {
-        const data = await Astro.request.formData();
-        const citaId = data.get("id_cita");
-        const accion = data.get("accion");
+        const data   = await Astro.request.formData();
+        const accion = data.get("accion") as string;
+        const citaId = parseInt(data.get("id_cita") as string);
 
-        if (citaId && accion) {
-            if (accion === 'reagendar') {
-                const nuevaFecha = data.get("nueva_fecha") as string;
-                const fechaObj = new Date(`${nuevaFecha}-06:00`);
-                const nuevaFechaISO = fechaObj.toISOString();
-                const fechaSoloDia = nuevaFecha.split('T')[0];
+        if (citaId && accion === "completar") {
+            await completarCita(citaId);
 
-                const { data: diaBloqueado } = await supabase
-                    .from('dias_inhabiles')
-                    .select('fecha')
-                    .eq('fecha', fechaSoloDia)
-                    .single();
+        } else if (citaId && accion === "cancelar") {
+            await cancelarCita(citaId);
 
-                if (diaBloqueado) {
-                    console.warn(`Intento bloqueado: Se intentó reagendar al día inhábil ${fechaSoloDia}`);
-                    return Astro.redirect(Astro.url.href); 
-                }
-                
-                const { data: citaOriginal, error: errorFetch } = await supabase
-                    .from('citas')
-                    .select('*')
-                    .eq('id', citaId)
-                    .single();
+        } else if (citaId && accion === "reagendar") {
+            const nuevaFecha = data.get("nueva_fecha") as string;
+            await reagendarCita(citaId, nuevaFecha, nombreRegistrador as string);
 
-                if (!errorFetch && citaOriginal) {
-                    const { error: insertError } = await supabase
-                        .from('citas')
-                        .insert({
-                            fecha_hora: nuevaFechaISO, 
-                            nombre: citaOriginal.nombre,
-                            telefono: citaOriginal.telefono,
-                            motivo: citaOriginal.motivo,
-                            sintoma: citaOriginal.sintoma,
-                            referencia: citaOriginal.referencia,
-                            atendido_por: citaOriginal.atendido_por,
-                            observaciones: citaOriginal.observaciones,
-                            estado: 'pendiente', 
-                            registrado_por_id: nombreRegistrador 
-                        });
+        } else if (accion === "toggle_inhabil") {
+            const fecha     = data.get("fecha")      as string;
+            const esInhabil = data.get("es_inhabil") === "true";
+            await toggleDiaInhabil(fecha, esInhabil);
 
-                    if (!insertError) {
-                        const fechaTexto = fechaObj.toLocaleString('es-MX', { 
-                            timeZone: 'America/Merida',
-                            year: 'numeric', month: 'numeric', day: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                        });
-
-                        const notaReagenda = `\n[Cita reagendada para el: ${fechaTexto} por ${nombreRegistrador}]`;
-                        
-                        await supabase
-                            .from('citas')
-                            .update({ 
-                                estado: 'cancelada',
-                                observaciones: (citaOriginal.observaciones || '') + notaReagenda
-                            })
-                            .eq('id', citaId);
-                            
-                        return Astro.redirect(Astro.url.href);
-                    }
-                }
-            } else {
-                const nuevoEstado = accion === 'completar' ? 'completada' : 'cancelada';
-                await supabase.from('citas').update({ estado: nuevoEstado }).eq('id', citaId);
-            }
-        }
-
-        if (accion === 'toggle_inhabil') {
-            const fechaInhabil = data.get("fecha") as string;
-            const esInhabilStr = data.get("es_inhabil");
-
-            if (esInhabilStr === 'true') {
-                await supabase.from('dias_inhabiles').delete().eq('fecha', fechaInhabil);
-            } else {
-                await supabase.from('dias_inhabiles').insert({ fecha: fechaInhabil });
-            }
-            return Astro.redirect(Astro.url.href);
-        }
-
-        if (accion === 'procesar_periodo') {
-            const fechaInicio = data.get("fecha_inicio") as string;
-            const fechaFin = data.get("fecha_fin") as string;
-            const tipoOperacion = data.get("tipo_operacion") as string;
-
-            if (fechaInicio && fechaFin) {
-                const start = new Date(`${fechaInicio}T12:00:00`);
-                const end = new Date(`${fechaFin}T12:00:00`);
-                const fechasProcesar = [];
-
-                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    fechasProcesar.push(d.toISOString().split('T')[0]);
-                }
-
-                if (fechasProcesar.length > 0) {
-                    if (tipoOperacion === 'bloquear') {
-                        const insertData = fechasProcesar.map(f => ({ fecha: f }));
-                        await supabase.from('dias_inhabiles').upsert(insertData, { onConflict: 'fecha' });
-                    } else if (tipoOperacion === 'habilitar') {
-                        await supabase.from('dias_inhabiles').delete().in('fecha', fechasProcesar);
-                    }
-                }
-            }
-            return Astro.redirect(Astro.url.href);
+        } else if (accion === "procesar_periodo") {
+            const fechaInicio    = data.get("fecha_inicio")    as string;
+            const fechaFin       = data.get("fecha_fin")       as string;
+            const tipoOperacion  = data.get("tipo_operacion")  as "bloquear" | "habilitar";
+            await procesarPeriodoInhabil(fechaInicio, fechaFin, tipoOperacion);
         }
 
     } catch (e) {
-        console.error("Error procesando cita:", e);
+        console.error("Error procesando acción en citas:", e);
     }
+
+    return Astro.redirect(Astro.url.href);
 }
 
-const [citasResponse, inhabilesResponse] = await Promise.all([
-    supabase
-        .from('citas')
-        .select('id, fecha_hora, nombre, estado, referencia, sintoma, telefono, motivo, atendido_por, observaciones') 
-        .gte('fecha_hora', startDateStr)
-        .lte('fecha_hora', endDateStr)
-        .order('fecha_hora', { ascending: true }),
-    
-    supabase
-        .from('dias_inhabiles')
-        .select('fecha')
-        .gte('fecha', startDateStr.split('T')[0])
-        .lte('fecha', endDateStr.split('T')[0])
+const [citasRaw, diasInhabilesSet] = await Promise.all([
+    getCitasDelMes(currentYear, currentMonth),
+    getDiasInhabilesDelMes(currentYear, currentMonth),
 ]);
 
-const { data: citasRaw, error } = citasResponse;
-const { data: inhabilesRaw } = inhabilesResponse;
+const citasPorDia = new Map<number, CitaResumen[]>();
 
-if (error) console.error("Error fetching citas:", error);
-
-const diasInhabilesSet = new Set(inhabilesRaw?.map(d => d.fecha) || []);
-const citasPorDia = new Map();
-
-citasRaw?.forEach((cita) => {
-    const fecha = new Date(cita.fecha_hora);
-    const dia = fecha.getDate(); 
-    
-    if (!citasPorDia.has(dia)) {
-        citasPorDia.set(dia, []);
-    }
-    citasPorDia.get(dia).push(cita);
+citasRaw.forEach(cita => {
+    const dia = new Date(cita.fecha_hora).getDate();
+    if (!citasPorDia.has(dia)) citasPorDia.set(dia, []);
+    citasPorDia.get(dia)!.push(cita);
 });
 ---
 
@@ -295,12 +194,12 @@ citasRaw?.forEach((cita) => {
                 ))}
 
                 {Array.from({ length: daysInMonth }).map((_, i) => {
-                    const dayNum = i + 1;
+                    const dayNum   = i + 1;
                     const citasDia = citasPorDia.get(dayNum) || [];
-                    const isToday = dayNum === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+                    const isToday  = dayNum === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
                     
-                    const m = String(currentMonth + 1).padStart(2, '0');
-                    const d = String(dayNum).padStart(2, '0');
+                    const m        = String(currentMonth + 1).padStart(2, "0");
+                    const d        = String(dayNum).padStart(2, "0");
                     const fechaISO = `${currentYear}-${m}-${d}`;
                     const isInhabil = diasInhabilesSet.has(fechaISO);
                     
@@ -333,12 +232,12 @@ citasRaw?.forEach((cita) => {
                             </div>
 
                             <div class="space-y-1 mt-2 z-10">
-                                {citasDia.slice(0, 2).map((cita: any) => (
+                                {citasDia.slice(0, 2).map((cita) => (
                                     <div class={`flex items-center gap-1.5 text-[10px] rounded px-1.5 py-1 backdrop-blur-sm border truncate 
                                         ${isInhabil ? 'bg-red-900/40 border-red-500/10 text-red-300/70' : 'bg-gray-900/40 border-white/5 text-gray-300'}`}>
                                         <div class={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                                             cita.estado === 'completada' ? 'bg-emerald-400' : 
-                                            cita.estado === 'cancelada' ? 'bg-red-400' : 'bg-amber-400'
+                                            cita.estado === 'cancelada'  ? 'bg-red-400'     : 'bg-amber-400'
                                         }`}></div>
                                         <span class="truncate opacity-90">{cita.nombre ? cita.nombre.split(' ')[0] : 'Cita'}</span>
                                     </div>
@@ -355,15 +254,15 @@ citasRaw?.forEach((cita) => {
         </div>
     </main>
 
-    <dialog id="citas-store" class="hidden" style="content-visibility: auto;">
+    <div id="citas-store" class="hidden" style="content-visibility: auto;">
         {Array.from(citasPorDia.entries()).map(([dia, citas]) => (
             <div data-day={dia} class="space-y-4">
-                {citas.map((cita: any) => (
+                {citas.map((cita) => (
                     <CitaCard cita={cita} />
                 ))}
             </div>
         ))}
-    </dialog>
+    </div>
 
     <dialog id="modal-periodo" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-md text-left p-0 overflow-hidden outline-none">
         <div class="relative bg-gray-800/30 p-6 border-b border-gray-700/50 flex justify-between items-center">
