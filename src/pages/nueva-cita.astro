@@ -12,116 +12,68 @@
  * para llenar el campo `registrado_por` sin intervención manual.
  * * UI:
  * - Implementa un modal de éxito a pantalla completa con animación SVG.
+ *
+ * La lógica de acceso a datos vive en: src/services/citas.service.ts
  */
 
 import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
-import { createClient } from "@supabase/supabase-js"
 import ReturnButton from "../components/ReturnButton.astro"
 import { clerkClient } from "@clerk/astro/server";
-
-const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY
-);
+import { crearCita, getInhabilesDesdeHoy } from "../services/citas.service";
 
 const user = await Astro.locals.currentUser();
-const nombreRegistrador = user 
+const nombreRegistrador = user
     ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Usuario desconocido"
     : "Anónimo";
 
-const fechaParam = Astro.url.searchParams.get('fecha');
-let fechaDefault = "";
+const fechaParam  = Astro.url.searchParams.get("fecha");
+const fechaDefault = fechaParam ? `${fechaParam}T09:00` : "";
 
-if (fechaParam) {
-    fechaDefault = `${fechaParam}T09:00`;
-}
-
-let listaPsicologos = [];
+let listaPsicologos: string[] = [];
 try {
-    const client = clerkClient(Astro);
-    const response = await client.users.getUserList({
-        limit: 20,
-        orderBy: 'created_at' 
-    });
-    const users = Array.isArray(response) ? response : (response.data || []);
-    
+    const client   = clerkClient(Astro);
+    const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
+    const users    = Array.isArray(response) ? response : (response.data || []);
+
     listaPsicologos = users.map(u => {
-        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
         return nombre || u.username || u.emailAddresses[0].emailAddress;
     });
 } catch (e) {
-    console.error("Error cargando psicologos:", e);
+    console.error("Error cargando psicólogos:", e);
 }
 
-let mensaje = "";
-let error = false;
+let mensaje         = "";
+let hayError        = false;
 let registroExitoso = false;
 
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
-        const fechaLocal = data.get("fecha_hora") as string;
-        const fechaObj = new Date(`${fechaLocal}-06:00`);
-        const fechaISO = fechaObj.toISOString();
-        
-        const fechaSoloDia = fechaLocal.split('T')[0];
-        const { data: diaBloqueado } = await supabase
-            .from('dias_inhabiles')
-            .select('fecha')
-            .eq('fecha', fechaSoloDia)
-            .maybeSingle();
 
-        if (diaBloqueado) {
-            throw new Error(`⚠️ El día seleccionado (${fechaSoloDia}) está bloqueado como inhábil. Elige otra fecha.`);
-        }
+        await crearCita({
+            nombre:          data.get("nombre")        as string,
+            telefono:        data.get("telefono")       as string || null,
+            sintoma:         data.get("sintoma")        as string || null,
+            referencia:      data.get("referencia")     as string,
+            motivo:          data.get("motivo")         as string,
+            fechaLocal:      data.get("fecha_hora")     as string,
+            observaciones:   data.get("observaciones")  as string || null,
+            atendidoPor:     data.get("atendido_por")   as string,
+            registradoPorId: nombreRegistrador as string,
+        });
 
-        const atendidoPor = data.get("atendido_por") as string; 
-
-        const { data: citaExistente } = await supabase
-            .from('citas')
-            .select('id')
-            .eq('fecha_hora', fechaISO)
-            .eq('atendido_por', atendidoPor)
-            .neq('estado', 'cancelada') 
-            .maybeSingle();
-
-        if (citaExistente) {
-            throw new Error(`⚠️ Agenda ocupada: ${atendidoPor} ya tiene una cita a esa hora.`);
-        }
-
-        const nuevaCita = {
-            nombre: data.get("nombre"),
-            telefono: data.get("telefono") || null,
-            sintoma: data.get("sintoma") || null,
-            referencia: data.get("referencia"),
-            motivo: data.get("motivo"),
-            fecha_hora: fechaISO,
-            observaciones: data.get("observaciones") || null,
-            estado: 'pendiente',
-            registrado_por_id: nombreRegistrador,
-            atendido_por: atendidoPor
-        };
-
-        const { error: supabaseError } = await supabase
-            .from('citas')
-            .insert([nuevaCita]);
-
-        if (supabaseError) throw supabaseError;
         registroExitoso = true;
 
     } catch (e) {
         console.error(e);
-        error = true;
-        mensaje = e instanceof Error ? e.message : "Ocurrió un error desconocido";
+        hayError = true;
+        mensaje  = e instanceof Error ? e.message : "Ocurrió un error desconocido";
     }
 }
 
-const { data: inhabilesData } = await supabase
-    .from('dias_inhabiles')
-    .select('fecha')
-    .gte('fecha', new Date().toISOString().split('T')[0]);
-const listaInhabiles = inhabilesData?.map(d => d.fecha) || [];
+const listaInhabiles = await getInhabilesDesdeHoy();
 ---
 
 <Layout title="Agendar Nueva Cita | Lab-Somno">
@@ -148,7 +100,7 @@ const listaInhabiles = inhabilesData?.map(d => d.fecha) || [];
         </div>
     )}
 
-    {error && (
+    {hayError && (
         <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50 text-center w-11/12 md:w-auto">
             {mensaje}
         </div>
@@ -159,7 +111,7 @@ const listaInhabiles = inhabilesData?.map(d => d.fecha) || [];
             <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight">
                 Agendar <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">Cita</span>
             </h1>
-		</div>
+        </div>
 
         <form method="POST">
             <div class="flex flex-col items-center justify-center">
@@ -258,7 +210,8 @@ const listaInhabiles = inhabilesData?.map(d => d.fecha) || [];
                                 id="fecha_hora" 
                                 name="fecha_hora" 
                                 required 
-                                value={fechaDefault}  class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all cursor-pointer"
+                                value={fechaDefault}
+                                class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all cursor-pointer"
                             >
                         </div>
                     </div>
@@ -423,7 +376,6 @@ const listaInhabiles = inhabilesData?.map(d => d.fecha) || [];
                 
                 if (listaInhabiles.includes(fechaSeleccionada)) {
                     document.getElementById('modal-error-fecha').showModal();
-                    
                     e.target.value = ''; 
                 }
             });
