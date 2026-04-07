@@ -40,13 +40,11 @@ if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
         
-        // Helper para números
         const getInt = (key: string) => {
             const val = data.get(key);
             return val ? parseInt(val as string) : null;
         };
 
-        // 1. CALCULAR EDAD AUTOMÁTICAMENTE
         let edadCalculada = 0;
         const fechaNacString = data.get("fecha_nacimiento") as string;
         
@@ -64,7 +62,6 @@ if (Astro.request.method === "POST") {
         const nuevoPaciente = {
             tipo_paciente: "sueno",
 
-            // 1. SocioDemográficos
             nombre: data.get("nombre"),
             telefono: data.get("telefono"),
             edad: edadCalculada,
@@ -159,7 +156,7 @@ if (Astro.request.method === "POST") {
             const extrasAInsertar = extraNombres
                 .map((nombre, index) => {
                     const valor = extraValores[index] ? parseInt(extraValores[index].toString()) : null;
-                    if (!nombre.toString().trim()) return null; // Ignorar vacíos
+                    if (!nombre.toString().trim()) return null;
 
                     return {
                         paciente_id: pacienteInsertado.id,
@@ -167,7 +164,7 @@ if (Astro.request.method === "POST") {
                         puntaje: valor
                     };
                 })
-                .filter(item => item !== null); // Eliminar nulos
+                .filter(item => item !== null);
 
             if (extrasAInsertar.length > 0) {
                 const { error: errorExtras } = await supabase
@@ -299,7 +296,6 @@ if (Astro.request.method === "POST") {
                                 </div>
                             </div>
                         </div>
-
 
                     </div>
                 </section>
@@ -765,11 +761,6 @@ if (Astro.request.method === "POST") {
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // ==========================================
-        // 1. LÓGICA DE INTERFAZ
-        // ==========================================
-        
-        // A. Lógica Condicional (Sí/No)
         const triggers = document.querySelectorAll('.trigger-condicional');
         triggers.forEach(trigger => {
             trigger.addEventListener('change', (e) => {
@@ -793,17 +784,14 @@ if (Astro.request.method === "POST") {
             });
         });
 
-        // B. Síntomas Dinámicos
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
 
-        // Función auxiliar para configurar botón eliminar
         const setupDeleteSintoma = (card: HTMLElement) => {
             const btnDelete = card.querySelector('.btn-delete-sintoma');
             if (btnDelete) {
                 btnDelete.classList.remove('hidden');
                 btnDelete.addEventListener('click', () => {
-                    // Verificar si está vacío antes de borrar
                     const inputs = card.querySelectorAll('input');
                     let estaVacio = true;
                     inputs.forEach(input => {
@@ -842,7 +830,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // C. Puntajes Extra
         const btnAddPuntaje = document.getElementById('btn-add-puntaje');
         const listaPuntajes = document.getElementById('lista-puntajes-extra');
         const templatePuntaje = document.querySelector('.puntaje-extra-template');
@@ -865,9 +852,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // ==========================================
-        // 2. LÓGICA DE VALIDACIÓN
-        // ==========================================
         const form = document.getElementById('form-registro') as HTMLFormElement;
         const modalErrores = document.getElementById('modal-errores') as HTMLDialogElement;
         const listaErrores = document.getElementById('lista-errores');
@@ -920,9 +904,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // ==========================================
-        // 3. REDIRECCIÓN SEGURA
-        // ==========================================
         const modalExito = document.querySelector('.success-checkmark');
         if (modalExito) {
             setTimeout(() => {

@@ -22,31 +22,19 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// --- 1. OBTENCIÓN DE DATOS ---
-// Llamamos a la función de base de datos que ya hizo todos los cálculos
 const { data, error } = await supabase.rpc('get_dashboard_stats');
 
 if (error) {
     console.error("Error cargando stats RPC:", error);
 }
-
-// Valores por defecto COMPLETOS y ROBUSTOS
-// Esto evita que la página se rompa si la base de datos devuelve null o error
 const stats = data || {
-    // Contadores
     totalPacientes: 0, pacientesEsteMes: 0, edadPromedio: 0,
-    // Finanzas
     totalIngresos: 0, ingresosEsteMes: 0, ticketPromedio: 0,
-    // Factores Riesgo
     fumadores: 0, bebedores: 0, obesidad: 0,
-    // Citas
     totalCitas: 0, citasFuturas: 0, citasEsteMes: 0,
     citasPendientes: 0, citasCompletadas: 0, citasCanceladas: 0,
-    // Demografía
     hombres: 0, mujeres: 0,
-    // Referencias
     privados: 0, servicioMedico: 0,
-    // Arrays (Listas) - Importante inicializarlos como [] vacío
     topDiagnosticos: [],
     topMotivos: [],   
     procedencia: [],
@@ -55,16 +43,10 @@ const stats = data || {
     duermeHamaca: 0
 };
 
-
-
-// --- 2. CÁLCULOS DE PORCENTAJES (VISUALES) ---
-
-// A. Demografía
 const otrosGenero = stats.totalPacientes - (stats.hombres + stats.mujeres);
 const porcHombre = stats.totalPacientes ? Math.round((stats.hombres / stats.totalPacientes) * 100) : 0;
 const porcMujer = stats.totalPacientes ? Math.round((stats.mujeres / stats.totalPacientes) * 100) : 0;
 
-// B. Procedencia
 const otrosRef = stats.totalPacientes - (stats.privados + stats.servicioMedico);
 const totalRef = stats.totalPacientes || 1; 
 const pctPriv = (stats.privados / totalRef) * 100;
@@ -74,7 +56,6 @@ const pctOtros = (otrosRef / totalRef) * 100;
 const offServ = -pctPriv; 
 const offOtros = -(pctPriv + pctServ);
 
-// C. Estado de Citas
 const totalGraficoCitas = stats.totalCitas || 1;
 const pctComp = (stats.citasCompletadas / totalGraficoCitas) * 100;
 const pctPend = (stats.citasPendientes / totalGraficoCitas) * 100;
@@ -93,7 +74,6 @@ const totalLugar = (stats.duermeCama + stats.duermeHamaca) || 1;
 const pctCama = Math.round((stats.duermeCama / totalLugar) * 100);
 const pctHamaca = Math.round((stats.duermeHamaca / totalLugar) * 100);
 
-// D. Helpers de Formato
 const money = (val:number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(val);
 ---
 
