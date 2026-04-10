@@ -21,6 +21,7 @@ import {
     getTareasDeUsuario,
     completarTarea,
 } from "../services/lista-pendientes.service";
+import RightArrow from "../components/icons/RightArrow.astro";
 
 const user          = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
@@ -67,7 +68,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
 <Layout title="Dashboard | Lab-Somno">
     <main class="max-w-6xl mx-auto pt-10 pb-20 px-6">
 
-        <div class="relative mb-8 pb-4">
+        <div class="relative mb-8 pb-1">
             <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] pointer-events-none mix-blend-screen"></div>
 
             <div class="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6 mb-5">
@@ -191,7 +192,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         </div>
                     </div>
 
-                    <div class="group flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
+                    <div class="group min-w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
                         <div class="bg-gray-800 p-2.5 rounded-xl group-hover:bg-blue-600/20 group-hover:text-blue-400 transition-colors text-gray-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -350,8 +351,8 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         <p class="text-gray-400 text-sm leading-relaxed mb-4 group-hover:text-blue-200 transition-colors">
                             Acceso directo a la base de datos completa de pacientes y expedientes clínicos.
                         </p>
-                        <div class="flex items-center gap-2 text-blue-400 text-sm font-bold uppercase tracking-wider group-hover:text-blue-300">
-                            Ver lista <span class="group-hover:translate-x-1 transition-transform">→</span>
+                        <div class="flex items-center text-blue-400 text-sm font-bold uppercase tracking-wider group-hover:text-blue-300">
+                            Ver lista <span class="group-hover:translate-x-1 transition-transform"><RightArrow class="size-5" /></span>
                         </div>
                     </div>
                 </div>
@@ -476,12 +477,11 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
     </main>
 
     <aside id="aside-tareas" class="fixed top-1/2 -translate-y-1/2 right-0 z-50 w-7">
-
         <div
             id="panel-tareas"
             class="absolute top-1/2 -translate-y-1/2 right-7 w-64
                 bg-gray-900/90 border border-white/10 backdrop-blur-md
-                shadow-2xl shadow-black/50 rounded-l-2xl overflow-hidden
+                shadow-2xl shadow-black/50 rounded-2xl overflow-hidden
                 translate-x-full transition-transform duration-300 ease-in-out"
         >
             <div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
@@ -542,24 +542,6 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </a>
             </div>
         </div>
-
-        <button
-            id="btn-aside-tareas"
-            aria-label="Mis tareas"
-            class="flex flex-col items-center justify-center gap-2 w-7 py-5 bg-gray-900/80 border border-white/10 rounded-l-xl backdrop-blur-md shadow-xl cursor-pointer duration-300 hover:rounded-none hover:bg-gray-800/90 transition-all group"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span class="text-[9px] font-bold text-gray-400 group-hover:text-gray-200 uppercase tracking-widest transition-colors" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                Mis tareas
-            </span>
-            {tareasUsuario.length > 0 && (
-                <span class="w-4 h-4 rounded-full bg-amber-500 text-[9px] font-black text-black flex items-center justify-center shadow-[0_0_6px_rgba(251,191,36,0.6)]">
-                    {tareasUsuario.length}
-                </span>
-            )}
-        </button>
     </aside>
 
     <SystemUpdates />
@@ -580,11 +562,10 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
 </style>
 
 <script>
-    const btn   = document.getElementById('btn-aside-tareas');
     const panel = document.getElementById('panel-tareas');
     const aside = document.getElementById('aside-tareas');
 
-    if (!btn || !panel || !aside) throw new Error('Aside tareas: elementos no encontrados');
+    if (!panel || !aside) throw new Error('Aside tareas: elementos no encontrados');
 
     let abierto = false;
     let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -599,7 +580,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
         abierto = false;
     };
 
-    btn.addEventListener('click', () => {
+    panel.addEventListener('click', () => {
         abierto ? cerrar() : abrir();
     });
 

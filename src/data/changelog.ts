@@ -25,5 +25,10 @@ export const changes: Changes[] = [
         title: "Recordatorio de tareas",
         description: "Ahora el recordatorio de tareas del dashboard aparece oculto y se abre si el usuario hace pasa el mouse sobre él.",
         type: "style"
+    },
+    {
+        title: "Iconos",
+        description: "Se han actualizado algunos iconos genericos de la página.",
+        type: "style"
     }
 ];
