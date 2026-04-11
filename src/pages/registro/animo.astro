@@ -178,9 +178,9 @@ if (Astro.request.method === "POST") {
             banfe_inter: getInt('banfe_inter'),
             banfe_post: getInt('banfe_post'),
 
-            eva_pre: getInt('eva_pre'),
-            eva_inter: getInt('eva_inter'),
-            eva_post: getInt('eva_post'),
+            bai_pre: getInt('bai_pre'),
+            bai_inter: getInt('bai_inter'),
+            bai_post: getInt('bai_post'),
             
             donde_duerme: null,
             
@@ -747,7 +747,7 @@ if (Astro.request.method === "POST") {
                                 </tr>
                             </thead>
                             <tbody class="text-sm divide-y divide-gray-800">
-                                {['hamilton_d', 'hamilton_a', 'isi', 'beck', 'banfe', 'eva'].map((score) => (
+                                {['hamilton_d', 'hamilton_a', 'isi', 'beck', 'banfe', 'bai'].map((score) => (
                                     <tr class="hover:bg-gray-800/30 transition-colors">
                                         <td class="py-3 pr-4 font-medium text-gray-300 capitalize">
                                             {score
@@ -756,7 +756,7 @@ if (Astro.request.method === "POST") {
                                                 .replace('isi', 'Índice Severidad Insomnio (ISI)')
                                                 .replace('beck', 'Inventario de Depresión de Beck')
                                                 .replace('banfe', 'BANFE')
-                                                .replace('eva', 'Escala de Dolor (EVA)')}
+                                                .replace('bai', 'Inventario de Ansiedad de Beck (BAI)')}
                                         </td>
                                         <td class="p-2">
                                             <input type="number" name={`${score}_pre`} placeholder="-" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-center text-white focus:border-blue-500 focus:outline-none" />
