@@ -22,7 +22,7 @@ import ExpandableSection from "../../../components/ExpandableSection.astro"
 import { createClient } from "@supabase/supabase-js"
 import { calcularBerlin } from "../../../utils/calculos"
 
-const MODO_DISENO = false; // Cambiar a false para producción
+const MODO_DISENO = false;
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
@@ -43,7 +43,6 @@ if (!MODO_DISENO) {
         return Astro.redirect('/404');
     }
 
-    // 1. VALIDAR ACCESO Y ESTADO (Usando la función segura RPC)
     const { data: infoAcceso, error: errorAcceso } = await supabase
         .rpc('validar_acceso_cuestionario', {
             token_input: token,
@@ -51,39 +50,30 @@ if (!MODO_DISENO) {
             fase_input: faseUrl
         });
 
-    // Si devuelve array vacío o error, es que el token no existe
     if (errorAcceso || !infoAcceso || infoAcceso.length === 0) {
         console.error("Error acceso:", errorAcceso);
         return Astro.redirect('/404');
     }
 
-    // Mapeamos los datos recibidos de la función SQL
     paciente = { 
         id: infoAcceso[0].paciente_id, 
         nombre: infoAcceso[0].nombre 
     };
     yaContestado = infoAcceso[0].ya_contestado;
 
-    // 2. PROCESAR FORMULARIO (POST)
     if (Astro.request.method === "POST" && !yaContestado) {
         try {
             const formData = await Astro.request.formData();
-            const respuestas = Object.fromEntries(formData) as Record<string, any>; // Tipado flexible
+            const respuestas = Object.fromEntries(formData) as Record<string, any>;
 
-            // --- CÁLCULO BERLIN ---
             const resultado = calcularBerlin(respuestas);
             
-            // 1. Asignar puntaje numérico para la columna DB (0, 1, 2, 3)
             const puntajeFinal = resultado.puntaje;
 
-            // 2. Inyectar los detalles visuales dentro del JSON de respuestas
-            // Esto hará que aparezcan en el modal "Ver Respuestas" automáticamente
             Object.assign(respuestas, resultado.extraData);
             
-            // También guardamos el puntaje dentro del JSON por si acaso
             respuestas.puntaje = puntajeFinal;
 
-            // Guardar usando la función RPC
             const { error: saveError } = await supabase
                 .rpc('guardar_respuesta_segura', {
                     token_input: token,
@@ -106,7 +96,6 @@ if (!MODO_DISENO) {
         }
     }
 } else {
-    // Modo diseño
     paciente = { id: 0, nombre: "Paciente Simulado" };
     yaContestado = false; 
     if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
@@ -116,14 +105,12 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
 
 
 
-// Riesgo: Sí
 const optionsRonca = [
     { label: 'Sí', value: 'positivo' },
     { label: 'No', value: 'negativo' },
     { label: 'No lo sé', value: 'negativo' }
 ];
 
-// Riesgo: "Más alto que conversación" o "Muy alto"
 const optionsVolumen = [
     { label: 'Como una respiración fuerte', value: 'negativo' },
     { label: 'Tan alto como una conversación', value: 'negativo' },
@@ -131,7 +118,6 @@ const optionsVolumen = [
     { label: 'Muy alto, se puede escuchar desde habitaciones vecinas', value: 'positivo' }
 ];
 
-// Riesgo: "Casi todos los días" o "3-4 veces por semana"
 const optionsFrecuencia = [
     { label: 'Casi todos los días', value: 'positivo' },
     { label: '3-4 veces por semana', value: 'positivo' },
@@ -140,13 +126,11 @@ const optionsFrecuencia = [
     { label: 'Casi nunca o nunca', value: 'negativo' }
 ];
 
-// Riesgo: Sí
 const optionsSiNo = [
     { label: 'Si', value: 'positivo' },
     { label: 'No', value: 'negativo' }
 ];
 
-// (Este queda igual, no afecta puntaje)
 const optionsSexo = [
     { label: 'Masculino', value: 'male' },
     { label: 'Femenino', value: 'female' }
@@ -392,28 +376,22 @@ const optionsSexo = [
     const btnCancel = document.getElementById('btn-cancel');
     const btnConfirmFinal = document.getElementById('btn-confirm-final');
 
-    // 1. ABRIR MODAL
     if (btnPre) {
         btnPre.addEventListener('click', () => {
             if (form.reportValidity()) {
-                // Cálculo de puntaje si aplica
                 if (typeof calcularPuntaje === 'function') calcularPuntaje();
                 
-                // MÉTODO NATIVO PARA ABRIR
                 modal.showModal(); 
             }
         });
     }
 
-    // 2. CERRAR MODAL (CANCELAR)
     if (btnCancel) {
         btnCancel.addEventListener('click', () => {
-            // MÉTODO NATIVO PARA CERRAR
             modal.close(); 
         });
     }
 
-    // 3. CONFIRMAR ENVÍO
     if (btnConfirmFinal) {
         btnConfirmFinal.addEventListener('click', () => {
             btnConfirmFinal.innerHTML = '<span class="animate-pulse">Enviando...</span>';
@@ -422,7 +400,6 @@ const optionsSexo = [
         });
     }
     
-    // 4. (Opcional) CERRAR SI CLICKEA FUERA (BACKDROP)
     modal.addEventListener('click', (e) => {
         const dialogDimensions = modal.getBoundingClientRect();
         if (
@@ -437,13 +414,11 @@ const optionsSexo = [
 
     document.addEventListener('DOMContentLoaded', () => {
         
-        // 1. CONFIGURACIÓN: Aquí se definen todas las reglas
-        // Solo se agrega líneas aquí si hay nuevas preguntas condicionales
         const reglas = [
             { 
-                triggerName: 'ronca',       // El 'name' del RadioGroup
-                triggerValue: "positivo",        // El valor que activa la sección
-                targetId: 'extra-ronca'     // El ID del ExpandableSection
+                triggerName: 'ronca',
+                triggerValue: "positivo",
+                targetId: 'extra-ronca'
             },
             { 
                 triggerName: 'se_quedo_dormido', 
@@ -452,12 +427,11 @@ const optionsSexo = [
             }
         ];
 
-        // 2. LÓGICA
         reglas.forEach(regla => {
             const inputs = document.querySelectorAll(`input[name="${regla.triggerName}"]`);
             const target = document.getElementById(regla.targetId);
             
-            if (!target) return; // Seguridad por si el ID no existe
+            if (!target) return;
 
             const inputsInternos = target.querySelectorAll('input, select, textarea');
 
@@ -466,24 +440,20 @@ const optionsSexo = [
                 const valor = seleccionado ? (seleccionado).value : null;
 
                 if (valor === regla.triggerValue) {
-                    // MOSTRAR
                     target.classList.remove('grid-rows-[0fr]', 'opacity-0');
                     target.classList.add('grid-rows-[1fr]', 'opacity-100');
                     inputsInternos.forEach(i => i.removeAttribute('disabled'));
                 } else {
-                    // OCULTAR
                     target.classList.remove('grid-rows-[1fr]', 'opacity-100');
                     target.classList.add('grid-rows-[0fr]', 'opacity-0');
                     inputsInternos.forEach(i => i.setAttribute('disabled', 'true'));
                 }
             };
-
-            // Escuchar cambios
+s
             inputs.forEach(input => {
                 input.addEventListener('change', actualizarEstado);
             });
 
-            // Ejecutar al inicio (por si recargas la página y ya había datos)
             actualizarEstado();
         });
     });

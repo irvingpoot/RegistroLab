@@ -22,7 +22,6 @@ interface Props {
 
 const { cita } = Astro.props;
 
-// ... (Tu lógica de WhatsApp y Colores se mantiene igual) ...
 const generarLinkWhatsapp = () => {
     if (!cita.telefono) return '#';
     const numeroLimpio = cita.telefono.replace(/\D/g, '');

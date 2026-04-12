@@ -128,7 +128,6 @@ if (Astro.request.method === "POST") {
 
         if (errorPaciente) throw errorPaciente;
 
-        // Procesar síntomas múltiples
         const sintomas = data.getAll('sintoma');
         const temporalidades = data.getAll('temporalidad');
         const frecuencias = data.getAll('frecuencia');
@@ -800,7 +799,6 @@ if (Astro.request.method === "POST") {
 
                     if (estaVacio) {
                         card.remove();
-                        // Re-numerar Títulos
                         document.querySelectorAll('.sintoma-group').forEach((grupo, index) => {
                             const titulo = grupo.querySelector('.sintoma-titulo');
                             if (titulo) titulo.textContent = `Síntoma ${index + 1}`;
@@ -874,7 +872,6 @@ if (Astro.request.method === "POST") {
                         }
                         camposFaltantes.push(nombreCampo);
                         
-                        // Resaltar visualmente
                         el.classList.add('border-red-500', 'ring-1', 'ring-red-500');
                         el.addEventListener('input', () => {
                             el.classList.remove('border-red-500', 'ring-1', 'ring-red-500');

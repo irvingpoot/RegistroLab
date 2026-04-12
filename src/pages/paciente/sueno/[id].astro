@@ -683,7 +683,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                         <div class="pl-2">
                             {paciente.alteracion_sueno && paciente.alteracion_sueno.length > 0 ? (
                                 <div class="flex flex-wrap gap-2">
-                                    {/* Verificamos si es array (nuevo formato) o string (viejo formato migrado mal) por seguridad */}
                                     {Array.isArray(paciente.alteracion_sueno) 
                                         ? paciente.alteracion_sueno.map((alt: string) => (
                                             <span class="px-3 py-1 bg-red-900/20 border border-red-500/30 text-red-200 rounded-full text-sm font-medium capitalize shadow-sm">
@@ -1802,13 +1801,11 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             hipertension: "¿Hipertensión?"
         },
         psqi: {
-            // Datos básicos
             hora_acostarse: "Hora habitual de acostarse",
             tiempo_dormir: "Tiempo para conciliar el sueño",
             hora_levantarse: "Hora habitual de levantarse",
             horas_sueno: "Horas de sueño reales",
             
-            // Perturbaciones (Alteraciones)
             alteracion_1: "No poder dormir en 30 min",
             alteracion_2: "Despertar a media noche/madrugada",
             alteracion_3: "Tener que ir al baño",
@@ -1819,17 +1816,14 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             alteracion_8: "Tener pesadillas",
             alteracion_9: "Sentir dolor",
             
-            // Otra causa
             otra_causa: "Otra causa de alteración (descripción)",
             frecuencia_otra_alteracion: "Frecuencia de otra causa",
             
-            // Hábitos y Funcionalidad
             calidad_sueno: "Calidad subjetiva del sueño",
             tomo_medicinas: "Uso de medicinas para dormir",
             dificultad_despierto: "Dificultad para mantenerse despierto",
             problema_entusiasmo: "Problema de entusiasmo/ánimo",
             
-            // Pareja / Compañero
             pareja_companero: "Presencia de compañero de cama",
             compañero_1: "Pareja: Ronquidos fuertes",
             compañero_2: "Pareja: Pausas respiratorias",
@@ -1838,7 +1832,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             compañero_5: "Pareja: Otro trastorno",
             otra_transtorno: "Desc. trastorno pareja",
 
-            // Datos Extra
             horas_sueno_estudio: "Horas Sueño (Dato Estudio Médico)",
             puntaje: "Puntaje Global PSQI"
         }
@@ -1883,14 +1876,11 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
         const activateLink = (id) => {
             navLinks.forEach(link => {
-                // 1. Limpiamos todos
                 link.classList.remove('active');
                 
-                // 2. Activamos solo el correcto
                 if (link.getAttribute('href') === `#${id}`) {
                     link.classList.add('active');
                     
-                    // 3. Mover el menú horizontalmente para centrar el botón
                     link.scrollIntoView({ 
                         behavior: 'smooth', 
                         block: 'nearest', 
@@ -1904,21 +1894,17 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 
-                // Obtenemos el ID del destino (ej: "tms")
                 const targetId = link.getAttribute('href').substring(1);
                 const targetSection = document.getElementById(targetId);
 
                 if (targetSection) {
-                    // A. Scroll suave en la página
                     targetSection.scrollIntoView({ 
                         behavior: 'smooth', 
                         block: 'start' 
                     });
 
-                    // B. Actualizar URL
                     history.pushState(null, null, `#${targetId}`);
                     
-                    // C. Forzar la activación visual INMEDIATAMENTE (sin esperar al scroll)
                     activateLink(targetId); 
                 }
             });
@@ -1958,7 +1944,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             observer.observe(sentinelElement);
         }
 
-        // Abrir para crear
         if (btnNuevaNota && modalSeguimiento) {
             btnNuevaNota.addEventListener('click', () => {
                 formSeguimiento?.reset();
@@ -1970,7 +1955,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             });
         }
 
-        // Abrir para editar
         document.addEventListener('click', (e) => {
             const btn = (e.target).closest('.btn-editar-nota');
             if (btn && modalSeguimiento) {
@@ -1998,17 +1982,14 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             }
         });
 
-        // Función para eliminar fila
         const setupRemoveBtn = (btn) => {
             btn.addEventListener('click', (e) => {
                 (e.target).closest('.extra-row')?.remove();
             });
         };
 
-        // Configurar botones existentes (los que vienen del servidor)
         document.querySelectorAll('.btn-remove-extra').forEach(setupRemoveBtn);
 
-        // Agregar nueva fila
         if (btnAdd && container) {
             btnAdd.addEventListener('click', () => {
                 const row = document.createElement('div');
@@ -2060,14 +2041,12 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
     let currentFase = 'pre';
     
-    // Referencias a los inputs de links
     const inputs = {
         epworth: document.getElementById('link-epworth'),
         berlin: document.getElementById('link-berlin'),
         psqi: document.getElementById('link-psqi'),
     };
 
-    // Referencias a las filas completas (para ocultar link y mostrar botón)
     const rows = {
         epworth: document.getElementById('row-epworth'),
         berlin: document.getElementById('row-berlin'),
@@ -2109,18 +2088,15 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === fase);
 
             if (respuesta) {
-                // SÍ HAY RESPUESTA
                 containerLink.classList.add('hidden');
                 containerBtn.classList.remove('hidden');
             } else {
-                // NO HAY RESPUESTA
                 containerLink.classList.remove('hidden');
                 containerBtn.classList.add('hidden');
             }
         });
     }
 
-    // Función para abrir el modal con los datos
     window.verRespuestas = (cuestionario) => {
         const respuesta = respuestasGuardadas.find(r => r.cuestionario === cuestionario && r.fase === currentFase);
         if (!respuesta || !respuesta.datos) return;
@@ -2132,7 +2108,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         const contenido = document.getElementById('contenido-respuestas');
         const modalLinkInput = document.getElementById('modal-link-input');
 
-        // Configuración de Textos y Colores
         titulo.textContent = cuestionario.charAt(0).toUpperCase() + cuestionario.slice(1);
         subtitulo.textContent = new Date(respuesta.updated_at).toLocaleDateString('es-MX', { 
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
@@ -2151,7 +2126,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         const datos = respuesta.datos;
         const preguntas = DICCIONARIOS[cuestionario] || {};
 
-        // 1. SECCIÓN DE PUNTAJE (Banner Superior)
         if (datos.puntaje !== undefined) {
             html += `
                 <div class="px-6 py-5 bg-gradient-to-r from-gray-800/50 to-gray-900 border-b border-gray-700 flex items-center justify-between">
@@ -2166,10 +2140,8 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                         </div>
             `;
             
-            // --- LÓGICA ESPECÍFICA PARA BERLIN: RESUMEN DE CATEGORÍAS ---
             if (cuestionario === 'berlin') {
                 let cats = [];
-                // Buscamos en el JSON las claves que guardamos desde calculos.ts
                 if (datos["Resultado Categoría 1 (Ronquido)"]?.includes("POSITIVA")) cats.push("1");
                 if (datos["Resultado Categoría 2 (Somnolencia)"]?.includes("POSITIVA")) cats.push("2");
                 if (datos["Resultado Categoría 3 (Presión Arterial)"]?.includes("POSITIVA")) cats.push("3");
@@ -2177,7 +2149,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                 const textoCats = cats.length > 0 ? cats.join(", ") : "Ninguna";
                 const colorTexto = cats.length > 0 ? "text-red-400" : "text-gray-400";
 
-                // Agregamos el resumen justo debajo del puntaje
                 html += `
                         <div class="mt-1 text-right">
                             <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mr-1">Categorías Positivas:</span>
@@ -2192,8 +2163,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             `;
         }
 
-        // 2. DETALLES ESPECÍFICOS
-        // Definimos claves que NO queremos mostrar en la lista normal porque son de lógica interna
         const clavesOcultas = [
             "puntaje", 
             "Categoría 1 (Ronquido)", 
@@ -2232,17 +2201,14 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         const textarea = document.getElementById('texto-plantilla-wpp');
         const btn = document.getElementById('btn-copiar-plantilla');
         
-        // Seleccionar y copiar el texto
         textarea.select();
         navigator.clipboard.writeText(textarea.value);
         
-        // Feedback visual
         const originalHtml = btn.innerHTML;
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> ¡Mensaje Copiado!`;
         btn.classList.remove('bg-green-600', 'hover:bg-green-500');
         btn.classList.add('bg-emerald-500');
         
-        // Restaurar botón después de 2 segundos
         setTimeout(() => {
             btn.innerHTML = originalHtml;
             btn.classList.remove('bg-emerald-500');
@@ -2255,7 +2221,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         input.select();
         navigator.clipboard.writeText(input.value);
         
-        // Efecto visual de copiado
         const parent = input.parentElement;
         parent.classList.add('bg-blue-900/30', 'border-blue-500');
         setTimeout(() => parent.classList.remove('bg-blue-900/30', 'border-blue-500'), 200);
@@ -2268,7 +2233,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         input.select();
         navigator.clipboard.writeText(input.value);
         
-        // Feedback visual en el botón
         const textoOriginal = btn.innerText;
         btn.innerText = "¡Copiado!";
         btn.classList.add('text-green-400');
@@ -2279,7 +2243,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         }, 1500);
     }
 
-    // Función para abrir el modal de ajuste de estudio
     window.abrirModalEstudio = () => {
         const respuesta = respuestasGuardadas.find(r => r.cuestionario === 'psqi' && r.fase === currentFase);
         
@@ -2289,25 +2252,20 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         const inputFase = document.getElementById('input-fase-estudio');
         const inputHoras = document.getElementById('input-horas-estudio');
 
-        // Configurar valores
         inputFase.value = currentFase;
         
-        // Buscar si ya hay un valor previo guardado en el JSON
         const horasPrevias = respuesta.datos.horas_sueno_estudio;
         inputHoras.value = horasPrevias ? horasPrevias : '';
 
         modal.showModal();
     }
 
-    // ── NOCHES DE REPORTE ──────────────────────────────────────────────────
-
-    // Abre el modal en modo REGISTRO (sin args) o EDICIÓN (con el id de la noche)
     window.abrirModalNoche = (nocheId = null) => {
         const titulo   = document.getElementById('titulo-modal-noche');
         const action   = document.getElementById('action-noche');
         const idHidden = document.getElementById('id-noche-hidden');
         const campos   = ['iah','indice_apneas','indice_hipopnea','iai','iao','iac','iam',
-                          'saturacion_promedio','pulso_promedio','ronquidos','sat_90_min','sat_90_porc','sat_85_min','sat_85_porc','ido'];
+                        'saturacion_promedio','pulso_promedio','ronquidos','sat_90_min','sat_90_porc','sat_85_min','sat_85_porc','ido'];
 
         const noche = nocheId != null ? nochesData.find(n => n.id == nocheId) : null;
 
@@ -2344,7 +2302,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         document.getElementById('modal-noche').showModal();
     };
 
-    // Abre el modal de detalle (solo lectura) al hacer click en una fila
     window.abrirDetalleNoche = (nocheId) => {
         const noche = nochesData.find(n => n.id == nocheId);
         if (!noche) return;
@@ -2433,16 +2390,12 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         document.getElementById('modal-detalle-noche').showModal();
     };
 
-    // Pide confirmación antes de eliminar
     window.confirmarEliminarNoche = (idNoche, numNoche) => {
         if (confirm(`¿Eliminar la noche ${numNoche}? Esta acción no se puede deshacer.`)) {
             document.getElementById('id-eliminar-noche').value = idNoche;
             document.getElementById('form-eliminar-noche').submit();
         }
     };
-
-    // ── FIN NOCHES ─────────────────────────────────────────────────────────
-
-    // Inicializar
+    
     setFase('pre');
 </script>

@@ -86,13 +86,11 @@ if (notifId) {
         .eq('visto', false);
 }
 
-// --- LÓGICA DE ACCIONES (POST) ---
 if (Astro.request.method === "POST") {
     try {
         const formData = await Astro.request.formData();
         const action = formData.get("action");
 
-        // 1. NOTAS DE SEGUIMIENTO
         if (action === "add_seguimiento") {
             const nuevaNota = {
                 paciente_id: id,
@@ -114,21 +112,18 @@ if (Astro.request.method === "POST") {
             if (error) throw error;
         }
 
-        // 2. ELIMINAR PACIENTE
         if (action === "delete_patient") {
             const { error } = await supabase.from('pacientes').delete().eq('id', id);
             if (error) throw error;
             return Astro.redirect("/lista?mensaje=eliminado");
         }
 
-        // 3. ACTUALIZAR PUNTAJES (Solo escalas de Ánimo)
         if (action === "update_scores") {
             const getInt = (key: string) => {
                 const val = formData.get(key);
                 return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
             };
             
-            // Lista filtrada para Ánimo
             const scoresList = ['hamilton_d', 'hamilton_a', 'isi', 'beck', 'banfe', 'bai'];
             
             let puntajesActualizados: any = {};
@@ -141,7 +136,6 @@ if (Astro.request.method === "POST") {
             const { error: updateError } = await supabase.from('pacientes').update(puntajesActualizados).eq('id', id);
             if (updateError) throw updateError;
 
-            // Puntajes Extra
             await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
             const extraNombres = formData.getAll('extra_prueba_nombre');
             const extraPre = formData.getAll('extra_prueba_pre');
@@ -227,7 +221,6 @@ if (Astro.request.method === "POST") {
     }
 }
 
-// --- CONSULTA DE DATOS ---
 const { data: paciente, error } = await supabase
     .from('pacientes')
     .select(`
@@ -257,17 +250,14 @@ const { data: paciente, error } = await supabase
 
 if (error || !paciente) return Astro.redirect("/lista");
 
-// Ordenar listas
 if (paciente.pacientes_seguimiento) paciente.pacientes_seguimiento.sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-// Link PDF seguro
 let urlConsentimientoFirmado = null;
 if (paciente?.tms_consentimiento_url) {
     const { data: signedData } = await supabase.storage.from('expedientes').createSignedUrl(paciente.tms_consentimiento_url, 3600);
     urlConsentimientoFirmado = signedData?.signedUrl;
 }
 
-// Helpers visuales
 const formatDate = (dateString: string) => {
     if (!dateString) return "No registrado";
     const fechaLimpia = dateString.substring(0, 10);
@@ -1133,7 +1123,6 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         const navElement = document.getElementById('dynamic-nav');
         const sentinelElement = document.getElementById('nav-sentinel');
 
-        // Script para filas extra en modal
         const container = document.getElementById('modal-extras-container');
         const btnAdd = document.getElementById('btn-add-extra-modal');
         const setupRemoveBtn = (btn: any) => {

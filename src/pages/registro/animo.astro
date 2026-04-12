@@ -74,13 +74,11 @@ if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
 
-        // Helper para números
         const getInt = (key: string) => {
             const val = data.get(key);
             return val ? parseInt(val as string) : null;
         };
 
-        // 1. CALCULAR EDAD AUTOMÁTICAMENTE
         let edadCalculada = 0;
         const fechaNacString = data.get("fecha_nacimiento") as string;
         
@@ -96,10 +94,8 @@ if (Astro.request.method === "POST") {
         }
 
         const nuevoPaciente = {
-            // CLAVE: Define el tipo de paciente
             tipo_paciente: "animo", 
 
-            // 1. SocioDemográficos
             nombre: data.get("nombre"),
             telefono: data.get("telefono"),
             edad: edadCalculada,
@@ -109,12 +105,10 @@ if (Astro.request.method === "POST") {
             escolaridad: data.get("escolaridad"),
             referencia: data.get("referencia"),
             
-            // 2. Clínicos Generales
             motivo: data.get("motivo"),
             sintoma: data.get("motivo") || "Consulta Estado de Ánimo",
-            antecedentes: data.get("antecedentes"), // Historia clínica / familiar
+            antecedentes: data.get("antecedentes"),
             
-            // 3. Referido
             referido_por_nombre: data.get('referido_por_nombre'),
             referido_por_telefono: data.get('referido_por_telefono'),
             referido_por_correo: data.get('referido_por_correo'),
@@ -143,7 +137,6 @@ if (Astro.request.method === "POST") {
                 return nombres[index] && nombres[index].toString().trim() !== '';
             }),
 
-            // 4. Hábitos (Relevantes para el ánimo)
             ejercicio: data.get("ejercicio"),
             horas_ejercicio: data.get("horas_ejercicio"),
 
@@ -156,7 +149,6 @@ if (Astro.request.method === "POST") {
             intento_suicida: data.get("intento_suicida"),
             intento_suicida_desc: data.get("intento_suicida_desc"),
 
-            // 5. Sustancias (Muy relevantes en psiquiatría)
             fuma: data.get("fuma"),
             cigarros_semana: getInt("cigarros_semana"),
             alcohol: data.get("alcohol"),
@@ -166,7 +158,6 @@ if (Astro.request.method === "POST") {
             te: data.get("te"),
             tazas_te_semana: getInt("tazas_te_semana"),
 
-            // 6. Escalas Psiquiátricas (Hamilton, ISI, etc)
             hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
             hamilton_a_pre: getInt("hamilton_a_pre"), hamilton_a_inter: getInt("hamilton_a_inter"), hamilton_a_post: getInt("hamilton_a_post"),
             isi_pre: getInt("isi_pre"), isi_inter: getInt("isi_inter"), isi_post: getInt("isi_post"),
@@ -187,7 +178,6 @@ if (Astro.request.method === "POST") {
             registrado_por: nombreRegistrador
         };
 
-        // INSERTAR PACIENTE
         const { data: pacienteInsertado, error: errorPaciente } = await supabase
             .from('pacientes')
             .insert([nuevoPaciente])
@@ -196,8 +186,6 @@ if (Astro.request.method === "POST") {
 
         if (errorPaciente) throw errorPaciente;
 
-        // INSERTAR SÍNTOMAS (Relación 1:N)
-        // Reutilizamos la lógica de sintomas (Temporalidad, Frecuencia, Gravedad sirven para ánimo también)
         const sintomas = data.getAll('sintoma');
         const temporalidades = data.getAll('temporalidad');
         const frecuencias = data.getAll('frecuencia');
@@ -219,7 +207,6 @@ if (Astro.request.method === "POST") {
             if (errorSintomas) console.error("Error guardando síntomas:", errorSintomas);
         }
 
-        // INSERTAR PUNTAJES EXTRA
         const extraNombres = data.getAll('extra_prueba_nombre');
         const extraValores = data.getAll('extra_prueba_valor');
 
@@ -245,7 +232,6 @@ if (Astro.request.method === "POST") {
             }
         }
         
-        // Redirigir a la misma página con flag de éxito
         return Astro.redirect('/registro/animo?exito=true');
 
     } catch (e) {
@@ -934,7 +920,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // 1. LOGICA DE INTERFAZ (Condicionales Yes/No)
         const triggers = document.querySelectorAll('.trigger-condicional');
         triggers.forEach(trigger => {
             trigger.addEventListener('change', (e) => {
@@ -958,7 +943,6 @@ if (Astro.request.method === "POST") {
             });
         });
 
-        // 2. LOGICA DE SINTOMAS DINAMICOS
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
         
@@ -1001,7 +985,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // 3. VALIDACIÓN DE FORMULARIO
         const form = document.getElementById('form-registro');
         const modalErrores = document.getElementById('modal-errores');
         const listaErrores = document.getElementById('lista-errores');
@@ -1049,7 +1032,6 @@ if (Astro.request.method === "POST") {
             });
         }
 
-        // 4. REDIRECCIÓN TRAS ÉXITO
         const modalExito = document.querySelector('.success-checkmark');
         if (modalExito) {
             setTimeout(() => {

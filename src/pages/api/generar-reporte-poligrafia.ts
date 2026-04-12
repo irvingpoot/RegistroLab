@@ -2,9 +2,7 @@
  * @file generar-reporte-poligrafia.ts
  * @description Genera el reporte de poligrafía nocturna en PDF usando pdf-lib.
  *
- * - Sin dependencias externas (no LibreOffice, no CloudConvert)
- * - Compatible con Vercel free tier (~200ms de ejecución)
- * - La imagen de fondo debe estar en src/assets/fondo_sueno.png
+ * - La firma debe estar en el bucket "assets" de Supabase Storage (fuera del repo)
  *
  * Dependencias:
  *   npm install pdf-lib
@@ -15,6 +13,23 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
+
+const descargarDeStorage = async (path: string): Promise<Buffer> => {
+  const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+  );
+
+  const { data, error } = await supabase.storage
+    .from("assets")
+    .download(path);
+
+  if (error || !data) {
+    throw new Error(`No se pudo descargar '${path}' de Supabase Storage: ${error?.message}`);
+  }
+
+  return Buffer.from(await data.arrayBuffer());
+};
 
 interface Noche {
   id: number;
@@ -287,7 +302,6 @@ const generarPDF = async (params: {
   const fontReg  = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Primera página
   const page1 = pdfDoc.addPage([PAGE_W, PAGE_H]);
   const bgEmbed = await pdfDoc.embedPng(bgBytes);
   page1.drawImage(bgEmbed, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
@@ -296,26 +310,22 @@ const generarPDF = async (params: {
   const nl = params.totalNoches === 1 ? "noche" : "noches";
   const n = params.totalNoches;
 
-  // ── ENCABEZADO ─────────────────────────────────────────────────────────────
   await write(ctx, `**NOMBRE: ${params.nombre}**`, { spaceAfter: 3 });
   await write(ctx, `**EDAD: ${params.edad} AÑOS.**`, { spaceAfter: 3 });
   await write(ctx, `**FECHA: ${params.fechaReporte}.**`, { spaceAfter: 20 });
 
-  // ── SECCIÓN: Poligrafía nocturna ───────────────────────────────────────────
   await write(ctx, "**Poligrafía nocturna**", { spaceAfter: 8 });
   await write(ctx,
     "Se realizó un estudio de poligrafía nocturna para la detección de alteraciones de la respiración durante el sueño mediante el equipo Apnea Link, registrando 4 canales: flujo de aire, saturación de oxígeno, frecuencia cardíaca, esfuerzo respiratorio.",
     { firstLineIndent: 30, spaceAfter: 16 }
   );
 
-  // ── SECCIÓN: Resultados ────────────────────────────────────────────────────
   await write(ctx, "**Resultados**", { spaceAfter: 8 });
   await write(ctx,
     `El estudio se realizó en ${n} ${nl}, en las cuales se registraron ${params.duracionesTexto} respectivamente, para dar un total de ${params.duracionTotalEval}.`,
     { firstLineIndent: 30, spaceAfter: 16 }
   );
 
-  // ── SECCIÓN: Alteraciones ─────────────────────────────────────────────────
   await write(ctx, "**Alteraciones de la respiración**", { spaceAfter: 8 });
   await write(ctx,
     `Los índices de apnea e hipopnea (IAH) por noche fueron: ${params.iahPorNoche}. El promedio de las ${n} ${nl} fue de **IAH = ${params.iahPromedio ?? "—"} eventos por hora**. Los eventos fueron ${params.tipoApnea}. Durante el estudio se obtuvo un promedio de **${params.ronquidosPromedio ?? "—"} ronquidos** en las ${n} ${nl}.`,
@@ -330,7 +340,6 @@ const generarPDF = async (params: {
     { spaceAfter: 12 }
   );
 
-  // ── SECCIÓN: Datos de autoinforme ──────────────────────────────────────────
   await write(ctx, "**Datos de autoinforme**", { spaceAfter: 8 });
   await write(ctx,
     `En la escala de somnolencia de Epworth obtuvo ${params.epworthPuntaje ?? "—"} puntos de una puntuación máxima de 24, lo cual lo ubica en la categoría: **${params.epworthCat}.**`,
@@ -342,7 +351,6 @@ const generarPDF = async (params: {
   );
   await write(ctx, params.berlinTexto, { firstLineIndent: 30, spaceAfter: 16 });
 
-  // ── SECCIÓN: Recomendaciones ───────────────────────────────────────────────
   await write(ctx, "**Recomendaciones**", { spaceAfter: 8 });
   await write(ctx,
     `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de Síndrome de Apnea Obstructiva del Sueño (SAOS) en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
@@ -376,13 +384,12 @@ const generarPDF = async (params: {
 
   await write(ctx, "Se anexan los datos del estudio de poligrafía respiratoria.", { spaceAfter: 36 });
 
-  // ── FIRMA ──────────────────────────────────────────────────────────────────
   if (ctx.y < 160) await addPage(ctx);
 
   const pg   = currentPage(ctx);
   const cx   = PAGE_W / 2;
   const fw   = 200;
-  const firmaBytes = readFileSync(join(process.cwd(), "src", "assets", "firma.png"));
+  const firmaBytes = await descargarDeStorage("firma.png");
   const firmaImg   = await pdfDoc.embedPng(firmaBytes)
   const firmaW = 100;
   const firmaH = firmaImg.height * (firmaW / firmaImg.width);
