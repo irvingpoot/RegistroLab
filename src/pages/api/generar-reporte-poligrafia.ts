@@ -128,8 +128,8 @@ const PAGE_H        = 792;
 const MARGIN_LEFT   = 72;
 const MARGIN_RIGHT  = 520;
 const TEXT_WIDTH    = MARGIN_RIGHT - MARGIN_LEFT;
-const START_Y_P1    = 648;
-const START_Y       = 648;
+const START_Y_P1    = 628;
+const START_Y       = 628;
 const MARGIN_BOTTOM = 65;
 const LINE_HEIGHT   = 22;
 const COLOR_BLACK   = rgb(0, 0, 0);
@@ -250,6 +250,7 @@ const write = async (
     bold?: boolean;
     spaceBefore?: number;
     spaceAfter?: number;
+    align?: "left" | "center";
   } = {}
 ): Promise<void> => {
   const { size = 11, indent = 0, firstLineIndent = 0, bold = false, spaceBefore = 0, spaceAfter = LINE_HEIGHT } = opts;
@@ -265,6 +266,14 @@ const write = async (
 
   if (ctx.y - totalHeight < MARGIN_BOTTOM) {
     await addPage(ctx);
+  }
+
+  if (opts.align === "center") {
+    const textW = font.widthOfTextAtSize(text, size);
+    const xCentered = PAGE_W / 2 - textW / 2;
+    currentPage(ctx).drawText(text, { x: xCentered, y: ctx.y, size, font, color: COLOR_BLACK });
+    ctx.y -= LINE_HEIGHT + spaceAfter;
+    return;
   }
 
   drawJustifiedText(currentPage(ctx), text, ctx.fontReg, ctx.fontBold, x, ctx.y, maxWidth, size, firstLineIndent);
@@ -314,13 +323,15 @@ const generarPDF = async (params: {
   await write(ctx, `**EDAD: ${params.edad} AÑOS.**`, { spaceAfter: 3 });
   await write(ctx, `**FECHA: ${params.fechaReporte}.**`, { spaceAfter: 20 });
 
-  await write(ctx, "**Poligrafía nocturna**", { spaceAfter: 8 });
+  
+  await write(ctx, "Reporte técnico", { spaceAfter: 8, align: "center", bold: true });
+  await write(ctx, "POLIGRAFÍA NOCTURNA", { spaceAfter: 8, align: "center", bold: true });
   await write(ctx,
     "Se realizó un estudio de poligrafía nocturna para la detección de alteraciones de la respiración durante el sueño mediante el equipo Apnea Link, registrando 4 canales: flujo de aire, saturación de oxígeno, frecuencia cardíaca, esfuerzo respiratorio.",
     { firstLineIndent: 30, spaceAfter: 16 }
   );
 
-  await write(ctx, "**Resultados**", { spaceAfter: 8 });
+  await write(ctx, "RESULTADOS", { align: "center", bold: true, spaceAfter: 8 });
   await write(ctx,
     `El estudio se realizó en ${n} ${nl}, en las cuales se registraron ${params.duracionesTexto} respectivamente, para dar un total de ${params.duracionTotalEval}.`,
     { firstLineIndent: 30, spaceAfter: 16 }
@@ -333,14 +344,14 @@ const generarPDF = async (params: {
   );
   await write(ctx,
     `La **saturación promedio de oxígeno** durante el sueño fue del ${params.satPorNoche} respectivamente, con un promedio de ${params.satPromedio ?? "—"}%. Los **índices de desaturación de oxígeno** fueron de ${params.idoPorNoche}, promediando **${params.idoPromedio ?? "—"} eventos por hora** a lo largo de las ${n} ${nl}.`,
-    { spaceAfter: 12 }
+    { spaceAfter: 10 }
   );
   await write(ctx,
     `La saturación de **oxígeno menor al 90%** fue del ${params.sat90PorNoche} respectivamente. La saturación de **oxígeno menor al 85%** fue del ${params.sat85PorNoche} respectivamente.`,
-    { spaceAfter: 12 }
+    { spaceAfter: 16 }
   );
 
-  await write(ctx, "**Datos de autoinforme**", { spaceAfter: 8 });
+  await write(ctx, "**Datos de autoinforme**", { spaceAfter: 8, });
   await write(ctx,
     `En la escala de somnolencia de Epworth obtuvo ${params.epworthPuntaje ?? "—"} puntos de una puntuación máxima de 24, lo cual lo ubica en la categoría: **${params.epworthCat}.**`,
     { firstLineIndent: 30, spaceAfter: 12 }
@@ -351,7 +362,7 @@ const generarPDF = async (params: {
   );
   await write(ctx, params.berlinTexto, { firstLineIndent: 30, spaceAfter: 16 });
 
-  await write(ctx, "**Recomendaciones**", { spaceAfter: 8 });
+  await write(ctx, "RECOMENDACIONES", { spaceAfter: 8, align: "center", bold: true });
   await write(ctx,
     `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de Síndrome de Apnea Obstructiva del Sueño (SAOS) en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
     { spaceAfter: 10 }
