@@ -203,7 +203,6 @@ export async function crearCita(params: {
     const fechaISO = fechaObj.toISOString();
     const fechaSoloDia = params.fechaLocal.split("T")[0];
     
-    // 1. Verificar día inhábil
     const { data: diaBloqueado } = await supabase
         .from("dias_inhabiles")
         .select("fecha")
@@ -214,7 +213,6 @@ export async function crearCita(params: {
         throw new Error(`⚠️ El día seleccionado (${fechaSoloDia}) está bloqueado como inhábil. Elige otra fecha.`);
     }
     
-    // 2. Verificar solapamiento
     const { data: citaExistente } = await supabase
         .from("citas")
         .select("id")
@@ -227,7 +225,6 @@ export async function crearCita(params: {
         throw new Error(`⚠️ Agenda ocupada: ${params.atendidoPor} ya tiene una cita a esa hora.`);
     }
     
-    // 3. Insertar
     const { error } = await supabase.from("citas").insert([{
         nombre:            params.nombre,
         telefono:          params.telefono,

@@ -32,7 +32,6 @@ const supabase = createClient(
     import.meta.env.SUPABASE_KEY
 );
 
-// --- LÓGICA DE ACTUALIZACIÓN ---
 let mensaje = "";
 let error = false;
 
@@ -45,7 +44,6 @@ if (Astro.request.method === "POST") {
             return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
         };
 
-        // 1. Calcular Edad (igual que en registro)
         let edadCalculada = 0;
         const fechaNacString = data.get("fecha_nacimiento") as string;
         if (fechaNacString) {
@@ -115,7 +113,6 @@ if (Astro.request.method === "POST") {
             cuestionario_insomnio_pre: getInt("cuestionario_insomnio_pre"), cuestionario_insomnio_inter: getInt("cuestionario_insomnio_inter"), cuestionario_insomnio_post: getInt("cuestionario_insomnio_post"),
         };
 
-        // 2. Actualizar Tabla Principal
         const { error: updateError } = await supabase
             .from('pacientes')
             .update(pacienteUpdate)
@@ -123,7 +120,6 @@ if (Astro.request.method === "POST") {
 
         if (updateError) throw updateError;
 
-        // 3. Actualizar Síntomas (Borrar todo y reinsertar)
         await supabase.from('pacientes_sintomas').delete().eq('paciente_id', id);
         
         const sintomas = data.getAll('sintoma');
@@ -143,7 +139,6 @@ if (Astro.request.method === "POST") {
             await supabase.from('pacientes_sintomas').insert(sintomasInsert);
         }
 
-        // 4. Actualizar Puntajes Extra (Borrar y reinsertar)
         await supabase.from('pacientes_puntajes_extra').delete().eq('paciente_id', id);
 
         const extraNombres = data.getAll('extra_prueba_nombre');
@@ -168,7 +163,6 @@ if (Astro.request.method === "POST") {
     }
 }
 
-// --- CARGA DE DATOS ---
 const { data: p, error: loadError } = await supabase
     .from('pacientes')
     .select('*, pacientes_sintomas(*), pacientes_puntajes_extra(*)')
@@ -177,7 +171,6 @@ const { data: p, error: loadError } = await supabase
 
 if (loadError || !p) return Astro.redirect("/lista");
 
-// Asegurar al menos un elemento en arrays para renderizar
 const listaSintomas = p.pacientes_sintomas && p.pacientes_sintomas.length > 0 ? p.pacientes_sintomas : [{}];
 const listaExtras = p.pacientes_puntajes_extra || [];
 ---
@@ -414,7 +407,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Consumo de sustancias</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Fuma */}
                         <div class="cond-block">
                             <label class="label">¿Fuma?</label>
                             <div class="flex gap-6">
@@ -453,7 +445,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Alteraciones del sueño</h2>
                     
-                    {/* Nota visual para el usuario */}
                     <p class="text-xs text-blue-300 font-bold uppercase tracking-wider mb-3 px-1">
                         * Puedes seleccionar múltiples opciones
                     </p>
@@ -545,7 +536,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
 
 <script>
     function initEdit() {
-        // 1. Condicionales
         const triggers = document.querySelectorAll('.trigger-condicional');
         triggers.forEach(trigger => {
             trigger.addEventListener('change', (e) => {
@@ -568,11 +558,9 @@ const listaExtras = p.pacientes_puntajes_extra || [];
             });
         });
 
-        // 2. Síntomas Dinámicos
         const btnAddSintoma = document.getElementById('btn-add-sintoma');
         const listaSintomas = document.getElementById('lista-sintomas');
         
-        // Inicializar botones delete existentes
         const initDeleteSintoma = (parent: Element) => {
             const btn = parent.querySelector('.btn-delete-sintoma');
             if (btn) {
@@ -580,7 +568,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 btn.addEventListener('click', () => {
                     if (document.querySelectorAll('.sintoma-group').length > 1) {
                         parent.remove();
-                        // Renumerar
                         document.querySelectorAll('.sintoma-group').forEach((el, i) => {
                             const t = el.querySelector('.sintoma-titulo');
                             if(t) t.textContent = `Síntoma ${i+1}`;
@@ -591,14 +578,10 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 });
             }
         };
-        // Aplicar a los cargados del servidor (menos el primero si es único)
         const serverSintomas = document.querySelectorAll('.sintoma-group');
         if (serverSintomas.length > 1) {
             serverSintomas.forEach(initDeleteSintoma);
-        } else if (serverSintomas.length === 1) {
-            // Si solo hay uno, nos aseguramos que el botón esté oculto o listo para futuros clones
-            // (La lógica de clonación usará este como base)
-        }
+        } else if (serverSintomas.length === 1) {}
 
         if (btnAddSintoma && listaSintomas) {
             btnAddSintoma.addEventListener('click', () => {
@@ -607,12 +590,9 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                 const clone = original.cloneNode(true) as HTMLElement;
                 clone.querySelectorAll('input').forEach((i: HTMLInputElement) => i.value = '');
                 
-                // Activar delete en el clon
                 initDeleteSintoma(clone);
-                // Si el original no tenía delete visible, el clon sí debe tenerlo
                 clone.querySelector('.btn-delete-sintoma')?.classList.remove('hidden');
 
-                // Asegurarse que el original (si era único) ahora tenga botón visible también
                 if (listaSintomas.querySelectorAll('.sintoma-group').length === 1) {
                     initDeleteSintoma(original);
                 }
@@ -625,7 +605,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
             });
         }
 
-        // 3. Puntajes Extra
         const btnAddPuntaje = document.getElementById('btn-add-puntaje');
         const listaExtras = document.getElementById('lista-puntajes-extra');
         const templateExtra = document.querySelector('.puntaje-extra-template');
@@ -635,7 +614,6 @@ const listaExtras = p.pacientes_puntajes_extra || [];
             btn.addEventListener('click', (e) => (e.target as HTMLElement).closest('.puntaje-extra-group')?.remove());
         };
 
-        // Init existentes
         document.querySelectorAll('.puntaje-extra-item .btn-delete-puntaje').forEach(initDeleteExtra);
 
         if (btnAddPuntaje && listaExtras && templateExtra) {

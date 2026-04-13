@@ -45,7 +45,6 @@ try {
     console.error("Error users:", e);
 }
 
-// Actualizar Datos (Si es POST)
 if (Astro.request.method === "POST") {
     try {
         const data = await Astro.request.formData();
@@ -53,17 +52,14 @@ if (Astro.request.method === "POST") {
         const fechaObj = new Date(`${fechaLocal}-06:00`);
         const fechaISO = fechaObj.toISOString();
         
-        // 1. NUEVO: Capturar especialista
         const atendidoPor = data.get("atendido_por") as string;
 
-        // 2. VALIDACIÓN:
-        // Buscamos si hay OTRA cita (id != id actual) a la misma hora con el MISMO doctor.
         const { data: colision } = await supabase
             .from('citas')
             .select('id')
             .eq('fecha_hora', fechaISO)
             .eq('atendido_por', atendidoPor)
-            .neq('id', id) // <--- IMPORTANTE: No chocar con uno mismo
+            .neq('id', id)
             .neq('estado', 'cancelada')
             .maybeSingle();
 
@@ -79,7 +75,7 @@ if (Astro.request.method === "POST") {
             referencia: data.get("referencia"),
             fecha_hora: fechaISO,
             observaciones: data.get("observaciones") || null,
-            atendido_por: atendidoPor // <--- Guardamos el cambio
+            atendido_por: atendidoPor
         };
 
         const { error: updateError } = await supabase
@@ -98,7 +94,6 @@ if (Astro.request.method === "POST") {
     }
 }
 
-// Obtener Datos actuales para rellenar el formulario
 const { data: cita, error: fetchError } = await supabase
     .from('citas')
     .select('*')
@@ -109,12 +104,10 @@ if (fetchError || !cita) return Astro.redirect("/citas");
 
 const fechaObjCita = new Date(cita.fecha_hora);
 
-// Obtenemos la fecha (YYYY-MM-DD) en horario Mérida
 const fechaParte = fechaObjCita.toLocaleDateString('en-CA', { 
     timeZone: 'America/Merida' 
 });
 
-// Obtenemos la hora (HH:MM) en horario Mérida (formato 24h)
 const horaParte = fechaObjCita.toLocaleTimeString('en-GB', { 
     timeZone: 'America/Merida', 
     hour: '2-digit', 
@@ -122,7 +115,6 @@ const horaParte = fechaObjCita.toLocaleTimeString('en-GB', {
     hour12: false 
 });
 
-// Unimos ambas partes con una "T"
 const fechaValue = `${fechaParte}T${horaParte}`;
 ---
 
@@ -203,7 +195,6 @@ const fechaValue = `${fechaParte}T${horaParte}`;
                                         </option>
                                     ))}
 
-                                    {/* Caso especial: Si la cita tiene un doctor que YA NO existe en Clerk (fue borrado), mostrarlo para no perder el dato */}
                                     {cita.atendido_por && !listaEspecialistas.includes(cita.atendido_por) && (
                                         <option class="bg-gray-900" value={cita.atendido_por} selected>
                                             {cita.atendido_por} (Usuario inactivo)

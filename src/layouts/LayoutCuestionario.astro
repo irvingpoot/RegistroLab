@@ -17,31 +17,26 @@ import '../styles/global.css'
 
 const { title, tipo = 'default' } = Astro.props;
 
-// --- CONFIGURACIÓN DE TEMAS ---
 const themes = {
     epworth: {
-        // Epworth (Somnolencia Diurna): Tonos cielo/día, enérgicos pero calmados
         bgGradient: "bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50",
         accentTitle: "from-sky-600 via-blue-500 to-indigo-600",
         blobColor1: "text-sky-300",
         blobColor2: "text-blue-200",
     },
     psqi: {
-        // Pittsburgh (Calidad): Tonos nocturnos/profundos, violetas y púrpuras suaves
         bgGradient: "bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50",
         accentTitle: "from-violet-600 via-purple-500 to-fuchsia-600",
         blobColor1: "text-purple-300",
         blobColor2: "text-fuchsia-200",
     },
     berlin: {
-        // Berlin (Apnea/Sueño): Tonos salud/restauración, esmeraldas y turquesas
         bgGradient: "bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50",
         accentTitle: "from-emerald-600 via-teal-500 to-cyan-600",
         blobColor1: "text-emerald-300",
         blobColor2: "text-teal-200",
     },
     default: {
-        // Genérico (Slate limpio)
         bgGradient: "bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50",
         accentTitle: "from-blue-600 via-blue-400 to-blue-800",
         blobColor1: "text-slate-300",
@@ -49,7 +44,6 @@ const themes = {
     }
 };
 
-// Seleccionamos el tema o usamos el default si no existe
 const theme = themes[tipo as keyof typeof themes] || themes.default;
 ---
 
@@ -91,7 +85,6 @@ const theme = themes[tipo as keyof typeof themes] || themes.default;
 </html>
 
 <style>
-    /* Animación flotante suave para los blobs */
     @keyframes blob {
         0% { transform: translate(0px, 0px) scale(1); }
         33% { transform: translate(30px, -50px) scale(1.1); }

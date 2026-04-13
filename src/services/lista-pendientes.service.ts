@@ -60,7 +60,7 @@ export async function crearTarea(params: {
     if (error) throw new Error(`crearTarea: ${error.message}`);
 }
 
-export async function completarTarea(idTarea: string, completadoPor: string): Promise<void> { // <-- idTarea: string
+export async function completarTarea(idTarea: string, completadoPor: string): Promise<void> {
     const { error } = await supabase
         .from("tareas_pendientes")
         .update({
