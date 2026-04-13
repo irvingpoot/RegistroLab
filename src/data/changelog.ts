@@ -22,6 +22,11 @@ export const changes: Changes[] = [
         type: "feature"
     },
     {
+        title: "Estadisticas de pacientes",
+        description: "Se agregaron graficas, tablas y otros elementos visuales para mejorar las estadisticas de los pacientes.",
+        type: "feature"
+    },
+    {
         title: "Recordatorio de tareas",
         description: "Ahora el recordatorio de tareas del dashboard aparece oculto y se abre si el usuario hace pasa el mouse sobre él.",
         type: "style"
