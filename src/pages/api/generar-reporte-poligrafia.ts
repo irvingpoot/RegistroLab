@@ -88,19 +88,23 @@ const clasificarEpworth = (p: number | null): string => {
   return "Somnolencia diurna excesiva";
 };
 
-const clasificarPsqi = (p: number | null): { categoria: string; observaciones: string } => {
-  if (p === null) return { categoria: "Sin datos", observaciones: "" };
-  if (p <= 5)  return { categoria: "Sin alteración en la calidad de sueño", observaciones: "" };
-  if (p <= 10) return { categoria: "Alteración leve en la calidad de sueño", observaciones: ", con posibles observaciones en la calidad subjetiva de sueño y disfunción diurna." };
-  if (p <= 15) return { categoria: "Alteración moderada en la calidad de sueño", observaciones: ", con observaciones en la calidad subjetiva de sueño, latencia del sueño, eficiencia habitual del sueño y perturbación del sueño." };
-  return { categoria: "Alteración de moderada a grave en la calidad de sueño", observaciones: ", con observaciones en la calidad subjetiva de sueño, latencia del sueño, eficiencia habitual del sueño, perturbación del sueño, uso de medicación hipnótica y disfunción diurna." };
+const clasificarPsqi = (p: number | null): { categoria: string } => {
+  if (p === null) return { categoria: "Sin datos" };
+  if (p < 5)  return { categoria: "Sin alteración en la calidad de sueño" };
+  if (p < 10) return { categoria: "Alteración leve en la calidad de sueño" };
+  if (p < 15) return { categoria: "Alteración moderada en la calidad de sueño"};
+  return { categoria: "Alteración de moderada a grave en la calidad de sueño"};
 };
 
-const clasificarBerlin = (p: number | null): string => {
-  if (p === null) return "Sin datos del cuestionario de Berlín.";
-  if (p === 0) return "En el cuestionario de Berlín para SAOS no obtuvo categorías positivas, indicando bajo riesgo.";
-  const cats = ["la 1) Síntomas persistentes de ronquidos y apneas", "la 2) Síntomas persistentes de somnolencia diurna", "la 3) Hipertensión"];
-  return `En el cuestionario de Berlín para SAOS (síndrome de apnea obstructiva del sueño) obtuvo ${p === 1 ? "una categoría positiva" : `${p} categorías positivas`}, ${cats.slice(0, p).join(", ")}.`;
+const clasificarBerlin = (cat1: boolean | null, cat2: boolean | null, cat3: boolean | null): string => {
+  if (cat1 === null && cat2 === null && cat3 === null) return "Sin datos del cuestionario de Berlín.";
+  const etiquetas = [
+    cat1 ? "la 1) Síntomas persistentes de ronquidos y apneas" : null,
+    cat2 ? "la 2) Síntomas persistentes de somnolencia diurna" : null,
+    cat3 ? "la 3) Hipertensión" : null,
+  ].filter((c): c is string => c !== null);
+  if (etiquetas.length === 0) return "En el cuestionario de Berlín para SAOS no obtuvo categorías positivas, indicando bajo riesgo.";
+  return `En el cuestionario de Berlín para SAOS (síndrome de apnea obstructiva del sueño) obtuvo ${etiquetas.length === 1 ? "una categoría positiva" : `${etiquetas.length} categorías positivas`}, ${etiquetas.join(", ")}.`;
 };
 
 const clasificarSaos = (iah: number | null): string => {
@@ -446,10 +450,40 @@ export const POST: APIRoute = async ({ request }) => {
     import.meta.env.SUPABASE_KEY
   );
 
-  const [{ data: paciente, error: errP }, { data: nochesRaw, error: errN }] = await Promise.all([
-    supabase.from("pacientes").select("nombre, edad, epworth_pre, psqi_pre, berlin_pre").eq("id", pacienteId).single(),
+  const [{ data: paciente, error: errP }, { data: nochesRaw, error: errN }, { data: berlinRaw }, { data: psqiRaw }] = await Promise.all([
+    supabase.from("pacientes").select("nombre, edad, epworth_pre, psqi_pre").eq("id", pacienteId).single(),
     supabase.from("pacientes_reportes_sueno").select("*").eq("paciente_id", pacienteId).order("created_at", { ascending: true }),
+    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", "pre").eq("cuestionario", "berlin").maybeSingle(),
+    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", "pre").eq("cuestionario", "psqi").maybeSingle(),
   ]);
+
+  const berlinDatos = berlinRaw?.datos as Record<string, string> | null ?? null;
+  const esPositiva  = (v: string | undefined) => typeof v === "string" && v.toUpperCase().includes("POSITIVA");
+  const berlin = berlinDatos ? {
+    cat1: esPositiva(berlinDatos["Resultado Categoría 1 (Ronquido)"]),
+    cat2: esPositiva(berlinDatos["Resultado Categoría 2 (Somnolencia)"]),
+    cat3: esPositiva(berlinDatos["Resultado Categoría 3 (Presión/IMC)"]),
+  } : null;
+  // Observaciones PSQI: componentes con puntaje = 3 (máximo posible)
+  const PSQI_COMPONENTES: [string, string][] = [
+    ["C1 Calidad",        "calidad subjetiva de sueño"],
+    ["C2 Latencia",       "latencia del sueño"],
+    ["C3 Duración",       "duración del sueño"],
+    ["C4 Eficiencia",     "eficiencia habitual del sueño"],
+    ["C5 Perturbaciones", "perturbación del sueño"],
+    ["C6 Medicación",     "uso de medicación hipnótica"],
+    ["C7 Disfunción",     "disfunción diurna"],
+  ];
+  const psqiDatos = psqiRaw?.datos as Record<string, string> | null ?? null;
+  const psqiObservaciones = (() => {
+    if (!psqiDatos) return "";
+    const alteradas = PSQI_COMPONENTES
+      .filter(([key]) => parseInt(psqiDatos[key] ?? "0") >= 3)
+      .map(([, label]) => label);
+    if (!alteradas.length) return "";
+    return `, con observaciones en ${alteradas.join(", ")}.`;
+  })();
+
 
   if (errP || !paciente)
     return new Response(JSON.stringify({ error: "Paciente no encontrado" }), { status: 404 });
@@ -494,8 +528,8 @@ export const POST: APIRoute = async ({ request }) => {
       epworthPuntaje: paciente.epworth_pre,
       epworthCat: clasificarEpworth(paciente.epworth_pre),
       psqiPuntaje: paciente.psqi_pre,
-      psqi: clasificarPsqi(paciente.psqi_pre),
-      berlinTexto: clasificarBerlin(paciente.berlin_pre),
+      psqi: { ...clasificarPsqi(paciente.psqi_pre), observaciones: psqiObservaciones },
+      berlinTexto: clasificarBerlin(berlin?.cat1 ?? null, berlin?.cat2 ?? null, berlin?.cat3 ?? null),
       saosNivel: clasificarSaos(iahPromedio),
       recomendaciones,
     });
