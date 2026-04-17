@@ -1,4 +1,4 @@
-export const currentVersion = "3.6.2";
+export const currentVersion = "3.6.3";
 
 export const isMajorUpdate = false;
 
@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Cuestionario Berlin",
-        description: "Se corrigió un error en donde las partes expandibles no se mostraban correctamente.",
+        title: "Cuestionarios",
+        description: "Se corrigieron multiples detalles en los cuestionarios.",
         type: "fix"
     }
 ];
