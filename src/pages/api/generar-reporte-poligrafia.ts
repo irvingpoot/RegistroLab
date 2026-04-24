@@ -116,10 +116,12 @@ const tipoApneaPredominante = (noches: Noche[]): string => {
   const iao = promedioN(noches, "iao") ?? 0;
   const iac = promedioN(noches, "iac") ?? 0;
   const iam = promedioN(noches, "iam") ?? 0;
-  const max = Math.max(iao, iac, iam);
+  const iah = promedioN(noches, "indice_hipopnea") ?? 0;
+  const max = Math.max(iao, iac, iam, iah);
   if (max === 0) return "apneas no clasificadas";
   if (max === iao) return "predominantemente de apneas obstructivas";
   if (max === iac) return "predominantemente de apneas centrales";
+  if (max === iah) return "predominantemente de apneas hipoapneas";
   return "predominantemente de apneas mixtas";
 };
 

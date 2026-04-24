@@ -1,4 +1,4 @@
-export const currentVersion = "3.6.4";
+export const currentVersion = "3.6.5";
 
 export const isMajorUpdate = false;
 
