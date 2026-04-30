@@ -19,6 +19,7 @@ import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro"
 import MatrixScale from "../../../components/MatrixScale.astro"
 import { createClient } from "@supabase/supabase-js"
 import { calcularEpworth } from "../../../utils/calculos"
+import RadioGroup from "../../../components/RadioGroup.astro";
 
 const MODO_DISENO = false;
 
@@ -97,23 +98,13 @@ if (!MODO_DISENO) {
 
 const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
 
+const optionsEpworth = [
+    { label: 'Nunca cabecearía o me quedaría dormido', value: 0 },
+    { label: 'Ligera probabilidad de «cabecear» o quedarme dormido', value: 1 },
+    { label: 'Moderada probabilidad de «cabecear» o quedarme dormido', value: 2 },
+    { label: 'Alta probabilidad de «cabecear» o quedarme dormido', value: 3 },
+];
 
-const epworthOptions = [
-    { label: 'Nunca', value: 0 },
-    { label: 'Ligera', value: 1 },
-    { label: 'Moderada', value: 2 },
-    { label: 'Alta', value: 3 },
-];
-const epworthQuestions = [
-    { id: 'epworth_1', text: 'Al estar sentado leyendo' },
-    { id: 'epworth_2', text: 'Viendo T.V.' },
-    { id: 'epworth_3', text: 'Sentado inactivo en un lugar público (por ejemplo una sala de espera, cine, etc.)' },
-    { id: 'epworth_4', text: 'Como pasajero en un auto durante una hora ininterrumpida' },
-    { id: 'epworth_5', text: 'Recostado y descansando por la tarde, cuando las circunstancias lo permiten' },
-    { id: 'epworth_6', text: 'Sentado, hablando con alguien' },
-    { id: 'epworth_7', text: 'Sentado tranquilamente, después de una comida sin haber ingerido alcohol.' },
-    { id: 'epworth_8', text: 'En un auto que se encuentra detenido por algunos minutos debido al tráfico' },
-];
 ---
 
 <LayoutCuestionario title="Cuestionario Epworth" tipo="epworth">
@@ -206,15 +197,64 @@ const epworthQuestions = [
             </div>
                 <form method="POST" id="cuestionario-form">
 
-                    <div class="mb-4 text-gray-800 text-xl text-center">
-                        <p class="mb-2">Estas situaciones se refieren a su estilo de vida durante los últimos siete días.</p>
+                    <div class="mb-4 text-gray-800 text-xl">
+                        <p class="mb-5 text-pretty">¿Qué tan probable es que usted «cabecee» o se quede dormido en las siguientes situaciones, a diferencia de solo sentirse cansado? Aun cuando no haya hecho algunas de estas actividades recientemente, intente imaginar cómo le afectarían.</p>
                     </div>
 
-                    <MatrixScale 
-                        instruction="Use la siguiente escala para escoger el número más apropiado para cada situación:"
-                        scaleLabel="PROBABILIDAD DE QUEDAR DORMIDO"
-                        options={epworthOptions}
-                        questions={epworthQuestions}
+                    <RadioGroup 
+                        label="Sentado y leyendo"
+                        name="epworth_1"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Viendo la T.V."
+                        name="epworth_2"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Sentado inactivo en un lugar público (por ejemplo una sala de espera, cine, etc.)"
+                        name="epworth_3"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Como pasajero en un auto durante una hora y sin descanso"
+                        name="epworth_4"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Acostado para descansar por la tarde, cuando las circunstancias se lo permiten"
+                        name="epworth_5"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Sentado y hablando con alguien"
+                        name="epworth_6"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="Sentado tranquilamente después de una comida sin alcohol."
+                        name="epworth_7"
+                        options={optionsEpworth}
+                        required={true}
+                    />
+
+                    <RadioGroup 
+                        label="En un auto parado por unos minutos en el tráfico"
+                        name="epworth_8"
+                        options={optionsEpworth}
+                        required={true}
                     />
                     
                     <div class="pt-10">
