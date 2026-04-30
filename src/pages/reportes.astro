@@ -441,5 +441,17 @@ const getColors = (color: string) => {
                 }
             });
         });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('paciente_id')) {
+            irPaso2({
+                id:     parseInt(params.get('paciente_id') ?? '0'),
+                nombre: params.get('nombre') ?? '',
+                edad:   parseInt(params.get('edad') ?? '0'),
+            });
+            modal.showModal();
+            window.history.replaceState({}, '', '/reportes');
+        }
+
     });
 </script>
