@@ -750,10 +750,18 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                             Resultados del estudio de poligrafía del sueño.
                             {totalNoches > 0 && <span class="ml-2 text-blue-400 font-bold">{totalNoches} {totalNoches === 1 ? 'noche registrada' : 'noches registradas'}</span>}
                         </p>
-                        <button onclick="abrirModalNoche()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                            Agregar Noche
-                        </button>
+                        <div class="flex items-center gap-2">
+                            {totalNoches > 0 && (
+                                <button id="btn-generar-reporte" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    Generar Reporte
+                                </button>
+                            )}
+                            <button onclick="abrirModalNoche()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                                Agregar Noche
+                            </button>
+                        </div>
                     </div>
 
                     {totalNoches > 0 ? (
@@ -1772,7 +1780,7 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
 </style>
 
-<script define:vars={{ baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [], nombreAutor, nochesData: reportesNoches }}>
+<script define:vars={{baseUrl: Astro.url.origin, token: paciente.token_cuestionarios, respuestasGuardadas: paciente.respuestas_cuestionarios || [], nombreAutor, nochesData: reportesNoches, pacienteId: paciente.id, pacienteNombre: paciente.nombre, pacienteEdad: edadDisplay}}>
     const DICCIONARIOS = {
         epworth: {
             epworth_1: "Al estar sentado leyendo",
@@ -2397,6 +2405,18 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             document.getElementById('form-eliminar-noche').submit();
         }
     };
+
+    const btnReporte = document.getElementById('btn-generar-reporte');
+    if (btnReporte) {
+        btnReporte.addEventListener('click', () => {
+            const params = new URLSearchParams({
+                paciente_id: String(pacienteId),
+                nombre: pacienteNombre,
+                edad: String(pacienteEdad),
+            });
+            window.location.href = `/reportes?${params.toString()}`;
+        });
+    }
     
     setFase('pre');
 </script>

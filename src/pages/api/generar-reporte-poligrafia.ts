@@ -116,11 +116,21 @@ const tipoApneaPredominante = (noches: Noche[]): string => {
   const iao = promedioN(noches, "iao") ?? 0;
   const iac = promedioN(noches, "iac") ?? 0;
   const iam = promedioN(noches, "iam") ?? 0;
-  const max = Math.max(iao, iac, iam);
+  const iah = promedioN(noches, "indice_hipopnea") ?? 0;
+  const max = Math.max(iao, iac, iam, iah);
   if (max === 0) return "apneas no clasificadas";
   if (max === iao) return "predominantemente de apneas obstructivas";
   if (max === iac) return "predominantemente de apneas centrales";
+  if (max === iah) return "predominantemente de hipoapneas";
   return "predominantemente de apneas mixtas";
+};
+
+const nombreSindrome = (tipoApnea: string): string => {
+  if (tipoApnea.includes("obstructivas")) return "Síndrome de Apnea Obstructiva del Sueño (SAOS)";
+  if (tipoApnea.includes("centrales"))   return "Síndrome de Apnea Central del Sueño (SACS)";
+  if (tipoApnea.includes("mixtas"))      return "Síndrome de Apnea Mixta del Sueño";
+  if (tipoApnea.includes("hipoapneas"))  return "Síndrome de Hipoapnea del Sueño";
+  return "Síndrome de Apnea del Sueño (SAS)";
 };
 
 const PAGE_W        = 612;
@@ -401,7 +411,7 @@ const generarPDF = async (params: {
 
   await write(ctx, "RECOMENDACIONES", { spaceAfter: 8, align: "center", bold: true });
   await write(ctx,
-    `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de Síndrome de Apnea Obstructiva del Sueño (SAOS) en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
+    `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de ${nombreSindrome(params.tipoApnea)} en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
     { spaceAfter: 10 }
   );
 
