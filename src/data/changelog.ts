@@ -1,4 +1,4 @@
-export const currentVersion = "3.6.6";
+export const currentVersion = "3.6.7";
 
 export const isMajorUpdate = false;
 
@@ -12,13 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Reportes directos",
-        description: "Ahora se puede generar el reporte directo del expediente del paciente.",
-        type: "feature"
-    },
-    {
-        title: "Reportes mejorados",
-        description: "Se corrigió la primera observación para considerar el tipo de apnea presente.",
-        type: "fix"
+        title: "Tipos de citas",
+        description: "Ahora se puede crear un tipo de cita especial con la etiqueta 'Otro'.",
+        type: "style"
     }
 ];
