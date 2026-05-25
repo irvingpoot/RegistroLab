@@ -1,0 +1,556 @@
+---
+/**
+ * @file citas-masivas.astro
+ * @description Registro de múltiples citas en un solo envío mediante calendario múltiple. v4
+ */
+
+import Layout from "../layouts/Layout.astro";
+import Icon from "../components/Icon.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import HiddenModalIcon from "../components/icons/HiddenModalIcon.astro";
+import { clerkClient } from "@clerk/astro/server";
+import {
+    crearCitasEnLote,
+    getInhabilesDesdeHoy,
+    type CitaLote,
+    type ResultadoLote,
+} from "../services/citas.service";
+
+const msjSecreto = import.meta.env.MSJ_SECRETO as string;
+const usuarioEspecifico = import.meta.env.USUARIO_ESPECIFICO;
+
+const user = await Astro.locals.currentUser();
+const nombreRegistrador = user
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Desconocido"
+    : "Anónimo";
+
+const esAdmin = user?.id === usuarioEspecifico;
+
+let listaPsicologos: string[] = [];
+try {
+    const client   = clerkClient(Astro);
+    const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
+    const users    = Array.isArray(response) ? response : (response.data || []);
+    listaPsicologos = users.map(u => {
+        const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+        return nombre || u.username || u.emailAddresses[0].emailAddress;
+    });
+} catch (e) {
+    console.error("Error cargando perfiles:", e);
+}
+
+const listaInhabiles = await getInhabilesDesdeHoy();
+let resultados: ResultadoLote[] = [];
+let hayRespuesta = false;
+let totalExito   = 0;
+let totalError   = 0;
+
+if (Astro.request.method === "POST") {
+    const data    = await Astro.request.formData();
+    const payload = data.get("lote_json") as string;
+    try {
+        const lote: CitaLote[] = JSON.parse(payload);
+        resultados   = await crearCitasEnLote(lote, nombreRegistrador);
+        hayRespuesta = true;
+        totalExito   = resultados.filter(r => r.exito).length;
+        totalError   = resultados.filter(r => !r.exito).length;
+    } catch (e) {
+        hayRespuesta = true;
+        resultados   = [{ index: 0, nombre: "—", exito: false, error: e instanceof Error ? e.message : "Error al procesar el lote" }];
+        totalError   = 1;
+    }
+}
+
+const opcionesMotivo = [
+    { value: "entrevista",  label: "Entrevista Inicial" },
+    { value: "seguimiento", label: "Seguimiento"        },
+    { value: "tratamiento", label: "Tratamiento"        },
+    { value: "otro",        label: "Otro"               },
+];
+const opcionesReferencia = [
+    { value: "Servicio Medico", label: "Servicio Médico" },
+    { value: "Particular",      label: "Particular"      },
+];
+---
+
+<Layout title="Multiples citas | Lab-Somno">
+    <Icon />
+    <ReturnButton href="/citas" text="Volver a la Agenda" />
+
+    {esAdmin && (
+        <button 
+            type="button" 
+            id="btn-admin-config" 
+            class="fixed bottom-20 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-blue-400/20"
+            title="Panel de Administración"
+        >
+            <HiddenModalIcon class="w-6 h-6" />
+        </button>
+
+        <dialog 
+            id="modal-admin" 
+            class="m-auto bg-gray-900/90 border border-gray-800/80 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] shadow-blue-500/5 backdrop:backdrop-blur-xl w-full max-w-sm p-0 overflow-hidden outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
+        >
+            <div class="relative w-full h-48 bg-gray-800">
+                <img 
+                    src="https://images.unsplash.com/photo-1721062383099-c7ad7edc8842?q=80&w=871&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+                    alt="Imagen personalizada" 
+                    class="w-full h-full object-cover"
+                />
+                
+                <button type="button" id="btn-cerrar-admin" class="absolute top-4 right-4 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-6 text-center">
+                
+                <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">
+                    Holaaaaaaaaaa
+                </h3>
+                
+                <p class="text-gray-400 text-sm mb-6 leading-relaxed">
+                    {msjSecreto}
+                </p>
+
+                <button type="button" id="btn-guardar-admin" class="w-full bg-pink-600 hover:bg-pink-500 active:scale-[0.98] text-white font-semibold py-3 px-4 rounded-xl transition-all cursor-pointer text-sm shadow-md shadow-pink-600/10">
+                    Entendido
+                </button>
+            </div>
+        </dialog>
+    )}
+
+    {hayRespuesta && totalError === 0 && (
+        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm px-4">
+            <div class="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full">
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                        <div class="icon-circle"></div>
+                        <div class="icon-fix"></div>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-bold text-white mt-4 text-center">
+                    ¡{totalExito} {totalExito === 1 ? "cita agendada" : "citas agendadas"}!
+                </h2>
+                <p class="text-gray-400 mt-2 text-center">Todas se guardaron correctamente.</p>
+                <script>setTimeout(() => { window.location.replace("/citas"); }, 2500);</script>
+            </div>
+        </div>
+    )}
+
+    {hayRespuesta && totalError > 0 && (
+        <div class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
+                <h2 class="text-xl font-bold text-white mb-1 text-center">Resultado del lote</h2>
+                <p class="text-gray-400 text-sm text-center mb-5">
+                    <span class="text-green-400 font-semibold">{totalExito} exitosas</span>
+                    &nbsp;·&nbsp;
+                    <span class="text-red-400 font-semibold">{totalError} con error</span>
+                </p>
+                <ul class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {resultados.map(r => (
+                        <li class={`flex items-start gap-3 p-3 rounded-xl border text-sm ${r.exito ? "border-green-700/40 bg-green-900/10" : "border-red-700/40 bg-red-900/10"}`}>
+                            <span class={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${r.exito ? "bg-green-700 text-white" : "bg-red-700 text-white"}`}>
+                                {r.exito ? "✓" : "✗"}
+                            </span>
+                            <div>
+                                <p class="text-white font-medium">{r.nombre}</p>
+                                {!r.exito && <p class="text-red-300 mt-0.5">{r.error}</p>}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+                <div class="mt-6 flex gap-3">
+                    <a href="/citas" class="flex-1 text-center bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl border border-gray-700 transition-colors text-sm">Ir a la Agenda</a>
+                    <button onclick="window.location.reload()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer">Registrar más</button>
+                </div>
+            </div>
+        </div>
+    )}
+
+    <main class="max-w-2xl mx-auto pt-6 md:pt-10 pb-36 px-4">
+
+        <div class="flex flex-col items-center justify-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight">
+                Agendar <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">varias</span> citas
+            </h1>
+        </div>
+
+        <div class="mb-8 p-4 rounded-2xl border border-gray-800 bg-gray-900/40">
+            <p class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Selecciona el motivo de las citas</p>
+            <div class="flex gap-3" id="selector-servicio">
+                <button type="button" data-servicio="TMS" id="btn-tms"
+                    class="flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200 cursor-pointer border border-blue-500 bg-blue-500/10 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)]">
+                    TMS
+                </button>
+                <button type="button" data-servicio="NFB" id="btn-nfb"
+                    class="flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200 cursor-pointer border border-gray-700 bg-transparent text-gray-500">
+                    NFB
+                </button>
+            </div>
+        </div>
+
+        <form id="form-masivo" method="POST">
+            <input type="hidden" name="lote_json" id="lote_json" />
+            
+            <div class="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden mb-6">
+                <div class="px-4 py-3 bg-gray-800/60 flex items-center gap-3">
+                    <p class="text-sm font-semibold text-gray-200">Datos de las citas</p>
+                </div>
+                
+                <div class="px-4 py-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Nombre completo <span class="text-red-500">*</span></label>
+                        <input type="text" id="campo-nombre" placeholder="Ej. María González López" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Teléfono</label>
+                        <input type="tel" id="campo-telefono" placeholder="10 dígitos" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Referencia <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <select id="campo-referencia" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
+                                <option value="" disabled selected>Seleccionar…</option>
+                                {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Motivo de consulta</label>
+                        <input type="text" id="campo-sintoma" placeholder="Ej. Ansiedad, insomnio…" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Tipo de cita <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <select id="campo-motivo" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
+                                <option value="" disabled selected>Seleccionar…</option>
+                                {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">¿Quién atenderá? <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <select id="campo-atendido_por" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
+                                <option value="" disabled selected>¿Quién atenderá?</option>
+                                {listaPsicologos.map(n => <option value={n}>{n}</option>)}
+                                <option value="Por asignar">— Por definir —</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Observaciones</label>
+                        <input type="text" id="campo-observaciones" placeholder="Opcional" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
+                    </div>
+                    
+                    <div class="md:col-span-2 mt-2 pt-4 border-t border-gray-800">
+                        <h3 class="text-sm font-semibold text-white mb-4">Fechas de las citas</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Fechas <span class="text-red-500">*</span></label>
+                                <button type="button" id="btn-abrir-calendario" class="w-full p-3 border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-400 font-medium transition-all text-sm flex items-center justify-between cursor-pointer">
+                                    <span id="texto-fechas-seleccionadas">Seleccionar fechas...</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </button>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Hora (Aplica a todas) <span class="text-red-500">*</span></label>
+                                <input type="time" id="campo-hora" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all text-sm cursor-pointer" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <div class="fixed bottom-0 left-0 right-0 z-40 rounded-full border-gray-800 bg-gray-950/80 backdrop-blur-md my-5 mx-100 px-4 py-3">
+        <div class="max-w-2xl mx-auto flex items-center justify-center gap-30">
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
+                    <span id="contador-num" class="text-blue-400 font-bold text-xs">0</span>
+                </div>
+                <span id="contador-label" class="text-gray-400 text-sm">citas configuradas</span>
+            </div>
+            <button type="submit" form="form-masivo"
+                class="hover:scale-110 text-gray-400 bg-blue-600/20 font-bold px-8 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 text-sm">
+                Registrar lote
+            </button>
+        </div>
+    </div>
+
+    <dialog id="modal-calendario" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-sm p-0 overflow-hidden outline-none">
+        <div class="p-5">
+            <div class="flex justify-between items-center mb-4">
+                <button type="button" id="btn-prev-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <h3 id="mes-anio-label" class="text-white font-bold capitalize">Mes Año</h3>
+                <button type="button" id="btn-next-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                <span class="text-xs font-bold text-gray-500">Do</span>
+                <span class="text-xs font-bold text-gray-500">Lu</span>
+                <span class="text-xs font-bold text-gray-500">Ma</span>
+                <span class="text-xs font-bold text-gray-500">Mi</span>
+                <span class="text-xs font-bold text-gray-500">Ju</span>
+                <span class="text-xs font-bold text-gray-500">Vi</span>
+                <span class="text-xs font-bold text-gray-500">Sá</span>
+            </div>
+            
+            <div id="calendario-grid" class="grid grid-cols-7 gap-1">
+                </div>
+            
+            <div class="mt-5 pt-4 border-t border-gray-800 flex justify-end">
+                <button type="button" onclick="document.getElementById('modal-calendario').close()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors cursor-pointer text-sm">
+                    Listo
+                </button>
+            </div>
+        </div>
+    </dialog>
+</Layout>
+
+<style>
+    .success-checkmark { width: 80px; height: 115px; margin: 0 auto; }
+    .check-icon { width:80px; height:80px; position:relative; border-radius:50%; box-sizing:content-box; border:4px solid #4CAF50; }
+    .check-icon::before, .check-icon::after { content:''; height:100px; position:absolute; background:#111827; transform:rotate(-45deg); }
+    .check-icon::before { top:3px; left:-2px; width:30px; transform-origin:100% 50%; border-radius:100px 0 0 100px; }
+    .check-icon::after  { top:0; left:30px; width:60px; transform-origin:0 50%; border-radius:0 100px 100px 0; animation:rotate-circle 4.25s ease-in; }
+    .icon-line { height:5px; background:#4CAF50; display:block; border-radius:2px; position:absolute; z-index:10; }
+    .line-tip  { top:46px; left:14px; width:25px; transform:rotate(45deg);  animation:icon-line-tip 0.75s; }
+    .line-long { top:38px; right:8px; width:47px; transform:rotate(-45deg); animation:icon-line-long 0.75s; }
+    .icon-circle { top:-4px;left:-4px;z-index:10;width:80px;height:80px;border-radius:50%;position:absolute;box-sizing:content-box;border:4px solid rgba(76,175,80,.5); }
+    .icon-fix { top:8px;width:5px;left:26px;z-index:1;height:85px;position:absolute;transform:rotate(-45deg);background:#111827; }
+    @keyframes rotate-circle { 0%{transform:rotate(-45deg)} 5%{transform:rotate(-45deg)} 12%{transform:rotate(-405deg)} 100%{transform:rotate(-405deg)} }
+    @keyframes icon-line-tip  { 0%{width:0;left:1px;top:19px} 54%{width:0;left:1px;top:19px} 70%{width:50px;left:-8px;top:37px} 84%{width:17px;left:21px;top:48px} 100%{width:25px;left:14px;top:46px} }
+    @keyframes icon-line-long { 0%{width:0;right:46px;top:54px} 65%{width:0;right:46px;top:54px} 84%{width:55px;right:0;top:35px} 100%{width:47px;right:8px;top:38px} }
+    
+    input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: invert(.6);
+        cursor: pointer;
+    }
+</style>
+
+<script define:vars={{ listaInhabiles }}>
+    const btnAdmin = document.getElementById("btn-admin-config");
+    const modalAdmin = document.getElementById("modal-admin");
+    const btnCerrarAdmin = document.getElementById("btn-cerrar-admin");
+    const btnGuardarAdmin = document.getElementById("btn-guardar-admin");
+
+    let servicioActual = "TMS";
+    const fechasSeleccionadas = new Set();
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+    
+    const ERROR_INPUT = ["ring-2", "ring-red-500", "border-red-500"];
+
+    document.querySelectorAll("input, select").forEach(el => {
+        el.addEventListener("input", () => el.classList.remove(...ERROR_INPUT));
+        el.addEventListener("change", () => el.classList.remove(...ERROR_INPUT));
+    });
+
+    const ACTIVE_TMS = ["border-blue-500",  "bg-blue-500/10",  "text-blue-400",   "shadow-[0_0_20px_rgba(59,130,246,0.15)]"];
+    const ACTIVE_NFB = ["border-violet-500","bg-violet-500/10","text-violet-400", "shadow-[0_0_20px_rgba(139,92,246,0.15)]"];
+    const INACTIVE   = ["border-gray-700",  "bg-transparent",  "text-gray-500"];
+    
+    document.querySelectorAll("[data-servicio]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const esTMS = btn.dataset.servicio === "TMS";
+            servicioActual = btn.dataset.servicio;
+            const btnTMS = document.getElementById("btn-tms");
+            const btnNFB = document.getElementById("btn-nfb");
+
+            btnTMS.classList.remove(...ACTIVE_TMS, ...INACTIVE);
+            btnNFB.classList.remove(...ACTIVE_NFB, ...INACTIVE);
+
+            if (esTMS) {
+                btnTMS.classList.add(...ACTIVE_TMS);
+                btnNFB.classList.add(...INACTIVE);
+            } else {
+                btnNFB.classList.add(...ACTIVE_NFB);
+                btnTMS.classList.add(...INACTIVE);
+            }
+        });
+    });
+
+    function actualizarContador() {
+        const n = fechasSeleccionadas.size;
+        document.getElementById("contador-num").textContent = n;
+        document.getElementById("contador-label").textContent = n === 1 ? "cita en el lote" : "citas en el lote";
+        
+        const btnFechas = document.getElementById("texto-fechas-seleccionadas");
+        if (n === 0) {
+            btnFechas.textContent = "Seleccionar fechas...";
+        } else if (n === 1) {
+            btnFechas.textContent = "1 fecha seleccionada";
+        } else {
+            btnFechas.textContent = `${n} fechas seleccionadas`;
+        }
+        document.getElementById("btn-abrir-calendario").classList.remove(...ERROR_INPUT);
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById("calendario-grid");
+        grid.innerHTML = "";
+        
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        for (let i = 0; i < firstDay; i++) {
+            const div = document.createElement("div");
+            grid.appendChild(div);
+        }
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const isInhabil = listaInhabiles.includes(dateStr);
+            const isSelected = fechasSeleccionadas.has(dateStr);
+            
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = i;
+            
+            let classes = "w-full aspect-square rounded-lg flex items-center justify-center text-sm transition-all ";
+            
+            if (isInhabil) {
+                classes += "bg-red-900/30 text-red-500 cursor-not-allowed border border-red-500/30 opacity-60 font-medium";
+                btn.disabled = true;
+                btn.title = "Día inhábil";
+            } else if (isSelected) {
+                classes += "bg-blue-600 text-white shadow-md font-bold cursor-pointer hover:bg-blue-500";
+            } else {
+                classes += "text-gray-300 hover:bg-gray-800 cursor-pointer border border-transparent hover:border-gray-700";
+            }
+            
+            btn.className = classes;
+            
+            if (!isInhabil) {
+                btn.onclick = () => {
+                    if (fechasSeleccionadas.has(dateStr)) fechasSeleccionadas.delete(dateStr);
+                    else fechasSeleccionadas.add(dateStr);
+                    renderCalendar();
+                    actualizarContador();
+                };
+            }
+            grid.appendChild(btn);
+        }
+        
+        const formatter = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' });
+        document.getElementById("mes-anio-label").textContent = formatter.format(new Date(currentYear, currentMonth));
+    }
+
+    document.getElementById("btn-prev-month").addEventListener("click", () => {
+        currentMonth--;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        renderCalendar();
+    });
+
+    document.getElementById("btn-next-month").addEventListener("click", () => {
+        currentMonth++;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        renderCalendar();
+    });
+
+    document.getElementById("btn-abrir-calendario").addEventListener("click", () => {
+        renderCalendar();
+        document.getElementById("modal-calendario").showModal();
+    });
+
+    document.getElementById("form-masivo").addEventListener("submit", e => {
+        e.preventDefault();
+
+        if (fechasSeleccionadas.size === 0) {
+            document.getElementById("btn-abrir-calendario").classList.add(...ERROR_INPUT);
+            alert("Debes seleccionar al menos una fecha en el calendario.");
+            return;
+        }
+        const horaSeleccionada = document.getElementById("campo-hora").value;
+        if (!horaSeleccionada) {
+            document.getElementById("campo-hora").classList.add(...ERROR_INPUT);
+            alert("Debes seleccionar una hora para las citas.");
+            return;
+        }
+
+        const requeridos = ["nombre", "referencia", "motivo", "atendido_por"];
+        let valido = true;
+        
+        requeridos.forEach(idCampo => {
+            const el = document.getElementById(`campo-${idCampo}`);
+            if (el && !el.value.trim()) {
+                el.classList.add(...ERROR_INPUT);
+                valido = false;
+            }
+        });
+
+        if (!valido) return;
+
+        const getVal = (id) => document.getElementById(`campo-${id}`).value.trim();
+        const lote = [];
+
+        Array.from(fechasSeleccionadas).forEach(fecha => {
+            lote.push({
+                nombre:        getVal("nombre"),
+                telefono:      getVal("telefono") || null,
+                sintoma:       getVal("sintoma")  || null,
+                referencia:    getVal("referencia"),
+                motivo:        getVal("motivo"),
+                fechaLocal:    `${fecha}T${horaSeleccionada}`,
+                observaciones: getVal("observaciones") || null,
+                atendidoPor:   getVal("atendido_por"),
+                servicio:      servicioActual,
+            });
+        });
+
+        document.getElementById("lote_json").value = JSON.stringify(lote);
+        e.target.submit();
+    });
+
+    if (btnAdmin && modalAdmin) {
+        btnAdmin.addEventListener("click", () => {
+            modalAdmin.showModal();
+            setTimeout(() => {
+                modalAdmin.classList.remove("opacity-0", "scale-95");
+                modalAdmin.classList.add("opacity-100", "scale-100");
+            }, 10);
+        });
+
+        const cerrarModalAdmin = () => {
+            modalAdmin.classList.remove("opacity-100", "scale-100");
+            modalAdmin.classList.add("opacity-0", "scale-95");
+            setTimeout(() => {
+                modalAdmin.close();
+            }, 250);
+        };
+
+        btnCerrarAdmin?.addEventListener("click", cerrarModalAdmin);
+        btnGuardarAdmin?.addEventListener("click", cerrarModalAdmin);
+        
+        modalAdmin.addEventListener("click", (e) => {
+            if (e.target === modalAdmin) cerrarModalAdmin();
+        });
+    }
+
+</script>

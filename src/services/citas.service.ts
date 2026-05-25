@@ -240,3 +240,95 @@ export async function crearCita(params: {
 
     if (error) throw new Error(`crearCita: ${error.message}`);
 }
+
+export interface CitaLote {
+    nombre: string;
+    telefono: string | null;
+    sintoma: string | null;
+    referencia: string;
+    motivo: string;
+    fechaLocal: string;          
+    observaciones: string | null;
+    atendidoPor: string;
+    servicio: "TMS" | "NFB";     
+}
+
+export interface ResultadoLote {
+    index: number;               
+    nombre: string;
+    exito: boolean;
+    error?: string;
+}
+
+export async function crearCitasEnLote(
+    citas: CitaLote[],
+    registradoPorId: string,
+): Promise<ResultadoLote[]> {
+    const resultados: ResultadoLote[] = [];
+
+    for (let i = 0; i < citas.length; i++) {
+        const c = citas[i];
+
+        try {
+            const fechaSoloDia = c.fechaLocal.split("T")[0];
+
+            const { data: diaBloqueado } = await supabase
+                .from("dias_inhabiles")
+                .select("fecha")
+                .eq("fecha", fechaSoloDia)
+                .maybeSingle();
+
+            if (diaBloqueado) {
+                throw new Error(
+                    `El día ${fechaSoloDia} está bloqueado como inhábil. Elige otra fecha.`,
+                );
+            }
+
+            const fechaObj = new Date(`${c.fechaLocal}-06:00`);
+            const fechaISO = fechaObj.toISOString();
+
+            const { data: citaExistente } = await supabase
+                .from("citas")
+                .select("id")
+                .eq("fecha_hora", fechaISO)
+                .eq("atendido_por", c.atendidoPor)
+                .neq("estado", "cancelada")
+                .maybeSingle();
+
+            if (citaExistente) {
+                throw new Error(
+                    `Agenda ocupada: ${c.atendidoPor} ya tiene una cita a esa hora.`,
+                );
+            }
+
+            const { error } = await supabase.from("citas").insert([{
+                nombre:            c.nombre,
+                telefono:          c.telefono,
+                sintoma:           c.sintoma,
+                referencia:        c.referencia,
+                motivo:            c.motivo,
+                fecha_hora:        fechaISO,
+                observaciones:     c.observaciones
+                                    ? `[${c.servicio}] ${c.observaciones}`
+                                    : `[${c.servicio}]`,
+                estado:            "pendiente",
+                registrado_por_id: registradoPorId,
+                atendido_por:      c.atendidoPor,
+            }]);
+
+            if (error) throw new Error(error.message);
+
+            resultados.push({ index: i, nombre: c.nombre, exito: true });
+
+        } catch (e) {
+            resultados.push({
+                index:  i,
+                nombre: c.nombre,
+                exito:  false,
+                error:  e instanceof Error ? e.message : "Error desconocido",
+            });
+        }
+    }
+
+    return resultados;
+}
