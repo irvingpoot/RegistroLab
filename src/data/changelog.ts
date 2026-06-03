@@ -1,8 +1,8 @@
-export const currentVersion = "3.8.0";
+export const currentVersion = "3.9.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "29 de mayo del 2026";
+export const updateDate = "3 de junio del 2026";
 
 type Changes = {
     title: string;
@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Exportar citas",
-        description: "Ahora es posible exportar citas a Excel filtrando por pendientes o todas.",
+        title: "Graficas de resultados",
+        description: "Ahora es posible visualizar los resultados de los cuestionarios en gráficos por cada paciente.",
         type: "feature"
     }
 ];

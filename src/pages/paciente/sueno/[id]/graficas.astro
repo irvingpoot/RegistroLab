@@ -1,0 +1,231 @@
+---
+import Layout from "../../../../layouts/Layout.astro"
+import ReturnButton from "../../../../components/ReturnButton.astro"
+import { createClient } from "@supabase/supabase-js"
+
+const { id } = Astro.params;
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+if (!id) return Astro.redirect("/lista");
+
+const { data: paciente, error: errorPaciente } = await supabase
+    .from('pacientes')
+    .select('nombre')
+    .eq('id', id)
+    .single();
+
+if (errorPaciente || !paciente) return Astro.redirect("/lista");
+
+const { data: respuestas } = await supabase
+    .from('respuestas_cuestionarios')
+    .select('fase, cuestionario, datos')
+    .eq('paciente_id', id)
+    .in('cuestionario', ['epworth', 'psqi', 'berlin']);
+
+type FaseData = number | null;
+type PSQIData = (number | null)[];
+
+const chartData = {
+    epworth: { pre: null as FaseData, inter: null as FaseData, post: null as FaseData },
+    berlin: { pre: null as FaseData, inter: null as FaseData, post: null as FaseData },
+    psqi: { 
+        pre: Array(7).fill(null) as PSQIData,
+        inter: Array(7).fill(null) as PSQIData,
+        post: Array(7).fill(null) as PSQIData
+    }
+};
+
+if (respuestas) {
+    respuestas.forEach(resp => {
+        const { fase, cuestionario, datos } = resp;
+        const faseKey = fase as 'pre' | 'inter' | 'post';
+        
+        if (cuestionario === 'epworth') {
+            chartData.epworth[faseKey] = datos.puntaje ?? null;
+        }
+        
+        if (cuestionario === 'berlin') {
+            chartData.berlin[faseKey] = datos.puntaje ?? null;
+        }
+        
+        if (cuestionario === 'psqi') {
+            chartData.psqi[faseKey] = [
+                parseInt(datos["C1 Calidad"]) || 0,
+                parseInt(datos["C2 Latencia"]) || 0,
+                parseInt(datos["C3 Duración"]) || 0,
+                parseInt(datos["C4 Eficiencia"]) || 0,
+                parseInt(datos["C5 Perturbaciones"]) || 0,
+                parseInt(datos["C6 Medicación"]) || 0,
+                parseInt(datos["C7 Disfunción"]) || 0
+            ];
+        }
+    });
+}
+---
+
+<Layout title={`${paciente.nombre}`}>
+    <ReturnButton href={`/paciente/sueno/${id}`} text="Volver al Expediente" />
+
+    <main class="max-w-6xl mx-auto pt-10 pb-28 px-4">
+        
+        <div class="border-b-2 border-white/10 pb-6 mb-10">
+            <p class="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">Epworth, PSQI, Berlín</p>
+            <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
+            <p class="text-gray-400 mt-3 text-sm">Evolución de puntajes médicos a través de las fases de tratamiento.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-slate-50 p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div class="mb-4">
+                    <h2 class="text-lg font-bold text-gray-800 uppercase tracking-wider">Escala de Epworth</h2>
+                    <p class="text-xs text-gray-700">Severidad de Somnolencia Diurna (0 - 24 pts)</p>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="chart-epworth"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div class="mb-4">
+                    <h2 class="text-lg font-bold text-gray-800 uppercase tracking-wider">Cuestionario Berlín</h2>
+                    <p class="text-xs text-gray-700">Categorías de Riesgo Positivas (0 - 3)</p>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="chart-berlin"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div class="mb-4">
+                <h2 class="text-lg font-bold text-gray-800 uppercase tracking-wider">Calidad de Sueño PSQI</h2>
+                <p class="text-xs text-gray-700">Desglose de los 7 componentes evaluados (0 - 3 pts por componente)</p>
+            </div>
+            <div class="relative h-80 w-full">
+                <canvas id="chart-psqi"></canvas>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script define:vars={{ chartData }}>
+    document.addEventListener('DOMContentLoaded', () => {
+        Chart.defaults.color = '#000000'; 
+        Chart.defaults.font.family = "DM Serif Text, system-ui, sans-serif";
+        Chart.defaults.scale.grid.color = 'rgba(0, 0, 0, 0.25)';
+        
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)'; 
+        Chart.defaults.plugins.tooltip.titleColor = '#ffffff';
+        Chart.defaults.plugins.tooltip.padding = 10;
+        Chart.defaults.plugins.tooltip.cornerRadius = 8;
+        
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.plugins.legend.labels.padding = 20;
+
+        const colors = {
+            pre: { bg: 'rgba(59, 130, 246, 0.8)', border: 'rgb(37, 99, 235)' },    
+            inter: { bg: 'rgba(168, 85, 247, 0.8)', border: 'rgb(147, 51, 234)' },  
+            post: { bg: 'rgba(16, 185, 129, 0.8)', border: 'rgb(5, 150, 105)' }     
+        };
+
+        new Chart(document.getElementById('chart-epworth'), {
+            type: 'bar',
+            data: {
+                labels: ['Pre-Tx', 'Inter', 'Post-Tx'],
+                datasets: [{
+                    label: 'Puntaje Epworth',
+                    data: [chartData.epworth.pre, chartData.epworth.inter, chartData.epworth.post],
+                    backgroundColor: [colors.pre.bg, colors.inter.bg, colors.post.bg],
+                    borderColor: [colors.pre.border, colors.inter.border, colors.post.border],
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 24, ticks: { stepSize: 6 } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('chart-berlin'), {
+            type: 'bar',
+            data: {
+                labels: ['Pre-Tx', 'Inter', 'Post-Tx'],
+                datasets: [{
+                    label: 'Categorías Positivas',
+                    data: [chartData.berlin.pre, chartData.berlin.inter, chartData.berlin.post],
+                    backgroundColor: [colors.pre.bg, colors.inter.bg, colors.post.bg],
+                    borderColor: [colors.pre.border, colors.inter.border, colors.post.border],
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 3, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('chart-psqi'), {
+            type: 'bar',
+            data: {
+                labels: ['C1: Calidad', 'C2: Latencia', 'C3: Duración', 'C4: Eficiencia', 'C5: Perturbaciones', 'C6: Medicación', 'C7: Disfunción'],
+                datasets: [
+                    {
+                        label: 'Pre-Tratamiento',
+                        data: chartData.psqi.pre,
+                        backgroundColor: colors.pre.bg,
+                        borderColor: colors.pre.border,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Intermedio',
+                        data: chartData.psqi.inter,
+                        backgroundColor: colors.inter.bg,
+                        borderColor: colors.inter.border,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Post-Tratamiento',
+                        data: chartData.psqi.post,
+                        backgroundColor: colors.post.bg,
+                        borderColor: colors.post.border,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        max: 3, 
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Nivel de severidad (0-3)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    });
+</script>
