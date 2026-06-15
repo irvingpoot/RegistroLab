@@ -32,7 +32,13 @@ export async function getTareasDeUsuario(responsable: string): Promise<Tarea[]> 
     return (data ?? []) as Tarea[];
 }
 
-export async function getTareasPendientes(): Promise<Tarea[]> {
+export async function getTareasPendientes(userIdIdClerk?: string): Promise<Tarea[]> {
+    const LISTA_NEGRA = import.meta.env.ID_RESTRINGIDO;
+
+    if (userIdIdClerk === LISTA_NEGRA) {
+        return [];
+    }
+
     const { data, error } = await supabase
         .from("tareas_pendientes")
         .select("*")
