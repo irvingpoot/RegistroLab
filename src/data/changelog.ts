@@ -1,8 +1,8 @@
-export const currentVersion = "3.9.0";
+export const currentVersion = "3.10.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "3 de junio del 2026";
+export const updateDate = "15 de junio del 2026";
 
 type Changes = {
     title: string;
@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Graficas de resultados",
-        description: "Ahora es posible visualizar los resultados de los cuestionarios en gráficos por cada paciente.",
+        title: "Numeración de citas",
+        description: "Ahora es posible enumerar las citas creadas por grupos.",
         type: "feature"
     }
 ];
