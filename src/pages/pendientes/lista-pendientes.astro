@@ -55,7 +55,7 @@ if (Astro.request.method === "POST") {
     return Astro.redirect("/pendientes/lista-pendientes");
 }
 
-const tareas = await getTareasPendientes();
+const tareas = await getTareasPendientes(currentUser?.id);
 
 const getInitials = (name: string) => {
     if (!name) return "?";
