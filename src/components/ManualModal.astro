@@ -1,0 +1,254 @@
+---
+export interface Manual {
+    id?: string;
+    titulo: string;
+    descripcion: string;
+    url: string;
+    tipo: "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
+}
+---
+
+<div id="confirmar-eliminar-overlay" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-titulo">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
+        <div class="px-6 pt-6 pb-2 flex flex-col items-center text-center gap-3">
+            <div class="flex items-center justify-center size-12 rounded-full bg-red-500/10 border border-red-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+            </div>
+            <h3 id="confirmar-titulo" class="text-base font-bold text-white">¿Eliminar este manual?</h3>
+            <p id="confirmar-nombre" class="text-sm text-gray-400 leading-relaxed"></p>
+            <p class="text-xs text-gray-500">Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="flex gap-3 px-6 py-5">
+            <button id="confirmar-cancelar" class="flex-1 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-400 transition hover:bg-white/5 hover:text-white">
+                Cancelar
+            </button>
+            <button id="confirmar-aceptar" class="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50">
+                Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="manual-modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+
+    <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
+
+        <div class="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <h2 id="modal-titulo" class="text-lg font-bold text-white">Manual</h2>
+            <button id="modal-cerrar" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white" aria-label="Cerrar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="space-y-4 px-6 py-5">
+
+            <div>
+                <label for="manual-titulo" class="mb-1.5 block text-sm font-medium text-gray-300">Título</label>
+                <input id="manual-titulo" type="text" placeholder="Ej. Guía para el EMBLA" class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"/>
+            </div>
+
+            <div>
+                <label for="manual-descripcion" class="mb-1.5 block text-sm font-medium text-gray-300">Descripción</label>
+                <textarea id="manual-descripcion" rows="3" placeholder="Breve descripción del recurso…" class="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label for="manual-url" class="mb-1.5 block text-sm font-medium text-gray-300">URL</label>
+                <input id="manual-url" type="url" placeholder="https://…" class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"/>
+            </div>
+
+            <div>
+                <label for="manual-tipo" class="mb-1.5 block text-sm font-medium text-gray-300">Tipo</label>
+                <select id="manual-tipo" class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <option value="CANVA">Canva</option>
+                    <option value="WORD">Word / Google Docs</option>
+                    <option value="DRIVE">Google Drive</option>
+                    <option value="VIDEO">Video</option>
+                    <option value="EXCEL">Excel / Sheets</option>
+                    <option value="WEB">Página web</option>
+                </select>
+            </div>
+
+            <p id="modal-error" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400"></p>
+        </div>
+
+        <div class="flex items-center justify-between border-t border-white/10 px-6 py-4">
+            <button id="modal-eliminar" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50">
+                Eliminar
+            </button>
+            <div class="ml-auto flex gap-3">
+                <button id="modal-cancelar" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 transition hover:text-white">
+                    Cancelar
+                </button>
+                <button id="modal-guardar" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    type TipoManual = "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
+    interface Manual { id?: string; titulo: string; descripcion: string; url: string; tipo: TipoManual; }
+
+    const overlay    = document.getElementById("manual-modal-overlay")!;
+    const titulo     = document.getElementById("modal-titulo")!;
+    const inputTit   = document.getElementById("manual-titulo")      as HTMLInputElement;
+    const inputDesc  = document.getElementById("manual-descripcion") as HTMLTextAreaElement;
+    const inputUrl   = document.getElementById("manual-url")         as HTMLInputElement;
+    const selectTipo = document.getElementById("manual-tipo")        as HTMLSelectElement;
+    const btnGuardar = document.getElementById("modal-guardar")      as HTMLButtonElement;
+    const btnEliminar= document.getElementById("modal-eliminar")     as HTMLButtonElement;
+    const btnCerrar  = document.getElementById("modal-cerrar")!;
+    const btnCancelar= document.getElementById("modal-cancelar")!;
+    const errorMsg   = document.getElementById("modal-error")!;
+
+    const confirmarOverlay  = document.getElementById("confirmar-eliminar-overlay")!;
+    const confirmarNombre   = document.getElementById("confirmar-nombre")!;
+    const confirmarAceptar  = document.getElementById("confirmar-aceptar") as HTMLButtonElement;
+    const confirmarCancelar = document.getElementById("confirmar-cancelar")!;
+
+    let manualActual: Manual | null = null;
+
+    function mostrar() { overlay.classList.remove("hidden"); overlay.classList.add("flex"); }
+    function ocultar() { overlay.classList.add("hidden");   overlay.classList.remove("flex"); }
+
+    function mostrarError(msg: string) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.remove("hidden");
+    }
+    function limpiarError() { errorMsg.classList.add("hidden"); }
+
+    function setBusy(busy: boolean) {
+        btnGuardar.disabled   = busy;
+        btnEliminar.disabled  = busy;
+        btnGuardar.textContent = busy ? "Guardando…" : "Guardar";
+    }
+
+    function cargarManual(manual: Manual | null) {
+        manualActual = manual;
+        limpiarError();
+        if (manual) {
+            titulo.textContent   = "Editar manual";
+            inputTit.value       = manual.titulo;
+            inputDesc.value      = manual.descripcion;
+            inputUrl.value       = manual.url;
+            selectTipo.value     = manual.tipo;
+            btnEliminar.classList.remove("hidden");
+        } else {
+            titulo.textContent   = "Agregar manual";
+            inputTit.value       = "";
+            inputDesc.value      = "";
+            inputUrl.value       = "";
+            selectTipo.value     = "CANVA";
+            btnEliminar.classList.add("hidden");
+        }
+    }
+
+    function leerFormulario(): Manual | null {
+        const t  = inputTit.value.trim();
+        const d  = inputDesc.value.trim();
+        const u  = inputUrl.value.trim();
+        const ti = selectTipo.value as TipoManual;
+        if (!t) { mostrarError("El título es obligatorio.");      return null; }
+        if (!d) { mostrarError("La descripción es obligatoria."); return null; }
+        if (!u) { mostrarError("La URL es obligatoria.");         return null; }
+        try { new URL(u); } catch { mostrarError("La URL no es válida."); return null; }
+        return { titulo: t, descripcion: d, url: u, tipo: ti };
+    }
+
+    function mostrarConfirmacion() {
+        confirmarNombre.textContent = manualActual?.titulo ?? "";
+        confirmarOverlay.classList.remove("hidden");
+        confirmarOverlay.classList.add("flex");
+    }
+    function ocultarConfirmacion() {
+        confirmarOverlay.classList.add("hidden");
+        confirmarOverlay.classList.remove("flex");
+    }
+
+    btnGuardar.addEventListener("click", async () => {
+        limpiarError();
+        const datos = leerFormulario();
+        if (!datos) return;
+
+        setBusy(true);
+        try {
+            if (manualActual?.id) {
+                const res = await fetch(`/api/manuales/${manualActual.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(datos),
+                });
+                if (!res.ok) throw new Error((await res.json()).error ?? "Error al actualizar.");
+                const { manual } = await res.json();
+                document.dispatchEvent(new CustomEvent("manual:guardado", { detail: { manual, edicion: true } }));
+            } else {
+                const res = await fetch("/api/manuales", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(datos),
+                });
+                if (!res.ok) throw new Error((await res.json()).error ?? "Error al crear.");
+                const { manual } = await res.json();
+                document.dispatchEvent(new CustomEvent("manual:guardado", { detail: { manual, edicion: false } }));
+            }
+            ocultar();
+        } catch (e: any) {
+            mostrarError(e.message);
+        } finally {
+            setBusy(false);
+        }
+    });
+
+    btnEliminar.addEventListener("click", () => {
+        if (!manualActual?.id) return;
+        mostrarConfirmacion();
+    });
+
+    confirmarAceptar.addEventListener("click", async () => {
+        if (!manualActual?.id) return;
+
+        confirmarAceptar.disabled = true;
+        confirmarAceptar.textContent = "Eliminando…";
+        try {
+            const res = await fetch(`/api/manuales/${manualActual.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error((await res.json()).error ?? "Error al eliminar.");
+            document.dispatchEvent(new CustomEvent("manual:eliminado", { detail: { id: manualActual.id } }));
+            ocultarConfirmacion();
+            ocultar();
+        } catch (e: any) {
+            ocultarConfirmacion();
+            mostrarError(e.message);
+        } finally {
+            confirmarAceptar.disabled = false;
+            confirmarAceptar.textContent = "Eliminar";
+        }
+    });
+
+    confirmarCancelar.addEventListener("click", ocultarConfirmacion);
+    confirmarOverlay.addEventListener("click", (e) => { if (e.target === confirmarOverlay) ocultarConfirmacion(); });
+
+    [btnCerrar, btnCancelar].forEach(b => b.addEventListener("click", ocultar));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) ocultar(); });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            if (!confirmarOverlay.classList.contains("hidden")) {
+                ocultarConfirmacion();
+            } else {
+                ocultar();
+            }
+        }
+    });
+
+    document.addEventListener("modal:abrir", (e: Event) => {
+        const { manual } = (e as CustomEvent<{ manual?: Manual }>).detail ?? {};
+        cargarManual(manual ?? null);
+        mostrar();
+    });
+</script>
