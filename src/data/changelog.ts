@@ -1,8 +1,8 @@
-export const currentVersion = "3.10.0";
+export const currentVersion = "3.11.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "15 de junio del 2026";
+export const updateDate = "18 de junio del 2026";
 
 type Changes = {
     title: string;
@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Numeración de citas",
-        description: "Ahora es posible enumerar las citas creadas por grupos.",
+        title: "Agregar manuales",
+        description: "Ahora es posible agregar diferentes manuales desde la propia interfaz de la página.",
         type: "feature"
     }
 ];
