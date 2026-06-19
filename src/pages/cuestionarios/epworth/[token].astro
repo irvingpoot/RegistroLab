@@ -1,22 +1,6 @@
 ---
 
-/**
- * @file [token].astro
- * @description Página de captura de cuestionarios públicos (Epworth, Berlin, Pittsburgh).
- * * * ARQUITECTURA DE SEGURIDAD:
- * - Utiliza la `ANON_KEY` (pública) y delega la seguridad a **Supabase RPC**.
- * - Funciones RPC utilizadas:
- * 1. `validar_acceso_cuestionario`: Verifica token y estado sin exponer datos sensibles.
- * 2. `guardar_respuesta_cuestionario`: Inserta las respuestas saltándose las reglas RLS de forma controlada desde la BD.
- * * * FLUJO:
- * 1. Obtiene el `token` de la URL.
- * 2. Valida acceso vía RPC (si el token existe y si ya contestó).
- * 3. Renderiza el formulario correspondiente.
- * 4. Envía los datos (`datos` JSONB) a través de la función segura en BD.
- */
-
 import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro" 
-import MatrixScale from "../../../components/MatrixScale.astro"
 import { createClient } from "@supabase/supabase-js"
 import { calcularEpworth } from "../../../utils/calculos"
 import RadioGroup from "../../../components/RadioGroup.astro";

@@ -1,0 +1,539 @@
+---
+import LayoutCuestionario from "../../../layouts/LayoutCuestionario.astro"
+import { createClient } from "@supabase/supabase-js"
+import { calcularPosicion } from "../../../utils/calculos"
+
+const MODO_DISENO = false;
+
+const supabase = createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.SUPABASE_KEY
+);
+
+const { token } = Astro.params;
+const faseUrl = Astro.url.searchParams.get('fase');
+
+const nombreCuestionario = 'posicion_sueno';
+
+let paciente = { id: 0, nombre: "" };
+let mensaje = "";
+let yaContestado = false;
+
+if (!MODO_DISENO) {
+    if (!token || !faseUrl || !['pre', 'inter', 'post'].includes(faseUrl)) {
+        return Astro.redirect('/404');
+    }
+
+    const { data: infoAcceso, error: errorAcceso } = await supabase
+        .rpc('validar_acceso_cuestionario', {
+            token_input: token,
+            cuestionario_input: nombreCuestionario,
+            fase_input: faseUrl
+        });
+
+    if (errorAcceso || !infoAcceso || infoAcceso.length === 0) {
+        console.error("Error acceso:", errorAcceso);
+        return Astro.redirect('/404');
+    }
+
+    paciente = {
+        id: infoAcceso[0].paciente_id,
+        nombre: infoAcceso[0].nombre
+    };
+    yaContestado = infoAcceso[0].ya_contestado;
+
+    if (Astro.request.method === "POST" && !yaContestado) {
+        try {
+            const formData = await Astro.request.formData();
+            const respuestas = Object.fromEntries(formData) as Record<string, any>;
+
+            const { puntaje: puntajeCalculado, extraData } = calcularPosicion(respuestas);
+
+            const datosGuardar = { ...respuestas, ...extraData, puntaje: puntajeCalculado };
+
+            const { error: saveError } = await supabase
+                .rpc('guardar_respuesta_segura', {
+                    token_input: token,
+                    fase_input: faseUrl,
+                    cuestionario_input: nombreCuestionario,
+                    datos_input: datosGuardar,
+                    puntaje_input: puntajeCalculado
+                });
+
+            if (saveError) {
+                console.error("Error Supabase RPC:", saveError);
+                mensaje = "Error al guardar las respuestas.";
+            } else {
+                return Astro.redirect(Astro.url.pathname + Astro.url.search);
+            }
+
+        } catch (e) {
+            console.error("Error procesando:", e);
+            mensaje = "Ocurrió un error inesperado.";
+        }
+    }
+} else {
+    paciente = { id: 0, nombre: "Paciente Simulado" };
+    yaContestado = false;
+    if (Astro.request.method === "POST") mensaje = "Guardado simulado exitoso.";
+}
+
+const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Post-Tratamiento' }[faseUrl || 'pre'];
+---
+
+<LayoutCuestionario title="Posición al Dormir" tipo="posicion_sueno">
+
+    {yaContestado ? (
+        <div class="max-w-xl mx-auto mt-12 relative px-4">
+            <div class="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl blur-2xl opacity-20 transform scale-95 translate-y-4 pointer-events-none"></div>
+            <div class="relative bg-white border border-emerald-100 rounded-3xl p-8 md:p-12 text-center shadow-2xl shadow-emerald-900/5 overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-emerald-50 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="relative w-24 h-24 mx-auto mb-8">
+                    <div class="absolute inset-0 bg-emerald-200 rounded-full animate-ping opacity-25"></div>
+                    <div class="relative w-full h-full bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+                <h2 class="text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">¡Cuestionario Completado!</h2>
+                <div class="bg-emerald-50/50 rounded-2xl p-6 mb-8 border border-emerald-100/50">
+                    <p class="text-gray-600 text-lg leading-relaxed">
+                        Hemos recibido correctamente tus respuestas para la fase de <span class="font-bold text-emerald-700">{textoFase}</span>.
+                    </p>
+                    <p class="text-sm text-emerald-600/70 mt-2 font-medium">No es necesario realizar ninguna otra acción.</p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-gray-400 text-sm font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Registrado el: {new Date().toLocaleDateString()}
+                </div>
+            </div>
+        </div>
+    ) : (
+        <>
+            <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl shadow-indigo-900/5 border border-indigo-100 p-6 md:p-8 mb-10">
+                <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-violet-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <div class="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                    <div class="flex items-start gap-5">
+                        <div class="p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl shadow-lg shadow-indigo-500/30 text-white shrink-0">
+                            <!-- Icono de cama / dormir -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h18M3 12V8a2 2 0 012-2h3.5a2 2 0 011.5.67M3 12v5h18v-5M21 12V8a2 2 0 00-2-2h-3.5a2 2 0 00-1.5.67M10 6.67A2 2 0 0112 6a2 2 0 012 2" />
+                                <circle cx="8" cy="4.5" r="1.5" fill="currentColor" stroke="none"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wider border border-indigo-200">
+                                    {textoFase}
+                                </span>
+                            </div>
+                            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">Posición al Dormir</h1>
+                            <p class="text-gray-500 font-medium">Paciente: <span class="text-gray-900">{paciente.nombre}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                    <div class="flex gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-gray-600 text-sm leading-relaxed">
+                            Seleccione las posiciones en las que <strong>cree que duerme</strong> durante la noche e indique el porcentaje aproximado de tiempo que pasa en cada una.
+                            <span class="block mt-2 text-indigo-600 font-medium italic">La suma de los porcentajes debe ser exactamente 100%.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {mensaje && (
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{mensaje}</div>
+            )}
+
+            <form method="POST" id="cuestionario-form">
+
+                <!-- Contador de porcentaje total -->
+                <div id="total-display" class="hidden mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-indigo-700">Total acumulado:</span>
+                        <span id="total-valor" class="text-2xl font-extrabold text-indigo-600">0%</span>
+                    </div>
+                    <div class="mt-2 h-2 bg-indigo-100 rounded-full overflow-hidden">
+                        <div id="total-barra" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="total-mensaje" class="text-xs text-indigo-500 mt-1"></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                    <div class="posicion-card bg-white rounded-2xl border-2 border-gray-200 overflow-hidden transition-all duration-200 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-900/5" data-posicion="supina">
+                        <label class="flex items-start gap-4 p-5 cursor-pointer">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="pos_supina" value="si" class="posicion-checkbox sr-only" />
+                                <div class="checkbox-custom w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center transition-all duration-200">
+                                    <svg class="check-icon w-4 h-4 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 text-base">Supina</p>
+                                <p class="text-sm text-gray-500 mt-0.5">Boca arriba</p>
+                                <div class="mt-4 flex justify-center">
+                                    <svg viewBox="0 0 180 90" width="160" height="80" xmlns="http://www.w3.org/2000/svg" aria-label="Posición supina: boca arriba">
+                                        <rect x="5" y="68" width="170" height="8" rx="3" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5"/>
+                                        <rect x="5" y="60" width="170" height="10" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+                                        <ellipse cx="155" cy="62" rx="18" ry="6" fill="#c7d2fe" stroke="#818cf8" stroke-width="1.2"/>
+                                        <rect x="55" y="50" width="70" height="14" rx="7" fill="#818cf8"/>¿
+                                        <circle cx="145" cy="57" r="9" fill="#818cf8"/>
+                                        <rect x="25" y="52" width="32" height="10" rx="5" fill="#818cf8"/>
+                                        <rect x="55" y="55" width="10" height="18" rx="5" fill="#6366f1" transform="rotate(-10 60 64)"/>
+                                        <rect x="115" y="55" width="10" height="18" rx="5" fill="#6366f1" transform="rotate(10 120 64)"/>
+                                        <ellipse cx="18" cy="57" rx="9" ry="5" fill="#6366f1"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </label>
+                        <div class="porcentaje-field hidden px-5 pb-5 pt-0">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                                ¿Qué porcentaje de la noche duerme en esta posición?
+                            </label>
+                            <div class="relative">
+                                <input
+                                    type="number"
+                                    name="pct_supina"
+                                    min="1" max="100"
+                                    placeholder="0"
+                                    class="porcentaje-input w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 pr-12 text-lg font-bold text-gray-900 outline-none transition-colors"
+                                />
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="posicion-card bg-white rounded-2xl border-2 border-gray-200 overflow-hidden transition-all duration-200 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-900/5" data-posicion="lateral_izq">
+                        <label class="flex items-start gap-4 p-5 cursor-pointer">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="pos_lateral_izq" value="si" class="posicion-checkbox sr-only" />
+                                <div class="checkbox-custom w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center transition-all duration-200">
+                                    <svg class="check-icon w-4 h-4 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 text-base">Lateral Izquierda</p>
+                                <p class="text-sm text-gray-500 mt-0.5">De lado, sobre el lado izquierdo</p>
+                                <div class="mt-4 flex justify-center">
+                                    <svg viewBox="0 0 180 90" width="160" height="80" xmlns="http://www.w3.org/2000/svg" aria-label="Posición lateral izquierda">
+                                        <rect x="5" y="68" width="170" height="8" rx="3" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5"/>
+                                        <rect x="5" y="60" width="170" height="10" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+                                        <ellipse cx="155" cy="62" rx="18" ry="6" fill="#c7d2fe" stroke="#818cf8" stroke-width="1.2"/>
+                                        <ellipse cx="88" cy="56" rx="38" ry="9" fill="#818cf8"/>
+                                        <circle cx="143" cy="56" r="9" fill="#818cf8"/>
+                                        <rect x="128" y="52" width="10" height="8" rx="4" fill="#818cf8"/>
+                                        <path d="M95 50 Q85 38 75 44" stroke="#6366f1" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <path d="M80 60 Q70 65 60 63" stroke="#4f46e5" stroke-width="7" fill="none" stroke-linecap="round"/>
+                                        <path d="M50 55 Q38 58 30 65" stroke="#818cf8" stroke-width="10" fill="none" stroke-linecap="round"/>
+                                        <path d="M50 60 Q38 63 32 70" stroke="#a5b4fc" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <ellipse cx="22" cy="66" rx="8" ry="5" fill="#6366f1" transform="rotate(-10 22 66)"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </label>
+                        <div class="porcentaje-field hidden px-5 pb-5 pt-0">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                                ¿Qué porcentaje de la noche duerme en esta posición?
+                            </label>
+                            <div class="relative">
+                                <input
+                                    type="number"
+                                    name="pct_lateral_izq"
+                                    min="1" max="100"
+                                    placeholder="0"
+                                    class="porcentaje-input w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 pr-12 text-lg font-bold text-gray-900 outline-none transition-colors"
+                                />
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="posicion-card bg-white rounded-2xl border-2 border-gray-200 overflow-hidden transition-all duration-200 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-900/5" data-posicion="lateral_der">
+                        <label class="flex items-start gap-4 p-5 cursor-pointer">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="pos_lateral_der" value="si" class="posicion-checkbox sr-only" />
+                                <div class="checkbox-custom w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center transition-all duration-200">
+                                    <svg class="check-icon w-4 h-4 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 text-base">Lateral Derecha</p>
+                                <p class="text-sm text-gray-500 mt-0.5">De lado, sobre el lado derecho</p>
+                                <div class="mt-4 flex justify-center">
+                                    <svg viewBox="0 0 180 90" width="160" height="80" xmlns="http://www.w3.org/2000/svg" aria-label="Posición lateral derecha">
+                                        <rect x="5" y="68" width="170" height="8" rx="3" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5"/>
+                                        <rect x="5" y="60" width="170" height="10" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+                                        <ellipse cx="25" cy="62" rx="18" ry="6" fill="#c7d2fe" stroke="#818cf8" stroke-width="1.2"/>
+                                        <circle cx="37" cy="56" r="9" fill="#818cf8"/>
+                                        <rect x="42" y="52" width="10" height="8" rx="4" fill="#818cf8"/>
+                                        <ellipse cx="92" cy="56" rx="38" ry="9" fill="#818cf8"/>
+                                        <path d="M85 50 Q95 38 105 44" stroke="#6366f1" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <path d="M100 60 Q110 65 120 63" stroke="#4f46e5" stroke-width="7" fill="none" stroke-linecap="round"/>
+                                        <path d="M130 55 Q142 58 150 65" stroke="#818cf8" stroke-width="10" fill="none" stroke-linecap="round"/>
+                                        <path d="M130 60 Q142 63 148 70" stroke="#a5b4fc" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <ellipse cx="158" cy="66" rx="8" ry="5" fill="#6366f1" transform="rotate(10 158 66)"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </label>
+                        <div class="porcentaje-field hidden px-5 pb-5 pt-0">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                                ¿Qué porcentaje de la noche duerme en esta posición?
+                            </label>
+                            <div class="relative">
+                                <input
+                                    type="number"
+                                    name="pct_lateral_der"
+                                    min="1" max="100"
+                                    placeholder="0"
+                                    class="porcentaje-input w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 pr-12 text-lg font-bold text-gray-900 outline-none transition-colors"
+                                />
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="posicion-card bg-white rounded-2xl border-2 border-gray-200 overflow-hidden transition-all duration-200 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-900/5" data-posicion="prona">
+                        <label class="flex items-start gap-4 p-5 cursor-pointer">
+                            <div class="mt-0.5">
+                                <input type="checkbox" name="pos_prona" value="si" class="posicion-checkbox sr-only" />
+                                <div class="checkbox-custom w-6 h-6 rounded-lg border-2 border-gray-300 flex items-center justify-center transition-all duration-200">
+                                    <svg class="check-icon w-4 h-4 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-gray-900 text-base">Prona</p>
+                                <p class="text-sm text-gray-500 mt-0.5">Boca abajo</p>
+                                <div class="mt-4 flex justify-center">
+                                    <svg viewBox="0 0 180 90" width="160" height="80" xmlns="http://www.w3.org/2000/svg" aria-label="Posición prona: boca abajo">
+                                        <rect x="5" y="68" width="170" height="8" rx="3" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5"/>
+                                        <rect x="5" y="60" width="170" height="10" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+                                        <ellipse cx="152" cy="63" rx="14" ry="5" fill="#c7d2fe" stroke="#818cf8" stroke-width="1"/>
+                                        <rect x="55" y="50" width="70" height="14" rx="7" fill="#818cf8"/>
+                                        <ellipse cx="148" cy="56" rx="10" ry="8" fill="#818cf8"/>
+                                        <rect x="22" y="52" width="35" height="10" rx="5" fill="#818cf8"/>
+                                        <path d="M125 50 Q138 38 148 44" stroke="#6366f1" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <path d="M55 50 Q42 38 35 44" stroke="#6366f1" stroke-width="8" fill="none" stroke-linecap="round"/>
+                                        <ellipse cx="13" cy="57" rx="8" ry="5" fill="#6366f1"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </label>
+                        <div class="porcentaje-field hidden px-5 pb-5 pt-0">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                                ¿Qué porcentaje de la noche duerme en esta posición?
+                            </label>
+                            <div class="relative">
+                                <input
+                                    type="number"
+                                    name="pct_prona"
+                                    min="1" max="100"
+                                    placeholder="0"
+                                    class="porcentaje-input w-full border-2 border-indigo-200 focus:border-indigo-500 rounded-xl px-4 py-3 pr-12 text-lg font-bold text-gray-900 outline-none transition-colors"
+                                />
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="pt-10">
+                    <button type="button" id="btn-pre-submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-indigo-900/20 hover:scale-[1.02] active:scale-95 text-lg cursor-pointer">
+                        Guardar y Finalizar
+                    </button>
+                </div>
+            </form>
+
+            <dialog id="modal-confirm" class="m-auto p-0 rounded-2xl max-w-md w-full shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm bg-transparent">
+                <div class="bg-white p-6 w-full">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">¿Estás seguro de enviar?</h3>
+                        <p class="text-gray-500 text-sm mb-6">
+                            Una vez enviadas tus respuestas, <strong>no podrás modificarlas ni volver a contestar</strong> este cuestionario.
+                            Por favor verifica que todo esté correcto.
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-cancel" class="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors cursor-pointer">
+                                Revisar
+                            </button>
+                            <button id="btn-confirm-final" class="py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors cursor-pointer">
+                                Sí, Enviar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </dialog>
+        </>
+    )}
+
+</LayoutCuestionario>
+
+<script is:inline>
+    // ── Checkboxes interactivos ──────────────────────────────────────────────
+    const cards = document.querySelectorAll('.posicion-card');
+
+    cards.forEach(card => {
+        const checkbox = card.querySelector('.posicion-checkbox');
+        const checkboxCustom = card.querySelector('.checkbox-custom');
+        const checkIcon = card.querySelector('.check-icon');
+        const porcentajeField = card.querySelector('.porcentaje-field');
+        const porcentajeInput = card.querySelector('.porcentaje-input');
+
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                // Estado: seleccionado
+                card.classList.remove('border-gray-200');
+                card.classList.add('border-indigo-500', 'shadow-md', 'shadow-indigo-900/10');
+                checkboxCustom.classList.remove('border-gray-300');
+                checkboxCustom.classList.add('bg-indigo-600', 'border-indigo-600');
+                checkIcon.classList.remove('hidden');
+                porcentajeField.classList.remove('hidden');
+                porcentajeInput.required = true;
+            } else {
+                // Estado: deseleccionado
+                card.classList.add('border-gray-200');
+                card.classList.remove('border-indigo-500', 'shadow-md', 'shadow-indigo-900/10');
+                checkboxCustom.classList.add('border-gray-300');
+                checkboxCustom.classList.remove('bg-indigo-600', 'border-indigo-600');
+                checkIcon.classList.add('hidden');
+                porcentajeField.classList.add('hidden');
+                porcentajeInput.required = false;
+                porcentajeInput.value = '';
+            }
+            actualizarTotal();
+        });
+    });
+
+    // ── Contador de porcentaje total ─────────────────────────────────────────
+    const totalDisplay = document.getElementById('total-display');
+    const totalValor = document.getElementById('total-valor');
+    const totalBarra = document.getElementById('total-barra');
+    const totalMensaje = document.getElementById('total-mensaje');
+
+    function actualizarTotal() {
+        const inputs = document.querySelectorAll('.porcentaje-input:not([style*="display:none"])');
+        const visibleInputs = Array.from(document.querySelectorAll('.porcentaje-field:not(.hidden) .porcentaje-input'));
+
+        if (visibleInputs.length === 0) {
+            totalDisplay.classList.add('hidden');
+            return;
+        }
+
+        totalDisplay.classList.remove('hidden');
+
+        let suma = 0;
+        visibleInputs.forEach(inp => {
+            suma += parseInt(inp.value || '0', 10);
+        });
+
+        totalValor.textContent = suma + '%';
+        const pct = Math.min(suma, 100);
+        totalBarra.style.width = pct + '%';
+
+        if (suma === 100) {
+            totalBarra.classList.remove('bg-indigo-500', 'bg-red-500');
+            totalBarra.classList.add('bg-emerald-500');
+            totalValor.classList.remove('text-indigo-600', 'text-red-600');
+            totalValor.classList.add('text-emerald-600');
+            totalMensaje.textContent = '✓ El total es 100%. Puedes continuar.';
+            totalMensaje.className = 'text-xs text-emerald-600 mt-1 font-medium';
+        } else if (suma > 100) {
+            totalBarra.classList.remove('bg-indigo-500', 'bg-emerald-500');
+            totalBarra.classList.add('bg-red-500');
+            totalValor.classList.remove('text-indigo-600', 'text-emerald-600');
+            totalValor.classList.add('text-red-600');
+            totalMensaje.textContent = `El total supera 100% por ${suma - 100}%. Ajusta los valores.`;
+            totalMensaje.className = 'text-xs text-red-500 mt-1 font-medium';
+        } else {
+            totalBarra.classList.remove('bg-emerald-500', 'bg-red-500');
+            totalBarra.classList.add('bg-indigo-500');
+            totalValor.classList.remove('text-emerald-600', 'text-red-600');
+            totalValor.classList.add('text-indigo-600');
+            const falta = 100 - suma;
+            totalMensaje.textContent = `Falta ${falta}% para completar el 100%.`;
+            totalMensaje.className = 'text-xs text-indigo-500 mt-1';
+        }
+    }
+
+    // Actualiza el contador al escribir en cualquier input de porcentaje
+    document.querySelectorAll('.porcentaje-input').forEach(inp => {
+        inp.addEventListener('input', actualizarTotal);
+    });
+
+    // ── Modal de confirmación ────────────────────────────────────────────────
+    const form = document.getElementById('cuestionario-form');
+    const btnPre = document.getElementById('btn-pre-submit');
+    const modal = document.getElementById('modal-confirm');
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnConfirmFinal = document.getElementById('btn-confirm-final');
+
+    if (btnPre) {
+        btnPre.addEventListener('click', () => {
+            // Verificar que al menos una posición esté seleccionada
+            const checkedBoxes = document.querySelectorAll('.posicion-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Por favor selecciona al menos una posición al dormir.');
+                return;
+            }
+
+            // Verificar que el total sea 100%
+            const visibleInputs = Array.from(document.querySelectorAll('.porcentaje-field:not(.hidden) .porcentaje-input'));
+            let suma = 0;
+            visibleInputs.forEach(inp => { suma += parseInt(inp.value || '0', 10); });
+
+            if (suma !== 100) {
+                alert(`La suma de los porcentajes debe ser exactamente 100%. Actualmente es ${suma}%.`);
+                return;
+            }
+
+            // Validación nativa del formulario
+            if (form.reportValidity()) {
+                modal.showModal();
+            }
+        });
+    }
+
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => { modal.close(); });
+    }
+
+    if (btnConfirmFinal) {
+        btnConfirmFinal.addEventListener('click', () => {
+            btnConfirmFinal.innerHTML = '<span class="animate-pulse">Enviando...</span>';
+            btnConfirmFinal.disabled = true;
+            form.submit();
+        });
+    }
+
+    modal.addEventListener('click', (e) => {
+        const d = modal.getBoundingClientRect();
+        if (e.clientX < d.left || e.clientX > d.right || e.clientY < d.top || e.clientY > d.bottom) {
+            modal.close();
+        }
+    });
+</script>
