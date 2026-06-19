@@ -8,18 +8,30 @@ import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
 
+const currentUser = await Astro.locals.currentUser();
+
+const ID_USUARIO_RESTRINGIDO = import.meta.env.ID_RESTRINGIDO;
+
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.SUPABASE_KEY
 );
 
-const { data: tareasCompletadas, error } = await supabase
-    .from('tareas_pendientes')
-    .select('*')
-    .eq('estado', 'completada')
-    .order('completado_el', { ascending: false });
+let tareasCompletadas = [];
 
-if (error) console.error("Error fetching historial:", error);
+if (currentUser?.id !== ID_USUARIO_RESTRINGIDO) {
+    const { data, error } = await supabase
+        .from('tareas_pendientes')
+        .select('*')
+        .eq('estado', 'completada')
+        .order('completado_el', { ascending: false });
+        
+    if (error) console.error("Error fetching historial:", error);
+    
+    if (data) {
+        tareasCompletadas = data;
+    }
+}
 
 const formatFecha = (isoString: string) => {
     if (!isoString) return 'Fecha desconocida';

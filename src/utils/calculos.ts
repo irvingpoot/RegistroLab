@@ -147,3 +147,32 @@ export const calcularpsqi = (datos: Record<string, any>): { puntaje: number, ext
         }
     };
 };
+
+export const calcularPosicion = (datos: Record<string, any>): { puntaje: number, extraData: Record<string, string> } => {
+    const posiciones: Array<{ key: string; pctKey: string; nombre: string }> = [
+        { key: 'pos_supina',      pctKey: 'pct_supina',      nombre: 'Supina (boca arriba)' },
+        { key: 'pos_lateral_izq', pctKey: 'pct_lateral_izq', nombre: 'Lateral izquierda' },
+        { key: 'pos_lateral_der', pctKey: 'pct_lateral_der', nombre: 'Lateral derecha' },
+        { key: 'pos_prona',       pctKey: 'pct_prona',       nombre: 'Prona (boca abajo)' },
+    ];
+
+    const extraData: Record<string, string> = {};
+    let totalPct = 0;
+    const seleccionadas: string[] = [];
+
+    for (const pos of posiciones) {
+        const seleccionada = datos[pos.key] === 'si';
+        if (seleccionada) {
+            const pct = parseInt(datos[pos.pctKey] || '0', 10);
+            totalPct += pct;
+            seleccionadas.push(pos.nombre);
+            extraData[pos.nombre] = `${pct}%`;
+        }
+    }
+
+    extraData['Posiciones seleccionadas'] = seleccionadas.join(', ') || 'Ninguna';
+    extraData['Total porcentaje'] = `${totalPct}%`;
+
+    // Puntaje no aplica para este cuestionario; se guarda 0.
+    return { puntaje: 0, extraData };
+};
