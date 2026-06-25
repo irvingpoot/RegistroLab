@@ -81,41 +81,50 @@ const opcionesReferencia = [
         <button 
             type="button" 
             id="btn-admin-config" 
-            class="fixed bottom-20 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-blue-400/20"
-            title="Panel de Administración"
+            class="fixed bottom-20 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-stone-600 to-rose-600 text-white shadow-xl shadow-rose-900/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-rose-400/20"
+            title="Un detalle especial"
         >
             <HiddenModalIcon class="w-6 h-6" />
         </button>
 
         <dialog 
             id="modal-admin" 
-            class="m-auto bg-gray-900/90 border border-gray-800/80 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] shadow-blue-500/5 backdrop:backdrop-blur-xl w-full max-w-sm p-0 overflow-hidden outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
+            class="m-auto bg-transparent border-0 rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop:backdrop-blur-xl w-full max-w-4xl p-0 overflow-hidden outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
         >
-            <div class="relative w-full h-48 bg-gray-800">
+            <div class="relative w-full h-[600px] overflow-hidden rounded-3xl">
+
                 <img 
                     src="https://images.unsplash.com/photo-1721062383099-c7ad7edc8842?q=80&w=871&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
-                    alt="Imagen personalizada" 
-                    class="w-full h-full object-cover"
+                    alt="Imagen de fondo" 
+                    class="absolute inset-0 w-full h-full object-cover scale-105"
+                    style="transform-origin: center;"
                 />
-                
-                <button type="button" id="btn-cerrar-admin" class="absolute top-4 right-4 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
 
-            <div class="p-6 text-center">
-                
-                <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">
-                    Holaaaaaaaaaa
-                </h3>
-                
-                <p class="text-gray-400 text-sm mb-6 leading-relaxed">
-                    {msjSecreto}
-                </p>
+                <div class="absolute inset-0 bg-[#2a1a18]/20"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#1f1311]/95 via-[#2a1a18]/50 to-transparent"></div>
 
-                <button type="button" id="btn-guardar-admin" class="w-full bg-pink-600 hover:bg-pink-500 active:scale-[0.98] text-white font-semibold py-3 px-4 rounded-xl transition-all cursor-pointer text-sm shadow-md shadow-pink-600/10">
-                    Entendido
+                <div class="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] rounded-3xl pointer-events-none"></div>
+
+                <button type="button" id="btn-cerrar-admin" class="absolute top-5 right-5 z-20 bg-[#3a2825]/40 hover:bg-[#3a2825]/70 text-rose-300/90 hover:text-white p-2.5 rounded-full backdrop-blur-xl border border-rose-200/10 transition-all duration-200 cursor-pointer shadow-lg shadow-black/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
+
+                <div class="absolute bottom-0 left-0 right-0 p-10 z-10 flex flex-col items-center text-center">
+
+                    <h3 class="text-4xl font-extrabold text-[#fdf6f5] leading-tight mb-5 drop-shadow-xl">
+                        ¡Holaaaaaaaaa!
+                    </h3>
+
+                    <div class="bg-[#362320]/40 backdrop-blur-lg border border-[#a67c78]/20 rounded-3xl p-6 mb-8 shadow-2xl shadow-black/50 max-w-2xl w-full">
+                        <p class="text-[#f2e1df] text-base leading-relaxed font-medium drop-shadow-sm">
+                            {msjSecreto}
+                        </p>
+                    </div>
+
+                    <button type="button" id="btn-guardar-admin" class="bg-[#f069a1] hover:bg-[#a36965] hover:scale-105 text-white font-bold py-3.5 px-12 rounded-full transition-all duration-200 cursor-pointer text-sm uppercase tracking-wider shadow-xl shadow-[#4a2e2a]/50 active:scale-95">
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </dialog>
     )}

@@ -52,12 +52,11 @@ if (!MODO_DISENO) {
             const datosGuardar = { ...respuestas, ...extraData, puntaje: puntajeCalculado };
 
             const { error: saveError } = await supabase
-                .rpc('guardar_respuesta_segura', {
+                .rpc('guardar_respuesta_datos', {
                     token_input: token,
                     fase_input: faseUrl,
                     cuestionario_input: nombreCuestionario,
-                    datos_input: datosGuardar,
-                    puntaje_input: puntajeCalculado
+                    datos_input: datosGuardar
                 });
 
             if (saveError) {

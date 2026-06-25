@@ -13,12 +13,7 @@ type Changes = {
 export const changes: Changes[] = [
     {
         title: "Cuestionario de Posiciones",
-        description: "Se agregó un prototipo del cuestionario de posiciones para evaluar la posición de los pacientes",
-        type: "feature"
-    },
-    {
-        title: "Reporte de cama vs hamaca",
-        description: "Se corrigió la generación del reporte de cama vs hamaca para mostrar los datos necesarios",
+        description: "Se corrgió el cuestionario de posiciones de forma que ahora los datos se guarden correctamente",
         type: "fix"
     }
 ];
