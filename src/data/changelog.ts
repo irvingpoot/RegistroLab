@@ -1,8 +1,8 @@
-export const currentVersion = "3.12.0";
+export const currentVersion = "3.12.1";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "19 de junio del 2026";
+export const updateDate = "24 de junio del 2026";
 
 type Changes = {
     title: string;
