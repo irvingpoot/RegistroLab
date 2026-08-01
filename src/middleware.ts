@@ -11,6 +11,7 @@
  */
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
+import { tieneAccesoRuta } from "./lib/permisos";
 
 const isProtectedRoute = createRouteMatcher([
     '/dashboard',
@@ -18,6 +19,7 @@ const isProtectedRoute = createRouteMatcher([
     '/lista',
     '/citas',
     '/nueva-cita',
+    '/multiples-citas',
     '/404',
     '/feedback',
     '/reportes',
@@ -26,10 +28,12 @@ const isProtectedRoute = createRouteMatcher([
     '/paciente(.*)',
     '/editar-paciente(.*)',
     '/editar-cita(.*)',
+    '/pendientes(.*)'
 ]);
 
 export const onRequest = clerkMiddleware((auth, context) => {
-    const { userId } = auth()
+    const { userId, sessionClaims } = auth();
+    const role = sessionClaims?.metadata?.role;
 
     if (isProtectedRoute(context.request) && !userId) {
         return context.redirect("/")
@@ -38,4 +42,14 @@ export const onRequest = clerkMiddleware((auth, context) => {
     if (userId && context.url.pathname === "/login") {
         return context.redirect("/dashboard");
     }
+
+    if (
+        userId &&
+        isProtectedRoute(context.request) &&
+        !tieneAccesoRuta(role, context.url.pathname)
+    ) {
+        return context.redirect("/dashboard");
+    }
+
+    context.locals.userRole = role;
 });

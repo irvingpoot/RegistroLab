@@ -7,10 +7,9 @@
 import Layout from "../../layouts/Layout.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import { createClient } from "@supabase/supabase-js"
+import { puedeVerTareas } from "../../lib/permisos"
 
 const currentUser = await Astro.locals.currentUser();
-
-const ID_USUARIO_RESTRINGIDO = import.meta.env.ID_RESTRINGIDO;
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
@@ -19,7 +18,7 @@ const supabase = createClient(
 
 let tareasCompletadas = [];
 
-if (currentUser?.id !== ID_USUARIO_RESTRINGIDO) {
+if (puedeVerTareas(currentUser?.id)) {
     const { data, error } = await supabase
         .from('tareas_pendientes')
         .select('*')

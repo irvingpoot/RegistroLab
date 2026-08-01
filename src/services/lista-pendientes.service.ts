@@ -7,6 +7,7 @@
  */
 
 import { supabase } from "../lib/supabase";
+import { puedeVerTareas } from "../lib/permisos";
 
 export interface Tarea {
     id: string;
@@ -33,9 +34,7 @@ export async function getTareasDeUsuario(responsable: string): Promise<Tarea[]> 
 }
 
 export async function getTareasPendientes(userIdIdClerk?: string): Promise<Tarea[]> {
-    const LISTA_NEGRA = import.meta.env.ID_RESTRINGIDO;
-
-    if (userIdIdClerk === LISTA_NEGRA) {
+    if (!puedeVerTareas(userIdIdClerk)) {
         return [];
     }
 

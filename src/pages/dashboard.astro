@@ -10,7 +10,6 @@ import Layout from "../layouts/Layout.astro"
 import { UserButton } from "@clerk/astro/components";
 import SystemUpdates from "../components/SystemUpdate.astro";
 import PatientTypeModal from "../components/PatientTypeModal.astro";
-import ExternalLinkIcon from "../components/icons/ExternalLinkIcon.astro";
 import {
     getCitasHoy,
     getNotificaciones,
@@ -22,6 +21,10 @@ import {
     completarTarea,
 } from "../services/lista-pendientes.service";
 import RightArrow from "../components/icons/RightArrow.astro";
+import { tieneAccesoRuta } from "../lib/permisos";
+
+const userRole = Astro.locals.userRole;
+const restringida = (ruta: string) => !tieneAccesoRuta(userRole, ruta);
 
 const user          = await Astro.locals.currentUser();
 const nombreUsuario = user?.firstName || user?.username || "Usuario";
@@ -95,12 +98,6 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                     <p class="text-gray-400 text-lg font-light max-w-lg leading-relaxed">
                         Que bueno tenerte de vuelta. ¿Qué quieres hacer hoy?
                     </p>
-
-                    <a href="labsomno://" class="flex items-center justify-center px-3 py-3 w-50 rounded-2xl font-semibold border border-gray-800 backdrop-blur-md hover:border-teal-400 hover:scale-105 transition-all duration-300 shadow-lg shadow-black/20">
-                        <span class="flex flex-row justify-center items-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-400 filter drop-shadow-sm">
-                            Abrir Lab-Somno App <ExternalLinkIcon class="w-4 h-4 ml-1 text-teal-400" />
-                        </span>
-                    </a>
                 </div>
 
                 <div class="hidden md:flex flex-col items-end gap-4 text-right">
@@ -136,60 +133,62 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                 </div>
                             </div>
                         )}
-                        <div class="relative group z-50">
-                            <button class="relative p-3 text-gray-400 hover:text-white transition-colors rounded-full bg-gray-900/50 border border-gray-800 hover:bg-gray-800 hover:border-gray-700">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-                                </svg>
-                                {hayNotificaciones && (
-                                    <span class="absolute top-2 right-2.5 flex h-2.5 w-2.5">
-                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                                    </span>
-                                )}
-                            </button>
-
-                            <div class="absolute right-0 mt-2 w-80 bg-[#0f172a] border border-gray-700 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 origin-top-right transform">
-                                
-                                <div class="p-3 border-b border-gray-700/50 flex justify-between items-center">
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="text-sm font-bold text-white">Actividad</h4>
-                                        {hayNotificaciones && <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full">{notificaciones.length}</span>}
-                                    </div>
-
+                        {userRole !=="recepcion" &&(
+                            <div class="relative group z-50">
+                                <button class="relative p-3 text-gray-400 hover:text-white transition-colors rounded-full bg-gray-900/50 border border-gray-800 hover:bg-gray-800 hover:border-gray-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                    </svg>
                                     {hayNotificaciones && (
-                                        <form method="POST">
-                                            <input type="hidden" name="action" value="mark_all_read" />
-                                            <button type="submit" class="text-[10px] font-bold text-blue-400 hover:text-white transition-colors uppercase tracking-wider cursor-pointer">
-                                                Marcar todo como visto
-                                            </button>
-                                        </form>
+                                        <span class="absolute top-2 right-2.5 flex h-2.5 w-2.5">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                        </span>
                                     )}
-                                </div>
-                                <div class="max-h-64 overflow-y-auto py-1 custom-scrollbar text-left">
-                                    {hayNotificaciones ? (
-                                        notificaciones.map((notif) => (
-                                            <a 
-                                                href={`/paciente/${notif.pacientes?.tipo_paciente || 'sueno'}/${notif.pacientes?.id}?marcar_leido=${notif.id}#evaluacion`}
-                                                class="block px-4 py-3 hover:bg-white/5 border-b border-gray-800/50 last:border-0 transition-colors"
-                                            >
-                                                <div class="flex justify-between items-start mb-1">
-                                                    <span class="text-sm font-bold text-blue-300 capitalize">{notif.pacientes?.nombre || 'Paciente'}</span>
-                                                    <span class="text-[10px] text-gray-500">{new Date(notif.updated_at).toLocaleDateString('es-MX', {day: '2-digit', month:'short'})}</span>
-                                                </div>
-                                                <p class="text-xs text-gray-300">
-                                                    Respondió: <span class="font-mono text-purple-300 uppercase">{notif.cuestionario}</span>
-                                                </p>
-                                            </a>
-                                        ))
-                                    ) : (
-                                        <div class="px-4 py-6 text-center text-gray-500 text-xs italic">
-                                            No hay nuevas respuestas.
+                                </button>
+
+                                <div class="absolute right-0 mt-2 w-80 bg-[#0f172a] border border-gray-700 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 origin-top-right transform">
+                                    
+                                    <div class="p-3 border-b border-gray-700/50 flex justify-between items-center">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="text-sm font-bold text-white">Actividad</h4>
+                                            {hayNotificaciones && <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full">{notificaciones.length}</span>}
                                         </div>
-                                    )}
+
+                                        {hayNotificaciones && (
+                                            <form method="POST">
+                                                <input type="hidden" name="action" value="mark_all_read" />
+                                                <button type="submit" class="text-[10px] font-bold text-blue-400 hover:text-white transition-colors uppercase tracking-wider cursor-pointer">
+                                                    Marcar todo como visto
+                                                </button>
+                                            </form>
+                                        )}
+                                    </div>
+                                    <div class="max-h-64 overflow-y-auto py-1 custom-scrollbar text-left">
+                                        {hayNotificaciones ? (
+                                            notificaciones.map((notif) => (
+                                                <a 
+                                                    href={`/paciente/${notif.pacientes?.tipo_paciente || 'sueno'}/${notif.pacientes?.id}?marcar_leido=${notif.id}#evaluacion`}
+                                                    class="block px-4 py-3 hover:bg-white/5 border-b border-gray-800/50 last:border-0 transition-colors"
+                                                >
+                                                    <div class="flex justify-between items-start mb-1">
+                                                        <span class="text-sm font-bold text-blue-300 capitalize">{notif.pacientes?.nombre || 'Paciente'}</span>
+                                                        <span class="text-[10px] text-gray-500">{new Date(notif.updated_at).toLocaleDateString('es-MX', {day: '2-digit', month:'short'})}</span>
+                                                    </div>
+                                                    <p class="text-xs text-gray-300">
+                                                        Respondió: <span class="font-mono text-purple-300 uppercase">{notif.cuestionario}</span>
+                                                    </p>
+                                                </a>
+                                            ))
+                                        ) : (
+                                            <div class="px-4 py-6 text-center text-gray-500 text-xs italic">
+                                                No hay nuevas respuestas.
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div class="group min-w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-gray-900/40 border border-gray-800 backdrop-blur-md hover:border-gray-700 hover:bg-gray-800/40 transition-all duration-300 shadow-lg shadow-black/20">
@@ -322,9 +321,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/pendientes/lista-pendientes" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-lime-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-lime-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/pendientes/lista-pendientes") ? undefined : "/pendientes/lista-pendientes"}
+                aria-disabled={restringida("/pendientes/lista-pendientes") ? "true" : undefined}
+                tabindex={restringida("/pendientes/lista-pendientes") ? -1 : undefined}
+                class={`group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/pendientes/lista-pendientes")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-lime-500/50 hover:shadow-2xl hover:shadow-lime-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-lime-500/20"></div>
-                
+                {restringida("/pendientes/lista-pendientes") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <div class="p-2.5 bg-lime-500/20 rounded-xl text-lime-300 group-hover:text-white group-hover:bg-lime-500 transition-colors">
@@ -338,9 +351,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/lista" class="group relative md:row-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-8 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/lista") ? undefined : "/lista"}
+                aria-disabled={restringida("/lista") ? "true" : undefined}
+                tabindex={restringida("/lista") ? -1 : undefined}
+                class={`group relative md:row-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-8 overflow-hidden transition-all duration-300 ${
+                    restringida("/lista")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -ml-16 -mb-16 transition-all group-hover:bg-blue-600/20"></div>
-                
+                {restringida("/lista") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="p-3 w-fit bg-blue-500/20 rounded-2xl text-blue-300 group-hover:text-white group-hover:bg-blue-500 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
@@ -358,8 +385,22 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <button onclick="document.getElementById('modal-tipo-paciente').showModal()" class="w-full text-left group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-emerald-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-900/20 hover:scale-[1.01] cursor-pointer">
+            <button
+                onclick={restringida("/lista") ? undefined : "document.getElementById('modal-tipo-paciente').showModal()"}
+                disabled={restringida("/lista")}
+                class={`w-full text-left group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/lista")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-emerald-500/50 hover:shadow-2xl hover:shadow-emerald-900/20 hover:scale-[1.01] cursor-pointer"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-emerald-500/20"></div>
+                {restringida("/lista") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <div class="p-2.5 bg-emerald-500/20 rounded-xl text-emerald-300 group-hover:text-white group-hover:bg-emerald-500 transition-colors">
@@ -391,8 +432,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/feedback" class="group relative md:row-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/feedback") ? undefined : "/feedback"}
+                aria-disabled={restringida("/feedback") ? "true" : undefined}
+                tabindex={restringida("/feedback") ? -1 : undefined}
+                class={`group relative md:row-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/feedback")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-amber-500/50 hover:shadow-2xl hover:shadow-amber-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-amber-500/20"></div>
+                {restringida("/feedback") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
@@ -410,8 +466,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/manuales" class="group relative md:col-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-cyan-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/manuales") ? undefined : "/manuales"}
+                aria-disabled={restringida("/manuales") ? "true" : undefined}
+                tabindex={restringida("/manuales") ? -1 : undefined}
+                class={`group relative md:col-span-2 bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/manuales")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-cyan-500/50 hover:shadow-2xl hover:shadow-cyan-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-cyan-500/20"></div>
+                {restringida("/manuales") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
@@ -429,8 +500,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/reportes" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-rose-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-rose-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/reportes") ? undefined : "/reportes"}
+                aria-disabled={restringida("/reportes") ? "true" : undefined}
+                tabindex={restringida("/reportes") ? -1 : undefined}
+                class={`group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/reportes")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-rose-500/50 hover:shadow-2xl hover:shadow-rose-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-rose-500/20"></div>
+                {restringida("/reportes") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">
@@ -452,8 +538,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </div>
             </a>
 
-            <a href="/estadisticas" class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/20 hover:scale-[1.01]">
+            <a
+                href={restringida("/estadisticas") ? undefined : "/estadisticas"}
+                aria-disabled={restringida("/estadisticas") ? "true" : undefined}
+                tabindex={restringida("/estadisticas") ? -1 : undefined}
+                class={`group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 ${
+                    restringida("/estadisticas")
+                        ? "opacity-40 pointer-events-none"
+                        : "hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-900/20 hover:scale-[1.01]"
+                }`}
+            >
                 <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-purple-500/20"></div>
+                {restringida("/estadisticas") && (
+                    <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 border border-white/10 text-[10px] text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Acceso restringido
+                    </div>
+                )}
                 
                 <div class="relative z-10 h-full flex flex-col justify-between">
                     <div class="flex justify-between items-start">

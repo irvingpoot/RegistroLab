@@ -9,6 +9,7 @@ import Icon from "../components/Icon.astro";
 import ReturnButton from "../components/ReturnButton.astro";
 import HiddenModalIcon from "../components/icons/HiddenModalIcon.astro";
 import { clerkClient } from "@clerk/astro/server";
+import { esUsuarioConAccesoEspecial } from "../lib/permisos";
 import {
     crearCitasEnLote,
     getInhabilesDesdeHoy,
@@ -17,14 +18,13 @@ import {
 } from "../services/citas.service";
 
 const msjSecreto = import.meta.env.MSJ_SECRETO as string;
-const usuarioEspecifico = import.meta.env.USUARIO_ESPECIFICO;
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user
     ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Desconocido"
     : "Anónimo";
 
-const esAdmin = user?.id === usuarioEspecifico;
+const esUsuarioEspecial = esUsuarioConAccesoEspecial(user?.id);
 
 let listaPsicologos: string[] = [];
 try {
@@ -77,7 +77,7 @@ const opcionesReferencia = [
     <Icon />
     <ReturnButton href="/citas" text="Volver a la Agenda" />
 
-    {esAdmin && (
+    {esUsuarioEspecial && (
         <button 
             type="button" 
             id="btn-admin-config" 
