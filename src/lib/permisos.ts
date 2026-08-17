@@ -8,7 +8,7 @@
  * este archivo — no hace falta editar el middleware ni cada página.
  */
 
-export type Rol = "psicologo" | "recepcion";
+export type Rol = "psicologo" | "recepcion" | "admin";
 
 const RUTAS_RECEPCION: string[] = [
     "/dashboard",
@@ -19,7 +19,7 @@ const RUTAS_RECEPCION: string[] = [
 ];
 
 export function tieneAccesoRuta(rol: Rol | undefined, pathname: string): boolean {
-    if (rol === "psicologo") return true;
+    if (rol === "psicologo" || rol === "admin") return true;
 
     if (rol === "recepcion") {
         return RUTAS_RECEPCION.some((ruta) => {
@@ -38,4 +38,8 @@ export function puedeVerTareas(userId: string | undefined): boolean {
 export function esUsuarioConAccesoEspecial(userId: string | undefined): boolean {
     const usuarioEspecifico = import.meta.env.USUARIO_ESPECIFICO;
     return userId === usuarioEspecifico;
+}
+
+export function puedeGestionarUsuarios(rol: Rol | undefined): boolean {
+    return rol === "admin";
 }

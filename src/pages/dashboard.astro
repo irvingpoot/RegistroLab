@@ -21,7 +21,9 @@ import {
     completarTarea,
 } from "../services/lista-pendientes.service";
 import RightArrow from "../components/icons/RightArrow.astro";
-import { tieneAccesoRuta } from "../lib/permisos";
+import { tieneAccesoRuta, puedeGestionarUsuarios } from "../lib/permisos";
+
+const esAdmin = puedeGestionarUsuarios(Astro.locals.userRole);
 
 const userRole = Astro.locals.userRole;
 const restringida = (ruta: string) => !tieneAccesoRuta(userRole, ruta);
@@ -572,6 +574,30 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                     </div>
                 </div>
             </a>
+
+            {esAdmin && (
+                <a
+                    href="/usuarios"
+                    class="group relative bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-300 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-900/20 hover:scale-[1.01]"
+                >
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-8 -mt-8 transition-all group-hover:bg-indigo-500/20"></div>
+
+                    <div class="relative z-10 h-full flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <div class="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-300 group-hover:text-white group-hover:bg-indigo-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="mt-8">
+                            <h3 class="text-xl font-bold text-white mb-1 group-hover:text-indigo-300 transition-colors">Usuarios</h3>
+                            <p class="text-sm text-gray-400 font-medium group-hover:text-gray-300 transition-colors">Gestionar cuentas y roles</p>
+                        </div>
+                    </div>
+                </a>
+            )}
 
         </div>
 

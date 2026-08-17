@@ -1,8 +1,8 @@
-export const currentVersion = "3.13.0";
+export const currentVersion = "3.14.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "24 de junio del 2026";
+export const updateDate = "17 de agosto del 2026";
 
 type Changes = {
     title: string;
@@ -12,13 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Implementación de permisos de acceso",
-        description: "Se ha añadido un sistema de permisos que restringe el acceso a ciertas secciones de la aplicación, asegurando que solo los usuarios autorizados puedan acceder a ellas.",
+        title: "Gestión de usuarios",
+        description: "Ahora el sistema permite la creación, edición y eliminación de usuarios con diferentes roles y permisos. Función exclusiva para administradores.",
         type: "feature"
-    },
-    {
-        title: "Corrección en la creación de citas",
-        description: "Se corrigió un bug donde se creaba una cita con fecha y hora incorrectas debido a un error en la conversión de zonas horarias.",
-        type: "fix"
     }
 ];
