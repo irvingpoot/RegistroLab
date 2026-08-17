@@ -1,0 +1,276 @@
+---
+/**
+ * @file usuarios.astro
+ * @description Gestión de usuarios de Clerk (crear, editar rol, eliminar).
+ * Reservado a psicólogos vía puedeGestionarUsuarios() en permisos.ts.
+ * La lógica de acceso a Clerk vive en: src/services/usuarios.service.ts
+ */
+
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import { puedeGestionarUsuarios } from "../lib/permisos";
+import {
+    listarUsuarios,
+    crearUsuario,
+    actualizarUsuario,
+    eliminarUsuario,
+} from "../services/usuarios.service";
+
+const userRole = Astro.locals.userRole;
+
+if (!puedeGestionarUsuarios(userRole)) {
+    return Astro.redirect("/dashboard");
+}
+
+const currentUser = await Astro.locals.currentUser();
+let errorMsg = "";
+let exitoMsg = "";
+
+if (Astro.request.method === "POST") {
+    try {
+        const formData = await Astro.request.formData();
+        const action = formData.get("action");
+
+        if (action === "crear_usuario") {
+            await crearUsuario(Astro, {
+                nombre:   formData.get("nombre") as string,
+                apellido: formData.get("apellido") as string,
+                username: formData.get("username") as string,
+                password: formData.get("password") as string,
+                rol:      formData.get("rol") as "psicologo" | "recepcion",
+            });
+            exitoMsg = "Usuario creado correctamente.";
+        }
+
+        if (action === "editar_usuario") {
+            const userId = formData.get("user_id") as string;
+            await actualizarUsuario(Astro, userId, {
+                username: formData.get("username") as string,
+                rol:      formData.get("rol") as "psicologo" | "recepcion",
+            });
+            exitoMsg = "Usuario actualizado correctamente.";
+        }
+
+        if (action === "eliminar_usuario") {
+            const userId = formData.get("user_id") as string;
+            await eliminarUsuario(Astro, userId, currentUser?.id as string);
+            exitoMsg = "Usuario eliminado correctamente.";
+        }
+    } catch (e) {
+        errorMsg = e instanceof Error ? e.message : "Ocurrió un error inesperado.";
+    }
+}
+
+const usuarios = await listarUsuarios(Astro);
+---
+
+<Layout title="Gestión de usuarios">
+    <ReturnButton href="/dashboard" />
+
+    <main class="max-w-5xl mx-auto pt-12 pb-20 px-4">
+
+        <div class="max-w-7xl mx-auto mb-10 relative">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-balance text-center">Gestión de <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">usuarios</span></h1>
+            <p class=" pt-5 text-lg text-gray-400 text-center">
+                Desde aquí puedes crear, editar y eliminar usuarios de la plataforma.
+            </p>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-end justify-center gap-6 mb-8">
+            <button
+                onclick="document.getElementById('modal-crear-usuario').showModal()"
+                class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-3 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all hover:scale-105 w-fit"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                <span class="text-sm whitespace-nowrap">Nuevo usuario</span>
+            </button>
+        </div>
+
+        {errorMsg && (
+            <div class="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+                {errorMsg}
+            </div>
+        )}
+        {exitoMsg && (
+            <div class="mb-6 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm">
+                {exitoMsg}
+            </div>
+        )}
+
+        <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl overflow-hidden">
+            <div class="grid grid-cols-[1fr_1fr_140px_100px] gap-4 px-6 py-4 border-b border-white/10 text-xs font-bold uppercase tracking-wider text-gray-500">
+                <span>Nombre</span>
+                <span>Username</span>
+                <span>Rol</span>
+                <span class="text-right">Acciones</span>
+            </div>
+
+            {usuarios.map((u) => (
+                <div class="grid grid-cols-[1fr_1fr_140px_100px] gap-4 px-6 py-4 border-b border-white/5 last:border-0 items-center hover:bg-white/5 transition-colors">
+                    <span class="text-white font-medium truncate">{u.nombre}</span>
+                    <span class="text-gray-400 text-sm truncate">{u.username}</span>
+                    <span class="text-xs text-gray-300">
+                        {u.rol === "admin" ? "Admin" : u.rol === "psicologo" ? "Psicólogo" : u.rol === "recepcion" ? "Recepción" : "Sin rol"}
+                    </span>
+
+                    <div class="flex justify-end gap-1">
+                        <button
+                            type="button"
+                            onclick={`abrirModalEditar('${u.id}', ${JSON.stringify(u.username)}, ${JSON.stringify(u.rol ?? "")})`}
+                            class="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                            title="Editar usuario"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
+                        </button>
+
+                        {u.id === currentUser?.id ? (
+                            <span class="p-2 text-[10px] text-gray-600 italic">Tú</span>
+                        ) : (
+                            <button
+                                type="button"
+                                onclick={`abrirModalEliminar('${u.id}', ${JSON.stringify(u.nombre)})`}
+                                class="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                title="Eliminar usuario"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    </main>
+
+    <dialog id="modal-editar-usuario" class="backdrop:bg-black/70 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto">
+        <div class="w-[90vw] max-w-md bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6">
+            <h3 class="text-xl font-extrabold text-white mb-4">Editar usuario</h3>
+            <form method="POST" class="flex flex-col gap-4">
+                <input type="hidden" name="action" value="editar_usuario" />
+                <input type="hidden" name="user_id" id="editar-user-id" />
+
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Username</label>
+                    <input required name="username" id="editar-username" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-400 mb-1 block">Rol</label>
+                    <select required name="rol" id="editar-rol" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="admin" id="opcion-admin" class="hidden">Admin (no editable aquí)</option>
+                        <option value="psicologo">Psicólogo</option>
+                        <option value="recepcion">Recepción</option>
+                    </select>
+                    <p id="aviso-rol-admin" class="text-[11px] text-amber-400/80 mt-1 hidden">
+                        No puedes cambiar el rol de un usuario admin desde aquí.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-2">
+                    <button type="button" onclick="document.getElementById('modal-editar-usuario').close()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-5 py-2 rounded-full transition-all">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog id="modal-crear-usuario" class="backdrop:bg-black/70 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto">
+        <div class="w-[90vw] max-w-md bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6">
+            <h3 class="text-xl font-extrabold text-white mb-4">Nuevo usuario</h3>
+            <form method="POST" class="flex flex-col gap-4">
+                <input type="hidden" name="action" value="crear_usuario" />
+                <div class="grid grid-cols-2 gap-3">
+                    <input required name="nombre" placeholder="Nombre" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input required name="apellido" placeholder="Apellido" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <input required name="username" placeholder="Username" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input required type="password" name="password" minlength="8" placeholder="Contraseña temporal (mín. 8 caracteres)" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <select required name="rol" class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Selecciona un rol --</option>
+                    <option value="psicologo">Psicólogo</option>
+                    <option value="recepcion">Recepción</option>
+                </select>
+
+                <div class="flex justify-end gap-3 mt-2">
+                    <button type="button" onclick="document.getElementById('modal-crear-usuario').close()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-5 py-2 rounded-full transition-all">Crear usuario</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog id="modal-eliminar-usuario" class="backdrop:bg-black/70 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto">
+        <div class="w-[90vw] max-w-md bg-gradient-to-br from-slate-900 to-slate-950 border border-red-500/20 rounded-3xl p-6">
+            <h3 class="text-xl font-extrabold text-white mb-2">Eliminar usuario</h3>
+            <p class="text-sm text-gray-400 mb-4">
+                Esta acción es irreversible. Para confirmar, escribe el nombre exacto:
+                <span class="text-white font-bold" id="nombre-a-confirmar"></span>
+            </p>
+            <form method="POST" class="flex flex-col gap-4" id="form-eliminar-usuario">
+                <input type="hidden" name="action" value="eliminar_usuario" />
+                <input type="hidden" name="user_id" id="input-user-id" />
+                <input
+                    required
+                    id="input-confirmar-nombre"
+                    placeholder="Escribe el nombre para confirmar"
+                    class="p-3 border border-gray-700 bg-gray-900/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    autocomplete="off"
+                />
+                <div class="flex justify-end gap-3 mt-2">
+                    <button type="button" onclick="document.getElementById('modal-eliminar-usuario').close()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancelar</button>
+                    <button type="submit" id="btn-confirmar-eliminar" disabled class="bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600 text-white text-sm font-medium px-5 py-2 rounded-full transition-all">Eliminar definitivamente</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+</Layout>
+
+<script is:inline>
+    let nombreEsperado = "";
+
+    function abrirModalEditar(userId, username, rol) {
+        document.getElementById("editar-user-id").value = userId;
+        document.getElementById("editar-username").value = username;
+
+        const select = document.getElementById("editar-rol");
+        const opcionAdmin = document.getElementById("opcion-admin");
+        const aviso = document.getElementById("aviso-rol-admin");
+
+        if (rol === "admin") {
+            opcionAdmin.classList.remove("hidden");
+            select.value = "admin";
+            select.classList.add("opacity-50", "pointer-events-none");
+            aviso.classList.remove("hidden");
+        } else {
+            opcionAdmin.classList.add("hidden");
+            select.value = rol || "";
+            select.classList.remove("opacity-50", "pointer-events-none");
+            aviso.classList.add("hidden");
+        }
+
+        document.getElementById("modal-editar-usuario").showModal();
+    }
+
+    function abrirModalEliminar(userId, nombre) {
+        nombreEsperado = nombre;
+        document.getElementById("input-user-id").value = userId;
+        document.getElementById("nombre-a-confirmar").textContent = nombre;
+        document.getElementById("input-confirmar-nombre").value = "";
+        document.getElementById("btn-confirmar-eliminar").disabled = true;
+        document.getElementById("modal-eliminar-usuario").showModal();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const selectRol = document.getElementById("editar-rol");
+        selectRol?.addEventListener("change", () => {
+            if (selectRol.classList.contains("pointer-events-none")) {
+                selectRol.value = "admin";
+            }
+        });
+
+        const input = document.getElementById("input-confirmar-nombre");
+        const boton = document.getElementById("btn-confirmar-eliminar");
+        input?.addEventListener("input", () => {
+            boton.disabled = input.value.trim() !== nombreEsperado;
+        });
+    });
+</script>
