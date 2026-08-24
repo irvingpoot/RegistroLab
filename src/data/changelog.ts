@@ -1,4 +1,4 @@
-export const currentVersion = "3.14.0";
+export const currentVersion = "3.14.1";
 
 export const isMajorUpdate = true;
 
@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Gestión de usuarios",
-        description: "Ahora el sistema permite la creación, edición y eliminación de usuarios con diferentes roles y permisos. Función exclusiva para administradores.",
-        type: "feature"
+        title: "Tarjeta de citas",
+        description: "Se corrigió un error en el que no se mostraba quién agendó una cita en la tarjeta correspondiente.",
+        type: "fix"
     }
 ];
