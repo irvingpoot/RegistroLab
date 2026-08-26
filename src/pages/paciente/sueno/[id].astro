@@ -18,6 +18,7 @@
 import Layout from "../../../layouts/Layout.astro"
 import ReturnButton from "../../../components/ReturnButton.astro"
 import InfoCard from "../../../components/InfoCard.astro"
+import ReporteNoches from "../../../components/ReporteNoches.astro"
 import { createClient } from "@supabase/supabase-js"
 import { calcularpsqi } from "../../../utils/calculos"
 
@@ -285,6 +286,7 @@ if (Astro.request.method === "POST") {
                 sat_90_porc:         getNum("sat_90_porc"),
                 sat_85_min:          getNum("sat_85_min"),
                 sat_85_porc:         getNum("sat_85_porc"),
+                fase:                formData.get("fase") as string,
             };
 
             if (action === "registrar_reporte") {
@@ -380,48 +382,6 @@ const reportesNoches: any[] = (paciente?.pacientes_reportes_sueno || [])
     .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
 const totalNoches = reportesNoches.length;
-
-const promedioN = (campo: string): number | null => {
-    const valores = reportesNoches
-        .map((n: any) => n[campo])
-        .filter((v: any) => v !== null && v !== undefined && !isNaN(v));
-    if (valores.length === 0) return null;
-    const suma = valores.reduce((acc: number, v: number) => acc + Number(v), 0);
-    return Math.round((suma / valores.length) * 10) / 10;
-};
-
-const promedioDuracion = (campo: string): string | null => {
-    const minutos = reportesNoches
-        .map((n: any) => {
-            const t = extraerTiempo(n[campo]);
-            if (!t.h && !t.m) return null;
-            return parseInt(t.h || '0') * 60 + parseInt(t.m || '0');
-        })
-        .filter((v): v is number => v !== null);
-    if (minutos.length === 0) return null;
-    const avg = minutos.reduce((a, b) => a + b, 0) / minutos.length;
-    return `${Math.floor(avg / 60)}h ${Math.round(avg % 60)}m`;
-};
-
-const promedios = totalNoches > 0 ? {
-    duracion_registro:   promedioDuracion('duracion_registro'),
-    duracion_evaluacion: promedioDuracion('duracion_evaluacion'),
-    iah:                 promedioN('iah'),
-    indice_apneas:       promedioN('indice_apneas'),
-    indice_hipopnea:     promedioN('indice_hipopnea'),
-    iai:                 promedioN('iai'),
-    iao:                 promedioN('iao'),
-    iac:                 promedioN('iac'),
-    iam:                 promedioN('iam'),
-    ido:                 promedioN('ido'),
-    saturacion_promedio: promedioN('saturacion_promedio'),
-    pulso_promedio:      promedioN('pulso_promedio'),
-    ronquidos:           promedioN('ronquidos'),
-    sat_90_min:          promedioN('sat_90_min'),
-    sat_90_porc:         promedioN('sat_90_porc'),
-    sat_85_min:          promedioN('sat_85_min'),
-    sat_85_porc:         promedioN('sat_85_porc'),
-} : null;
 
 const formatDate = (dateString: string) => {
     if (!dateString) return "No registrado";
@@ -770,153 +730,7 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                     </div>
 
                     {totalNoches > 0 ? (
-                        <div class="space-y-4">
-
-                            <div class="overflow-x-auto rounded-xl border border-gray-800">
-                                <table class="w-full text-sm">
-                                    <thead class="bg-gray-800/60">
-                                        <tr class="text-xs text-gray-500 uppercase tracking-wider">
-                                            <th class="px-4 py-3 text-left font-bold">Noche</th>
-                                            <th class="px-4 py-3 text-left font-bold">Fecha</th>
-                                            <th class="px-4 py-3 text-center font-bold text-indigo-400">IAH</th>
-                                            <th class="px-4 py-3 text-center font-bold text-emerald-400">Sat. Prom.</th>
-                                            <th class="px-4 py-3 text-center font-bold text-rose-400">Pulso</th>
-                                            <th class="px-4 py-3 text-center font-bold">Dur. Reg.</th>
-                                            <th class="px-4 py-3 text-center font-bold w-20">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-800/50">
-                                        {reportesNoches.map((noche: any, idx: number) => (
-                                            <tr
-                                                class="hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                                                onclick={`abrirDetalleNoche(${noche.id})`}
-                                            >
-                                                <td class="px-4 py-3">
-                                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs">
-                                                        {idx + 1}
-                                                    </span>
-                                                </td>
-                                                <td class="px-4 py-3 text-gray-400 font-mono text-xs">
-                                                    {formatDateShort(noche.created_at)}
-                                                </td>
-                                                <td class="px-4 py-3 text-center font-bold text-white font-mono">
-                                                    {noche.iah ?? <span class="text-gray-600">—</span>}
-                                                </td>
-                                                <td class="px-4 py-3 text-center font-mono text-gray-300">
-                                                    {noche.saturacion_promedio != null ? `${noche.saturacion_promedio}%` : <span class="text-gray-600">—</span>}
-                                                </td>
-                                                <td class="px-4 py-3 text-center font-mono text-gray-300">
-                                                    {noche.pulso_promedio != null ? `${noche.pulso_promedio}` : <span class="text-gray-600">—</span>}
-                                                </td>
-                                                <td class="px-4 py-3 text-center font-mono text-gray-400 text-xs">
-                                                    {noche.duracion_registro ?? <span class="text-gray-600">—</span>}
-                                                </td>
-                                                <td class="px-4 py-3">
-                                                    <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            type="button"
-                                                            title="Editar noche"
-                                                            onclick={`event.stopPropagation(); abrirModalNoche(${noche.id})`}
-                                                            class="text-gray-500 hover:text-blue-400 transition-colors cursor-pointer"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            title="Eliminar noche"
-                                                            onclick={`event.stopPropagation(); confirmarEliminarNoche(${noche.id}, ${idx + 1})`}
-                                                            class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5">
-                                <div class="flex items-center gap-2 mb-4">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]"></div>
-                                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider">
-                                        Promedio de {totalNoches} {totalNoches === 1 ? 'noche' : 'noches'}
-                                    </h4>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-3 mb-4">
-                                    <div class="text-center bg-gray-900/50 rounded-lg p-3 border border-gray-800">
-                                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-1">Dur. Registro</span>
-                                        <p class="text-lg text-white font-mono">{promedios?.duracion_registro ?? '—'}</p>
-                                    </div>
-                                    <div class="text-center bg-gray-900/50 rounded-lg p-3 border border-gray-800 border-l border-l-gray-700/50">
-                                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-1">Dur. Evaluación</span>
-                                        <p class="text-lg text-white font-mono">{promedios?.duracion_evaluacion ?? '—'}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h5 class="text-xs font-bold text-gray-500 mb-3 border-b border-gray-800 pb-1 uppercase">Análisis Respiratorio</h5>
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                                        <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg text-center">
-                                            <span class="text-xs text-indigo-300 font-bold block">IAH</span>
-                                            <span class="text-2xl font-bold text-white">{promedios?.iah ?? '—'}</span>
-                                        </div>
-                                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
-                                            <span class="text-xs text-gray-400 block">Índ. Apneas</span>
-                                            <span class="text-xl font-bold text-gray-200">{promedios?.indice_apneas ?? '—'}</span>
-                                        </div>
-                                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
-                                            <span class="text-xs text-gray-400 block">Índ. Hipopnea</span>
-                                            <span class="text-xl font-bold text-gray-200">{promedios?.indice_hipopnea ?? '—'}</span>
-                                        </div>
-                                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
-                                            <span class="text-xs text-gray-400 block">Ronquidos</span>
-                                            <span class="text-xl font-bold text-gray-200">{promedios?.ronquidos ?? '—'}</span>
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-5 gap-2 text-center">
-                                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAI</span><span class="text-sm font-mono text-gray-300">{promedios?.iai ?? '—'}</span></div>
-                                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAO</span><span class="text-sm font-mono text-gray-300">{promedios?.iao ?? '—'}</span></div>
-                                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAC</span><span class="text-sm font-mono text-gray-300">{promedios?.iac ?? '—'}</span></div>
-                                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAM</span><span class="text-sm font-mono text-gray-300">{promedios?.iam ?? '—'}</span></div>
-                                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IDO</span><span class="text-sm font-mono text-gray-300">{promedios?.ido ?? '—'}</span></div>
-                                    </div>
-                                </div>
-
-                                <div class="mt-4">
-                                    <h5 class="text-xs font-bold text-gray-500 mb-3 border-b border-gray-800 pb-1 uppercase">Oximetría y Pulso</h5>
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                        <div class="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-lg">
-                                            <span class="text-xs text-emerald-400 font-bold">Sat. Promedio</span>
-                                            <span class="text-xl font-bold text-white">{promedios?.saturacion_promedio != null ? `${promedios.saturacion_promedio}%` : '—'}</span>
-                                        </div>
-                                        <div class="flex items-center justify-between bg-rose-500/5 border border-rose-500/10 p-3 rounded-lg">
-                                            <span class="text-xs text-rose-400 font-bold">Pulso Promedio</span>
-                                            <span class="text-xl font-bold text-white">{promedios?.pulso_promedio != null ? `${promedios.pulso_promedio}` : '—'} <span class="text-xs text-gray-500">bpm</span></span>
-                                        </div>
-                                        <div class="flex flex-col justify-center bg-gray-800/50 p-2 rounded-lg text-center">
-                                            <span class="text-[10px] text-gray-500 uppercase">Sat &lt; 90%</span>
-                                            <div class="flex justify-center gap-3 text-sm font-mono">
-                                                <span class="text-white">{promedios?.sat_90_min != null ? `${promedios.sat_90_min} min` : '—'}</span>
-                                                <span class="text-gray-600">|</span>
-                                                <span class="text-white">{promedios?.sat_90_porc != null ? `${promedios.sat_90_porc}%` : '—'}</span>
-                                            </div>
-                                        </div>
-                                        <div class="flex flex-col justify-center bg-gray-800/50 p-2 rounded-lg text-center">
-                                            <span class="text-[10px] text-gray-500 uppercase">Sat &lt; 85%</span>
-                                            <div class="flex justify-center gap-3 text-sm font-mono">
-                                                <span class="text-white">{promedios?.sat_85_min != null ? `${promedios.sat_85_min} min` : '—'}</span>
-                                                <span class="text-gray-600">|</span>
-                                                <span class="text-white">{promedios?.sat_85_porc != null ? `${promedios.sat_85_porc}%` : '—'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
+                        <ReporteNoches noches={reportesNoches} />
                     ) : (
                         <div class="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-gray-800 rounded-2xl">
                             <div class="w-14 h-14 bg-gray-800 rounded-full flex items-center justify-center mb-4">
@@ -1191,6 +1005,15 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         <form method="POST" id="form-noche" class="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
             <input type="hidden" name="action" id="action-noche" value="registrar_reporte" />
             <input type="hidden" name="id_noche" id="id-noche-hidden" value="" />
+
+            <div class="mb-6">
+                <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Fase del Estudio</label>
+                <select name="fase" id="f-fase" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" required>
+                    <option value="pre">Pre-Tratamiento</option>
+                    <option value="inter">Intermedio</option>
+                    <option value="post">Post-Tratamiento</option>
+                </select>
+            </div>
 
             <div class="grid grid-cols-2 gap-6 mb-8">
                 <div class="space-y-2">
@@ -2319,12 +2142,15 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             action.value       = 'editar_noche';
             idHidden.value     = noche.id;
 
+            document.getElementById('f-fase').value = noche.fase || 'pre';
+
             const regMatch  = (noche.duracion_registro  || '').match(/(\d+)h\s*(\d+)m/);
             const evalMatch = (noche.duracion_evaluacion || '').match(/(\d+)h\s*(\d+)m/);
             document.getElementById('dur_reg_h').value  = regMatch  ? regMatch[1]  : '';
             document.getElementById('dur_reg_m').value  = regMatch  ? regMatch[2]  : '';
             document.getElementById('dur_eval_h').value = evalMatch ? evalMatch[1] : '';
             document.getElementById('dur_eval_m').value = evalMatch ? evalMatch[2] : '';
+            
 
             campos.forEach(c => {
                 const el = document.getElementById(`f-${c}`);
@@ -2334,6 +2160,9 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
             titulo.textContent = 'Registrar Noche';
             action.value       = 'registrar_reporte';
             idHidden.value     = '';
+
+            const faseActivaTab = sessionStorage.getItem('faseActivaNoches') || 'pre';
+            document.getElementById('f-fase').value = faseActivaTab;
 
             ['dur_reg_h','dur_reg_m','dur_eval_h','dur_eval_m'].forEach(fid => {
                 document.getElementById(fid).value = '';
@@ -2445,10 +2274,13 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
     const btnReporte = document.getElementById('btn-generar-reporte');
     if (btnReporte) {
         btnReporte.addEventListener('click', () => {
+            const faseSeleccionada = sessionStorage.getItem('faseActivaNoches') || 'pre';
+            
             const params = new URLSearchParams({
                 paciente_id: String(pacienteId),
                 nombre: pacienteNombre,
                 edad: String(pacienteEdad),
+                fase: faseSeleccionada
             });
             window.location.href = `/reportes?${params.toString()}`;
         });

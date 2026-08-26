@@ -87,6 +87,15 @@ const motivoTexto = cita.motivo ? cita.motivo.replace('_', ' ') : "Sin motivo";
             </div>
         )}
 
+        <div class="flex justify-between text-xs text-gray-500">
+            <p>
+                <strong>Agendado por:</strong> {cita.registrado_por_id}
+            </p>
+            <p>
+                <strong>Estado:</strong> {cita.estado || "pendiente"}
+            </p>
+        </div>
+
         {esPendiente && (
             <div class="mt-4 pl-0 flex justify-between items-center pt-3 border-t border-gray-800/50">
                 <a href={`/editar-cita/${cita.id}`} class="text-xs text-gray-400 hover:text-white hover:underline flex items-center gap-1 transition-colors">
@@ -115,7 +124,6 @@ const motivoTexto = cita.motivo ? cita.motivo.replace('_', ' ') : "Sin motivo";
                 </div>
             </div>
         )}
-        <p class="text-xs text-center text-gray-500"><strong>Agendado por:</strong> {cita.registrado_por_id}</p>
     </div>
 
     <dialog class="bg-gray-900 border border-amber-500/30 rounded-xl p-6 shadow-2xl backdrop:backdrop-blur-sm m-auto max-w-sm w-full text-left" onclick="event.target === this && this.close()">
