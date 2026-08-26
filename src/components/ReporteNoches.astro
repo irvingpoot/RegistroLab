@@ -1,0 +1,233 @@
+---
+const { noches } = Astro.props;
+---
+
+<div id="reporte-container" data-noches={JSON.stringify(noches)}>
+    <div class="flex gap-2 p-1 bg-gray-800 rounded-lg w-fit mb-6">
+        <button class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-indigo-600 text-white shadow" data-fase="pre">Pre-Tratamiento</button>
+        <button class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white" data-fase="inter">Intermedio</button>
+        <button class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white" data-fase="post">Post-Tratamiento</button>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-gray-800 mb-4">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-800/60">
+                <tr class="text-xs text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 py-3 text-left font-bold">Noche</th>
+                    <th class="px-4 py-3 text-left font-bold">Fecha</th>
+                    <th class="px-4 py-3 text-center font-bold text-indigo-400">IAH</th>
+                    <th class="px-4 py-3 text-center font-bold text-emerald-400">Sat. Prom.</th>
+                    <th class="px-4 py-3 text-center font-bold text-rose-400">Pulso</th>
+                    <th class="px-4 py-3 text-center font-bold">Dur. Reg.</th>
+                    <th class="px-4 py-3 text-center font-bold w-20">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-noches" class="divide-y divide-gray-800/50"></tbody>
+        </table>
+    </div>
+
+    <div id="promedios-container"></div>
+
+</div>
+
+<script is:inline>
+    const container = document.getElementById('reporte-container');
+    const todasLasNoches = JSON.parse(container.dataset.noches || '[]');
+    const tabs = document.querySelectorAll('.tab-btn-noche');
+    const tbody = document.getElementById('tabla-noches');
+    const promediosContainer = document.getElementById('promedios-container');
+
+    const formatDateShort = (dateString) => {
+        if (!dateString) return "";
+        const fechaLimpia = dateString.substring(0, 10);
+        return new Date(fechaLimpia + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const extraerTiempo = (texto) => {
+        if (!texto) return { h: '', m: '' };
+        const match = texto.match(/(\d+)h\s*(\d+)m/);
+        if (match) return { h: match[1], m: match[2] };
+        return { h: '', m: '' };
+    };
+
+    const calcularPromedios = (noches) => {
+        const total = noches.length;
+        if (total === 0) return null;
+
+        const promedioN = (campo) => {
+            const valores = noches.map(n => n[campo]).filter(v => v !== null && v !== undefined && !isNaN(v));
+            if (valores.length === 0) return null;
+            const suma = valores.reduce((acc, v) => acc + Number(v), 0);
+            return Math.round((suma / valores.length) * 10) / 10;
+        };
+
+        const promedioDuracion = (campo) => {
+            const minutos = noches.map(n => {
+                const t = extraerTiempo(n[campo]);
+                if (!t.h && !t.m) return null;
+                return parseInt(t.h || '0') * 60 + parseInt(t.m || '0');
+            }).filter(v => v !== null);
+            
+            if (minutos.length === 0) return null;
+            const avg = minutos.reduce((a, b) => a + b, 0) / minutos.length;
+            return `${Math.floor(avg / 60)}h ${Math.round(avg % 60)}m`;
+        };
+
+        return {
+            totalNoches: total,
+            duracion_registro: promedioDuracion('duracion_registro'),
+            duracion_evaluacion: promedioDuracion('duracion_evaluacion'),
+            iah: promedioN('iah'),
+            indice_apneas: promedioN('indice_apneas'),
+            indice_hipopnea: promedioN('indice_hipopnea'),
+            iai: promedioN('iai'), iao: promedioN('iao'), iac: promedioN('iac'), iam: promedioN('iam'), ido: promedioN('ido'),
+            saturacion_promedio: promedioN('saturacion_promedio'),
+            pulso_promedio: promedioN('pulso_promedio'),
+            ronquidos: promedioN('ronquidos'),
+            sat_90_min: promedioN('sat_90_min'), sat_90_porc: promedioN('sat_90_porc'),
+            sat_85_min: promedioN('sat_85_min'), sat_85_porc: promedioN('sat_85_porc'),
+        };
+    };
+
+    const renderPromedios = (promedios) => {
+        if (!promedios) {
+            promediosContainer.innerHTML = '';
+            return;
+        }
+
+        const val = (v, suf = '') => v != null ? `${v}${suf}` : '—';
+        
+        promediosContainer.innerHTML = `
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 mb-4">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]"></div>
+                    <h4 class="text-sm font-bold text-blue-300 uppercase tracking-wider">
+                        Promedio de ${promedios.totalNoches} ${promedios.totalNoches === 1 ? 'noche' : 'noches'}
+                    </h4>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="text-center bg-gray-900/50 rounded-lg p-3 border border-gray-800">
+                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-1">Dur. Registro</span>
+                        <p class="text-lg text-white font-mono">${val(promedios.duracion_registro)}</p>
+                    </div>
+                    <div class="text-center bg-gray-900/50 rounded-lg p-3 border border-gray-800 border-l border-l-gray-700/50">
+                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider block mb-1">Dur. Evaluación</span>
+                        <p class="text-lg text-white font-mono">${val(promedios.duracion_evaluacion)}</p>
+                    </div>
+                </div>
+                <div>
+                    <h5 class="text-xs font-bold text-gray-500 mb-3 border-b border-gray-800 pb-1 uppercase">Análisis Respiratorio</h5>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg text-center">
+                            <span class="text-xs text-indigo-300 font-bold block">IAH</span>
+                            <span class="text-2xl font-bold text-white">${val(promedios.iah)}</span>
+                        </div>
+                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
+                            <span class="text-xs text-gray-400 block">Índ. Apneas</span>
+                            <span class="text-xl font-bold text-gray-200">${val(promedios.indice_apneas)}</span>
+                        </div>
+                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
+                            <span class="text-xs text-gray-400 block">Índ. Hipopnea</span>
+                            <span class="text-xl font-bold text-gray-200">${val(promedios.indice_hipopnea)}</span>
+                        </div>
+                        <div class="bg-gray-800/60 p-3 rounded-lg text-center">
+                            <span class="text-xs text-gray-400 block">Ronquidos</span>
+                            <span class="text-xl font-bold text-gray-200">${val(promedios.ronquidos)}</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2 text-center">
+                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAI</span><span class="text-sm font-mono text-gray-300">${val(promedios.iai)}</span></div>
+                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAO</span><span class="text-sm font-mono text-gray-300">${val(promedios.iao)}</span></div>
+                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAC</span><span class="text-sm font-mono text-gray-300">${val(promedios.iac)}</span></div>
+                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IAM</span><span class="text-sm font-mono text-gray-300">${val(promedios.iam)}</span></div>
+                        <div class="bg-gray-800/30 rounded py-1.5"><span class="text-[10px] text-gray-500 block">IDO</span><span class="text-sm font-mono text-gray-300">${val(promedios.ido)}</span></div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h5 class="text-xs font-bold text-gray-500 mb-3 border-b border-gray-800 pb-1 uppercase">Oximetría y Pulso</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-lg">
+                            <span class="text-xs text-emerald-400 font-bold">Sat. Promedio</span>
+                            <span class="text-xl font-bold text-white">${val(promedios.saturacion_promedio, '%')}</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-rose-500/5 border border-rose-500/10 p-3 rounded-lg">
+                            <span class="text-xs text-rose-400 font-bold">Pulso Promedio</span>
+                            <span class="text-xl font-bold text-white">${val(promedios.pulso_promedio)} <span class="text-xs text-gray-500">bpm</span></span>
+                        </div>
+                        <div class="flex flex-col justify-center bg-gray-800/50 p-2 rounded-lg text-center">
+                            <span class="text-[10px] text-gray-500 uppercase">Sat &lt; 90%</span>
+                            <div class="flex justify-center gap-3 text-sm font-mono">
+                                <span class="text-white">${val(promedios.sat_90_min, ' min')}</span>
+                                <span class="text-gray-600">|</span>
+                                <span class="text-white">${val(promedios.sat_90_porc, '%')}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col justify-center bg-gray-800/50 p-2 rounded-lg text-center">
+                            <span class="text-[10px] text-gray-500 uppercase">Sat &lt; 85%</span>
+                            <div class="flex justify-center gap-3 text-sm font-mono">
+                                <span class="text-white">${val(promedios.sat_85_min, ' min')}</span>
+                                <span class="text-gray-600">|</span>
+                                <span class="text-white">${val(promedios.sat_85_porc, '%')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    const renderFase = (fase) => {
+        sessionStorage.setItem('faseActivaNoches', fase);
+
+        tabs.forEach(t => {
+            if(t.dataset.fase === fase) {
+                t.className = "tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-indigo-600 text-white shadow";
+            } else {
+                t.className = "tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white";
+            }
+        });
+
+        const nochesFase = todasLasNoches.filter(n => n.fase === fase || (!n.fase && fase === 'pre'));
+
+        if (nochesFase.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-500 italic">No hay noches registradas para esta fase.</td></tr>`;
+            promediosContainer.innerHTML = '';
+        } else {
+            tbody.innerHTML = nochesFase.map((noche, idx) => `
+                <tr class="hover:bg-white/[0.03] transition-colors cursor-pointer group" onclick="abrirDetalleNoche(${noche.id})">
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold text-xs">
+                            ${idx + 1}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-gray-400 font-mono text-xs">${formatDateShort(noche.created_at)}</td>
+                    <td class="px-4 py-3 text-center font-bold text-white font-mono">${noche.iah ?? '<span class="text-gray-600">—</span>'}</td>
+                    <td class="px-4 py-3 text-center font-mono text-gray-300">${noche.saturacion_promedio != null ? `${noche.saturacion_promedio}%` : '<span class="text-gray-600">—</span>'}</td>
+                    <td class="px-4 py-3 text-center font-mono text-gray-300">${noche.pulso_promedio != null ? noche.pulso_promedio : '<span class="text-gray-600">—</span>'}</td>
+                    <td class="px-4 py-3 text-center font-mono text-gray-400 text-xs">${noche.duracion_registro ?? '<span class="text-gray-600">—</span>'}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" title="Editar noche" onclick="event.stopPropagation(); abrirModalNoche(${noche.id})" class="text-gray-500 hover:text-blue-400 transition-colors cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                            </button>
+                            <button type="button" title="Eliminar noche" onclick="event.stopPropagation(); confirmarEliminarNoche(${noche.id}, ${idx + 1})" class="text-gray-500 hover:text-red-400 transition-colors cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            renderPromedios(calcularPromedios(nochesFase));
+        }
+    };
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', (e) => renderFase(e.target.dataset.fase));
+    });
+
+    const faseInicial = sessionStorage.getItem('faseActivaNoches') || 'pre';
+    renderFase(faseInicial);
+
+    renderFase('pre');
+</script>

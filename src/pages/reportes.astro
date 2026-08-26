@@ -164,6 +164,15 @@ const getColors = (color: string) => {
                     <button id="btn-cambiar-paciente" class="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer">Cambiar</button>
                 </div>
 
+                <div class="mt-4 mb-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Fase del Estudio</label>
+                    <select id="selector-fase-reporte" class="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors cursor-pointer appearance-none">
+                        <option value="pre">Pre-Tratamiento</option>
+                        <option value="inter">Intermedio</option>
+                        <option value="post">Post-Tratamiento</option>
+                    </select>
+                </div>
+
                 <div>
                     <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recomendaciones a incluir</p>
                     <div class="space-y-2">
@@ -286,7 +295,7 @@ const getColors = (color: string) => {
 </dialog>
 
 <script>
-    let pacienteSeleccionado: { id: number; nombre: string; edad: number } | null = null;
+    let pacienteSeleccionado: { id: number; nombre: string; edad: number; fase: string } | null = null;
     let busquedaTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const modal            = document.getElementById('modal-poligrafia') as HTMLDialogElement;
@@ -327,15 +336,24 @@ const getColors = (color: string) => {
         subtitulo.textContent = 'Paso 1 de 2 — Seleccionar paciente';
     };
 
-    const irPaso2 = (paciente: { id: number; nombre: string; edad: number }) => {
-        pacienteSeleccionado = paciente;
+    const selectorFaseReporte = document.getElementById('selector-fase-reporte') as HTMLSelectElement;
+
+    const irPaso2 = (paciente: { id: number; nombre: string; edad: number; fase?: string }) => {
+        const faseFinal = paciente.fase || 'pre';
+        pacienteSeleccionado = { ...paciente, fase: faseFinal };
+        
         document.getElementById('paciente-nombre-seleccionado')!.textContent = paciente.nombre;
         document.getElementById('paciente-edad-seleccionada')!.textContent = `${paciente.edad} años`;
         document.getElementById('paciente-inicial')!.textContent = paciente.nombre.charAt(0).toUpperCase();
+        
+        if (selectorFaseReporte) {
+            selectorFaseReporte.value = faseFinal;
+        }
+
         errorEl.classList.add('hidden');
         paso1.classList.add('hidden');
         paso2.classList.remove('hidden');
-        subtitulo.textContent = 'Paso 2 de 2 — Recomendaciones';
+        subtitulo.textContent = 'Paso 2 de 2 — Configurar reporte';
     };
 
     btnCambiar.addEventListener('click', () => {
@@ -426,11 +444,14 @@ const getColors = (color: string) => {
         errorEl.classList.add('hidden');
 
         try {
+            const faseElegida = (document.getElementById('selector-fase-reporte') as HTMLSelectElement).value;
+
             const response = await fetch('/api/generar-reporte-poligrafia', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     paciente_id: pacienteSeleccionado.id,
+                    fase: faseElegida,
                     recomendaciones,
                 }),
             });
@@ -527,6 +548,7 @@ const getColors = (color: string) => {
                 id:     parseInt(params.get('paciente_id') ?? '0'),
                 nombre: params.get('nombre') ?? '',
                 edad:   parseInt(params.get('edad') ?? '0'),
+                fase:   params.get('fase') ?? 'pre'
             });
             modal.showModal();
             window.history.replaceState({}, '', '/reportes');

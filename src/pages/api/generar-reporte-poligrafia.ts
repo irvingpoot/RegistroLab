@@ -30,6 +30,19 @@ const descargarDeStorage = async (path: string): Promise<Buffer> => {
   return Buffer.from(await data.arrayBuffer());
 };
 
+type FaseEstudio = 'pre' | 'inter' | 'post';
+
+interface PacienteReporte {
+  nombre: string;
+  edad: number;
+  epworth_pre?: number | null;
+  epworth_inter?: number | null;
+  epworth_post?: number | null;
+  psqi_pre?: number | null;
+  psqi_inter?: number | null;
+  psqi_post?: number | null;
+}
+
 interface Noche {
   id: number;
   created_at: string;
@@ -411,7 +424,7 @@ const generarPDF = async (params: {
 
   await write(ctx, "RECOMENDACIONES", { spaceAfter: 8, align: "center", bold: true });
   await write(ctx,
-    `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de ${nombreSindrome(params.tipoApnea)} en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
+    `- Con base al IAH promedio de las ${n} ${nl} (**IAH = ${params.iahPromedio ?? "—"} eventos**), se considera la **presencia de Síndrome de Apnea Obstructiva del Sueño en nivel ${params.saosNivel}, con predominio de ${params.tipoApnea}.** Se obtuvo un promedio de ${params.ronquidosPromedio ?? "—"} eventos relacionados con ronquidos, los cuales se pueden valorar clínicamente como posible causa de la alteración de la calidad del sueño y la somnolencia diurna excesiva.`,
     { spaceAfter: 10 }
   );
 
@@ -478,10 +491,13 @@ const generarPDF = async (params: {
 export const POST: APIRoute = async ({ request }) => {
   let pacienteId: string;
   let recomendaciones: string[];
+  let fase: FaseEstudio;
 
   try {
     const body = await request.json();
     pacienteId = String(body.paciente_id);
+    const faseRecibida = String(body.fase || 'pre');
+    fase = ['pre', 'inter', 'post'].includes(faseRecibida) ? (faseRecibida as FaseEstudio) : 'pre';
     recomendaciones = Array.isArray(body.recomendaciones) ? body.recomendaciones : [];
   } catch {
     return new Response(JSON.stringify({ error: "Body inválido" }), { status: 400 });
@@ -492,19 +508,39 @@ export const POST: APIRoute = async ({ request }) => {
     import.meta.env.SUPABASE_KEY
   );
 
-  const [{ data: paciente, error: errP }, { data: nochesRaw, error: errN }, { data: berlinRaw }, { data: psqiRaw }] = await Promise.all([
-    supabase.from("pacientes").select("nombre, edad, epworth_pre, psqi_pre").eq("id", pacienteId).single(),
-    supabase.from("pacientes_reportes_sueno").select("*").eq("paciente_id", pacienteId).order("created_at", { ascending: true }),
-    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", "pre").eq("cuestionario", "berlin").maybeSingle(),
-    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", "pre").eq("cuestionario", "psqi").maybeSingle(),
-  ]);
+  const epworthCol = `epworth_${fase}` as const;
+  const psqiCol = `psqi_${fase}` as const;
 
+  let queryNoches = supabase
+    .from("pacientes_reportes_sueno")
+    .select("*")
+    .eq("paciente_id", pacienteId)
+    .order("created_at", { ascending: true });
+    
+  if (fase === 'pre') {
+    queryNoches = queryNoches.or('fase.eq.pre,fase.is.null');
+  } else {
+    queryNoches = queryNoches.eq('fase', fase);
+  }
+
+  // Ejecutar todas las promesas con los filtros dinámicos
+  const [
+    { data: pacienteRaw, error: errP }, 
+    { data: nochesRaw, error: errN }, 
+    { data: berlinRaw }, 
+    { data: psqiRaw }
+  ] = await Promise.all([
+    supabase.from("pacientes").select(`nombre, edad, ${epworthCol}, ${psqiCol}`).eq("id", pacienteId).single(),
+    queryNoches,
+    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", fase).eq("cuestionario", "berlin").maybeSingle(),
+    supabase.from("respuestas_cuestionarios").select("datos").eq("paciente_id", pacienteId).eq("fase", fase).eq("cuestionario", "psqi").maybeSingle(),
+  ]);
+  const paciente = pacienteRaw as PacienteReporte | null;
   const berlinDatos = berlinRaw?.datos as Record<string, string> | null ?? null;
   const esPositiva  = (v: string | undefined) => typeof v === "string" && v.toUpperCase().includes("POSITIVA");
   const berlin = berlinDatos ? {
     cat1: esPositiva(berlinDatos["Resultado Categoría 1 (Ronquido)"]),
     cat2: esPositiva(berlinDatos["Resultado Categoría 2 (Somnolencia)"]),
-    // Compatible con registros nuevos (Hipertensión) y antiguos (Presión Arterial)
     cat3: esPositiva(berlinDatos["Resultado Categoría 3 (Hipertensión)"]) ||
           esPositiva(berlinDatos["Resultado Categoría 3 (Presión Arterial)"]),
   } : null;
@@ -535,7 +571,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const noches: Noche[] = nochesRaw ?? [];
   if (!noches.length)
-    return new Response(JSON.stringify({ error: "El paciente no tiene noches de poligrafía registradas" }), { status: 422 });
+    return new Response(JSON.stringify({ error: `El paciente no tiene noches de poligrafía registradas para la fase ${fase.toUpperCase()}` }), { status: 422 });
 
   const totalNoches       = noches.length;
   const duracionesTexto   = noches.map(n => { const m = duracionAMinutos(n.duracion_evaluacion); return m ? minutosATexto(m) : "—"; }).join(", ");
@@ -549,6 +585,9 @@ export const POST: APIRoute = async ({ request }) => {
   const idoPorNoche       = noches.map((n, i) => `${n.ido ?? "—"} (noche ${i + 1})`).join(", ");
   const sat90PorNoche     = noches.map((n, i) => `${n.sat_90_porc ?? "—"}% (${n.sat_90_min ?? "—"} min) en la noche ${i + 1}`).join(", ");
   const sat85PorNoche     = noches.map((n, i) => `${n.sat_85_porc ?? "—"}% (${n.sat_85_min ?? "—"} min) en la noche ${i + 1}`).join(", ");
+
+  const puntajeEpworth = paciente ? paciente[epworthCol] ?? null : null;
+  const puntajePsqi = paciente ? paciente[psqiCol] ?? null : null;
 
   try {
     const pdfBytes = await generarPDF({
@@ -568,16 +607,16 @@ export const POST: APIRoute = async ({ request }) => {
       idoPromedio,
       sat90PorNoche,
       sat85PorNoche,
-      epworthPuntaje: paciente.epworth_pre,
-      epworthCat: clasificarEpworth(paciente.epworth_pre),
-      psqiPuntaje: paciente.psqi_pre,
-      psqi: { ...clasificarPsqi(paciente.psqi_pre), observaciones: psqiObservaciones },
+      epworthPuntaje: puntajeEpworth,
+      epworthCat: clasificarEpworth(puntajeEpworth),
+      psqiPuntaje: puntajePsqi,
+      psqi: { ...clasificarPsqi(puntajePsqi), observaciones: psqiObservaciones },
       berlinTexto: clasificarBerlin(berlin?.cat1 ?? null, berlin?.cat2 ?? null, berlin?.cat3 ?? null),
       saosNivel: clasificarSaos(iahPromedio),
       recomendaciones,
     });
 
-    const nombreArchivo = `reporte_poligrafia_${paciente.nombre.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`;
+    const nombreArchivo = `reporte_poligrafia_${paciente.nombre.replace(/\s+/g, "_")}_${fase}_${new Date().toISOString().split("T")[0]}.pdf`;
 
     return new Response(Buffer.from(pdfBytes), {
       status: 200,
