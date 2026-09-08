@@ -299,7 +299,7 @@ if (Astro.request.method === "POST") {
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                             <div class="flex grow flex-col md:w-1/2"> 
                                 <label for="fecha_nacimiento" class="text-lg font-medium text-gray-300">Fecha de Nacimiento:</label>
-                                <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
+                                <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all" style="color-scheme: dark;">
                             </div>
                             <div class="flex grow flex-col md:w-1/2"> 
                                 <label for="genero" class="text-lg font-medium text-gray-300">Género:</label>
@@ -335,7 +335,7 @@ if (Astro.request.method === "POST") {
                             <div class="flex grow flex-col gap-2">
                                 <label class="text-sm font-medium text-gray-300">Referencia (Referido por)</label>
                                 <div class="relative">
-                                    <select name="referencia" required class="w-full bg-gray-900/50 border border-gray-700 text-white p-3 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none transition-all cursor-pointer">
+                                    <select name="referencia" class="w-full bg-gray-900/50 border border-gray-700 text-white p-3 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none transition-all cursor-pointer">
                                         <option value="" disabled selected>Selecciona una opción</option>
                                         <option value="Servicio Medico">Servicio Médico</option>
                                         <option value="Privado">Privado</option>
@@ -429,7 +429,7 @@ if (Astro.request.method === "POST") {
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Diagnostico</h2>
                     <div class="flex flex-col">
-                        <textarea id="motivo" name="motivo" required rows="4" placeholder="Describe detalladamente el diagnostico" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
+                        <textarea id="motivo" name="motivo" rows="4" placeholder="Describe detalladamente el diagnostico" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-white transition-all"></textarea>
                     </div>
                 </section>
 

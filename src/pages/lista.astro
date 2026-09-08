@@ -282,7 +282,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                                 )}
                             </td>
 
-                            <td class="px-6 py-5 text-gray-400 align-middle">{paciente.edad} años</td>
+                            <td class="px-6 py-5 text-gray-400 align-middle">{paciente.edad ? `${paciente.edad} años` : "—"}</td>
                             <td class="px-6 py-5 text-gray-400 align-middle">{paciente.referencia || "—"}</td>
                             <td class="px-6 py-5 text-gray-400 align-middle">{paciente.registrado_por || "—"}</td>
 

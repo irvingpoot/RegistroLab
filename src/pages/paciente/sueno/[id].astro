@@ -404,11 +404,12 @@ const formatDateShort = (dateString: string) => {
     });
 };
 
-const formatTime = (timeString: string) => {
+const formatTime = (timeString: string | null | undefined) => {
     if (!timeString) return "—";
     const [hours, minutes] = timeString.split(':');
     return `${hours}:${minutes}`;
 };
+const isEmptyTime = (timeString: string | null | undefined) => !timeString;
 const edadDisplay = paciente.edad || (paciente.fecha_nacimiento ? new Date().getFullYear() - new Date(paciente.fecha_nacimiento).getFullYear() : "N/A");
 
 const sesionesTMS = paciente?.tms_sesiones || [];
@@ -571,22 +572,22 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
                         
                         <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
                             <span class="label block text-blue-300 text-[10px] mb-1">Se acuesta</span>
-                            <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_acostarse)}</p>
+                            <p class={`text-xl font-mono font-bold ${isEmptyTime(paciente.hora_acostarse) ? "text-gray-600 italic" : "text-white"}`}>{formatTime(paciente.hora_acostarse)}</p>
                         </div>
     
                         <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
                             <span class="label block text-indigo-300 text-[10px] mb-1">Se duerme</span>
-                            <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_dormir)}</p>
+                            <p class={`text-xl font-mono font-bold ${isEmptyTime(paciente.hora_dormir) ? "text-gray-600 italic" : "text-white"}`}>{formatTime(paciente.hora_dormir)}</p>
                         </div>
     
                         <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
                             <span class="label block text-emerald-300 text-[10px] mb-1">Se despierta</span>
-                            <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_despertar)}</p>
+                            <p class={`text-xl font-mono font-bold ${isEmptyTime(paciente.hora_despertar) ? "text-gray-600 italic" : "text-white"}`}>{formatTime(paciente.hora_despertar)}</p>
                         </div>
     
                         <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
                             <span class="label block text-teal-300 text-[10px] mb-1">Se levanta</span>
-                            <p class="text-xl font-mono text-white font-bold">{formatTime(paciente.hora_levantarse)}</p>
+                            <p class={`text-xl font-mono font-bold ${isEmptyTime(paciente.hora_levantarse) ? "text-gray-600 italic" : "text-white"}`}>{formatTime(paciente.hora_levantarse)}</p>
                         </div>
     
                     </div>
