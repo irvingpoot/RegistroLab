@@ -112,7 +112,16 @@ const usuarios = await listarUsuarios(Astro);
                     
                     <div class="flex flex-col">
                         <span class="text-xs font-bold uppercase tracking-wider text-gray-500 md:hidden mb-0.5">Nombre</span>
-                        <span class="text-white font-medium truncate">{u.nombre}</span>
+                        <div class="flex items-center gap-3">
+                            <img 
+                                src={u.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nombre)}&background=random`}
+                                loading="lazy"
+                                alt={`Foto de ${u.nombre}`} 
+                                class="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover cursor-pointer border border-white/10 hover:ring-2 hover:ring-blue-500 transition-all"
+                                onclick={`abrirModalImagen('${u.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nombre)}&background=random`}', ${JSON.stringify(u.nombre)})`}
+                            />
+                            <span class="text-white font-medium truncate">{u.nombre}</span>
+                        </div>
                     </div>
 
                     <div class="flex flex-col">
@@ -251,6 +260,27 @@ const usuarios = await listarUsuarios(Astro);
             </form>
         </div>
     </dialog>
+
+    <dialog id="modal-ver-imagen" class="backdrop:bg-black/80 backdrop:backdrop-blur-md bg-transparent p-0 m-auto outline-none" onclick="if(event.target === this) this.close()">
+        <div class="relative flex items-center justify-center bg-slate-900 border border-white/10 rounded-3xl p-1.5 shadow-2xl max-w-[90vw] max-h-[85vh]">
+            
+            <button 
+                onclick="document.getElementById('modal-ver-imagen').close()" 
+                class="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-black/40 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer backdrop-blur-md border border-white/20 shadow-lg"
+                title="Cerrar"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            <img 
+                id="imagen-ampliada"
+                loading="lazy"
+                src="" 
+                alt="Foto de perfil" 
+                class="w-auto h-auto max-w-full max-h-[calc(85vh-12px)] rounded-[20px] object-contain bg-slate-950/50" 
+            />
+        </div>
+    </dialog>
 </Layout>
 
 <script is:inline>
@@ -278,6 +308,13 @@ const usuarios = await listarUsuarios(Astro);
         }
 
         document.getElementById("modal-editar-usuario").showModal();
+    }
+
+    function abrirModalImagen(url, nombre) {
+        const imgElement = document.getElementById("imagen-ampliada");
+        imgElement.src = url;
+        imgElement.alt = `Foto ampliada de ${nombre}`;
+        document.getElementById("modal-ver-imagen").showModal();
     }
 
     function abrirModalEliminar(userId, nombre) {

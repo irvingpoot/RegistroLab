@@ -173,6 +173,5 @@ export const calcularPosicion = (datos: Record<string, any>): { puntaje: number,
     extraData['Posiciones seleccionadas'] = seleccionadas.join(', ') || 'Ninguna';
     extraData['Total porcentaje'] = `${totalPct}%`;
 
-    // Puntaje no aplica para este cuestionario; se guarda 0.
     return { puntaje: 0, extraData };
 };

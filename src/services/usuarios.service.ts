@@ -8,6 +8,7 @@ export type UsuarioResumen = {
     rol: Rol | undefined;
     puedeAtender: boolean;
     creadoEl: number;
+    imageUrl: string;
 };
 
 type ClerkContext = Parameters<typeof clerkClient>[0];
@@ -20,6 +21,7 @@ function normalizarUsuario(u: any): UsuarioResumen {
         rol:      u.publicMetadata?.role as Rol | undefined,
         puedeAtender: !!u.publicMetadata?.puedeAtender,
         creadoEl: u.createdAt,
+        imageUrl: u.imageUrl,
     };
 }
 

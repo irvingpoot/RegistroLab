@@ -191,7 +191,6 @@ export async function procesarPeriodoInhabil(
 export async function getDiasBloqueadosDesdeHoy(): Promise<string[]> {
     const hoy = new Date().toISOString().split("T")[0];
 
-    // Traemos ambas listas en paralelo
     const [ { data: inhabiles }, { data: eventos } ] = await Promise.all([
         supabase.from("dias_inhabiles").select("fecha").gte("fecha", hoy),
         supabase.from("eventos_dia").select("fecha").gte("fecha", hoy).eq("restringe_dia", true)

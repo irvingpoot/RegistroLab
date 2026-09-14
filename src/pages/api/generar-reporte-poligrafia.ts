@@ -166,12 +166,8 @@ const parsearSegmentos = (text: string): Segment[] =>
       : { text: p, bold: false }
   );
 
-// Token: unidad mínima de texto con su estilo
 interface Token { word: string; bold: boolean }
 
-/**
- * Convierte texto con **negrita** en una lista plana de tokens palabra a palabra.
- */
 const tokenizar = (text: string): Token[] => {
   const tokens: Token[] = [];
   for (const seg of parsearSegmentos(text)) {
@@ -182,14 +178,8 @@ const tokenizar = (text: string): Token[] => {
   return tokens;
 };
 
-// Línea lista para dibujar: lista de tokens + flag si es la última
 interface LineTokens { tokens: Token[]; isLast: boolean }
 
-/**
- * Divide los tokens en líneas respetando maxWidth.
- * Usa fontReg para medir (aproximación conservadora; la negrita es ligeramente
- * más ancha pero la diferencia es mínima para Helvetica/HelveticaBold).
- */
 const dividirTokensEnLineas = (
   tokens: Token[],
   fontReg: PDFFont,
@@ -245,10 +235,6 @@ const addPage = async (ctx: WriteContext): Promise<void> => {
 
 const currentPage = (ctx: WriteContext): PDFPage => ctx.pages[ctx.pages.length - 1];
 
-/**
- * Dibuja texto con soporte para **negrita**, justificado, línea a línea,
- * con salto de página automático. No pierde palabras.
- */
 const drawJustifiedText = async (
   ctx: WriteContext,
   text: string,
@@ -270,7 +256,6 @@ const drawJustifiedText = async (
     const spaceW  = ctx.fontReg.widthOfTextAtSize(" ", size);
 
     if (isLast || lineToks.length === 1) {
-      // Última línea: alineada a la izquierda, respetando bold por token
       let xCursor = lineX;
       for (const tok of lineToks) {
         const f = tok.bold ? ctx.fontBold : ctx.fontReg;
@@ -278,8 +263,6 @@ const drawJustifiedText = async (
         xCursor += f.widthOfTextAtSize(tok.word, size) + spaceW;
       }
     } else {
-      // Líneas intermedias: justificadas
-      // Calcular ancho total de palabras para distribuir el espacio sobrante
       const totalWordWidth = lineToks.reduce((acc, tok) => {
         const f = tok.bold ? ctx.fontBold : ctx.fontReg;
         return acc + f.widthOfTextAtSize(tok.word, size);
@@ -320,7 +303,6 @@ const write = async (
 
   ctx.y -= spaceBefore;
 
-  // Salto de página preventivo si la primera línea ya no cabe
   if (ctx.y < MARGIN_BOTTOM) {
     await addPage(ctx);
   }
@@ -363,7 +345,6 @@ const generarPDF = async (params: {
   recomendaciones: string[];
 }): Promise<Uint8Array> => {
 
-  // Fondo descargado desde Supabase Storage (compatible con Vercel)
   const [bgBytes, firmaBytes] = await Promise.all([
     descargarDeStorage("fondo_sueno.png"),
     descargarDeStorage("firma.png"),
@@ -523,7 +504,6 @@ export const POST: APIRoute = async ({ request }) => {
     queryNoches = queryNoches.eq('fase', fase);
   }
 
-  // Ejecutar todas las promesas con los filtros dinámicos
   const [
     { data: pacienteRaw, error: errP }, 
     { data: nochesRaw, error: errN }, 

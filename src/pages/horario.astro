@@ -1,0 +1,365 @@
+---
+/**
+ * @file horario.astro
+ * @description Horario visual (time-blocking) de disponibilidad de psicólogos.
+ */
+
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import { PSICOLOGOS, DISPONIBILIDAD, DIAS } from "../data/horarios.config";
+import {
+    generarSlots,
+    construirMapaDisponibilidad,
+    construirEstilosPorPsicologo,
+    obtenerDiaHoy,
+} from "../lib/horario-utils";
+
+const user = await Astro.locals.currentUser();
+const horarioVisible = user?.publicMetadata?.horarioVisible === true;
+
+if (!horarioVisible) {
+    return Astro.redirect("/dashboard");
+}
+
+const slots = generarSlots(8, 18, 30);
+const mapa = construirMapaDisponibilidad(DISPONIBILIDAD);
+const estilos = construirEstilosPorPsicologo(PSICOLOGOS);
+const porId = new Map(PSICOLOGOS.map((p) => [p.id, p]));
+const diaHoy = obtenerDiaHoy();
+---
+
+<Layout title="Horario | Lab-Somno">
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <main class="max-w-6xl mx-auto pt-10 pb-20 px-6">
+
+        <div class="relative mb-10">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none mix-blend-screen"></div>
+
+            <div class="max-w-7xl mx-auto mb-10 relative">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-balance text-center">Horarios del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">laboratorio</span></h1>
+                <p class=" pt-5 text-lg text-gray-400 text-center">
+                    Desde aquí puedes visualizar los horarios de disponibilidad de todos.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4 mb-8">
+            <div class="flex items-center justify-center">
+                <button
+                    type="button"
+                    data-id="todos"
+                    class="pill-btn is-active group inline-flex items-center gap-2.5 px-5 py-2 rounded-full border text-sm font-medium cursor-pointer transition-all duration-300 bg-white/10 border-white/30 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                >
+                    Todos los horarios
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                {PSICOLOGOS.map((p) => (
+                    <button
+                        type="button"
+                        data-id={p.id}
+                        data-hex={estilos[p.id].hex}
+                        data-bg={estilos[p.id].pillFondo}
+                        data-border={estilos[p.id].pillBorde}
+                        class="pill-btn group inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-white/10 text-sm font-medium cursor-pointer transition-all duration-300 bg-white/[0.03] hover:bg-white/[0.08] text-white/50 hover:text-white/90"
+                    >
+                        <div class="relative flex items-center justify-center w-2.5 h-2.5 shrink-0">
+                            <span class="dot-glow absolute inset-0 rounded-full opacity-0 blur-[4px] transition-all duration-300" style={`background:${p.color}`}></span>
+                            <span class="dot-base absolute inset-0 rounded-full transition-all duration-300" style={`background:${p.color}`}></span>
+                        </div>
+                        {p.nombre}
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        <div class="relative bg-[#0b0f19] border border-white/5 rounded-2xl p-6 shadow-2xl overflow-hidden">
+            <div class="relative z-10 overflow-x-auto">
+                <div id="grid" class="grid grid-cols-[70px_repeat(5,minmax(120px,1fr))] min-w-[700px]">
+                    
+                    <div class="pb-4"></div>
+                    
+                    {DIAS.map((dia) => (
+                        <div class:list={[
+                            "flex flex-col items-center justify-end pb-3 border-b transition-colors",
+                            dia.id === diaHoy 
+                                ? "border-cyan-400 bg-cyan-500/[0.05] rounded-t-xl" 
+                                : "border-white/5"
+                        ]}>
+                            <span class:list={[
+                                "text-xs font-bold uppercase tracking-widest",
+                                dia.id === diaHoy ? "text-cyan-400" : "text-white/40"
+                            ]}>
+                                {dia.label}
+                            </span>
+                            {dia.id === diaHoy && (
+                                <span class="px-2 py-0.5 mt-1.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[9px] font-bold uppercase tracking-wider">
+                                    Hoy
+                                </span>
+                            )}
+                        </div>
+                    ))}
+
+                    {slots.map((slot, rowIndex) => {
+                        const esHora = slot.endsWith(":00");
+                        return (
+                            <Fragment>
+                                <div class="relative pr-4 border-r border-white/5 flex items-start justify-end">
+                                    <span class:list={[
+                                        "-mt-2 transition-colors",
+                                        esHora 
+                                            ? "text-[11px] font-bold text-white/40" 
+                                            : "text-[10px] font-normal text-white/10"
+                                    ]}>
+                                        {slot}
+                                    </span>
+                                </div>
+
+                                {DIAS.map((dia, colIndex) => {
+                                    const ids = mapa[`${dia.id}-${slot}`] ?? [];
+                                    const esHoy = dia.id === diaHoy;
+                                    const titulo = ids.length
+                                        ? `${dia.label} ${slot} — ${ids.map((id) => porId.get(id)?.nombre ?? id).join(", ")}`
+                                        : undefined;
+
+                                    return (
+                                        <div
+                                            class:list={[
+                                                "slot-cell relative h-8 border-r border-white/[0.03]",
+                                                esHora ? "border-b border-white/[0.06]" : "border-b border-white/[0.015]",
+                                                esHoy && "bg-cyan-500/[0.02]"
+                                            ]}
+                                            data-dia={dia.id}
+                                            data-slot={slot}
+                                            data-ids={ids.join(",")}
+                                            data-row={rowIndex}
+                                            data-col={colIndex}
+                                            title={titulo}
+                                        >
+                                            <div class="slot-fill absolute inset-0 flex gap-[2px] transition-all duration-300 ease-in-out">
+                                                {ids.map((id) => (
+                                                    <div
+                                                        class="flex-1 rounded-sm transition-all duration-300"
+                                                        style={`background:${estilos[id]?.hex ?? "transparent"}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </Fragment>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script define:vars={{ estilos }}>
+    const pills = document.querySelectorAll(".pill-btn");
+    const celdas = document.querySelectorAll(".slot-cell");
+    let vistaActual = "todos";
+
+    const celdaPorDiaFila = new Map();
+    celdas.forEach((c) => {
+        celdaPorDiaFila.set(`${c.dataset.dia}-${c.dataset.row}`, c);
+    });
+
+    function disponibleEnFila(dia, fila, id) {
+        const c = celdaPorDiaFila.get(`${dia}-${fila}`);
+        if (!c) return false;
+        return (c.dataset.ids || "").split(",").filter(Boolean).includes(id);
+    }
+
+    function activarPill(idSeleccionado) {
+        pills.forEach((btn) => {
+            const id = btn.dataset.id;
+            const activo = id === idSeleccionado;
+            
+            const dotBase = btn.querySelector(".dot-base");
+            const dotGlow = btn.querySelector(".dot-glow");
+
+            if (id === "todos") {
+                btn.classList.toggle("bg-white/10", activo);
+                btn.classList.toggle("border-white/30", activo);
+                btn.classList.toggle("text-white", activo);
+                btn.classList.toggle("shadow-[0_0_15px_rgba(255,255,255,0.05)]", activo);
+
+                btn.classList.toggle("bg-white/[0.03]", !activo);
+                btn.classList.toggle("border-white/10", !activo);
+                btn.classList.toggle("text-white/50", !activo);
+                
+                const dot = btn.querySelector(".dot-todos");
+                if (dot) {
+                    dot.classList.toggle("bg-white", activo);
+                    dot.classList.toggle("shadow-[0_0_8px_rgba(255,255,255,0.8)]", activo);
+                    dot.classList.toggle("bg-white/50", !activo);
+                }
+            } else {
+                if (activo) {
+                    btn.style.backgroundColor = btn.dataset.bg;
+                    btn.style.borderColor = btn.dataset.border;
+                    btn.style.color = "#ffffff";
+                    btn.style.boxShadow = `0 4px 20px -2px ${btn.dataset.hex}50`;
+                    
+                    if (dotBase) dotBase.style.transform = "scale(1.2)";
+                    if (dotGlow) dotGlow.style.opacity = "0.8";
+
+                    btn.classList.remove("bg-white/[0.03]", "border-white/10", "text-white/50", "hover:bg-white/[0.08]", "hover:text-white/90");
+                } else {
+                    btn.style.backgroundColor = "";
+                    btn.style.borderColor = "";
+                    btn.style.color = "";
+                    btn.style.boxShadow = "";
+                    
+                    if (dotBase) dotBase.style.transform = "scale(1)";
+                    if (dotGlow) dotGlow.style.opacity = "0";
+
+                    btn.classList.add("bg-white/[0.03]", "border-white/10", "text-white/50", "hover:bg-white/[0.08]", "hover:text-white/90");
+                }
+            }
+        });
+    }
+
+    function comoBloqueAislado(fill) {
+        fill.style.top = "3px";
+        fill.style.bottom = "3px";
+        fill.style.left = "4px";
+        fill.style.right = "4px";
+        fill.style.borderRadius = "8px";
+        fill.style.boxShadow = "none";
+        fill.style.zIndex = "1";
+    }
+
+    function aplicarVista() {
+        celdas.forEach((celda) => {
+            const ids = (celda.dataset.ids || "").split(",").filter(Boolean);
+            const fill = celda.querySelector(".slot-fill");
+            const row = Number(celda.dataset.row || 0);
+            const dia = celda.dataset.dia;
+
+            comoBloqueAislado(fill);
+
+            if (ids.length === 0) {
+                fill.style.backgroundColor = "transparent";
+                Array.from(fill.children).forEach((seg) => (seg.style.display = "none"));
+                return;
+            }
+
+            if (vistaActual === "todos") {
+                fill.style.backgroundColor = "transparent";
+                fill.style.opacity = "0.7";
+                Array.from(fill.children).forEach((seg) => {
+                    seg.style.display = "";
+                    seg.style.opacity = "1";
+                    seg.style.filter = "none";
+                });
+                return;
+            }
+
+            if (ids.includes(vistaActual)) {
+                Array.from(fill.children).forEach((seg) => (seg.style.display = "none"));
+                
+                const e = estilos[vistaActual];
+                const continuaArriba = disponibleEnFila(dia, row - 1, vistaActual);
+                const continuaAbajo = disponibleEnFila(dia, row + 1, vistaActual);
+
+                fill.style.backgroundColor = e.hex;
+                fill.style.opacity = "1";
+                fill.style.boxShadow = `0 0 16px ${e.overlay}`;
+                fill.style.zIndex = "10";
+
+                if (continuaArriba) {
+                    fill.style.top = "0px";
+                    fill.style.borderTopLeftRadius = "0px";
+                    fill.style.borderTopRightRadius = "0px";
+                }
+                if (continuaAbajo) {
+                    fill.style.bottom = "0px";
+                    fill.style.borderBottomLeftRadius = "0px";
+                    fill.style.borderBottomRightRadius = "0px";
+                }
+            } else {
+                fill.style.backgroundColor = "transparent";
+                fill.style.opacity = "0.35"; 
+                
+                Array.from(fill.children).forEach((seg) => {
+                    seg.style.display = "";
+                    seg.style.filter = "grayscale(100%) brightness(70%)";
+                });
+            }
+        });
+    }
+
+    pills.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            vistaActual = btn.dataset.id;
+            activarPill(vistaActual);
+            aplicarVista();
+        });
+    });
+
+    function actualizarLineaTiempo() {
+        const grid = document.getElementById("grid");
+        if (!grid) return;
+
+        let line = document.getElementById("current-time-line");
+        
+        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Merida"}));
+        const mapDias = [null, "lunes", "martes", "miercoles", "jueves", "viernes", null];
+        const hoyStr = mapDias[now.getDay()];
+        
+        if (!hoyStr) {
+            if (line) line.remove();
+            return;
+        }
+        
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const totalMinutes = hours * 60 + minutes;
+        
+        const minStart = 8 * 60;
+        const minEnd = 18 * 60;
+        
+        if (totalMinutes < minStart || totalMinutes > minEnd) {
+            if (line) line.remove();
+            return;
+        }
+        
+        if (!line) {
+            line = document.createElement("div");
+            line.id = "current-time-line";
+            line.className = "absolute h-[2px] bg-cyan-400 z-20 pointer-events-none shadow-[0_0_8px_rgba(34,211,238,0.8)] transition-all duration-1000 ease-linear";
+            line.innerHTML = `
+                <div class="absolute -left-1.5 -top-1.5 w-3.5 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,1)] flex items-center justify-center">
+                    <div class="w-full h-full bg-cyan-400 rounded-full animate-ping opacity-75"></div>
+                </div>
+            `;
+            grid.appendChild(line);
+        }
+        
+        const firstCell = document.querySelector(`.slot-cell[data-dia="${hoyStr}"][data-row="0"]`);
+        if (!firstCell) return;
+        
+        const headerOffset = firstCell.offsetTop;
+        const cellHeight = firstCell.offsetHeight; 
+        
+        const minutesSinceStart = totalMinutes - minStart;
+        const slotsPassed = minutesSinceStart / 30;
+        
+        const top = headerOffset + (slotsPassed * cellHeight);
+        const leftOffset = firstCell.offsetLeft;
+        const width = firstCell.offsetWidth;
+        
+        line.style.top = `${top}px`;
+        line.style.left = `${leftOffset}px`;
+        line.style.width = `${width}px`;
+    }
+
+    actualizarLineaTiempo();
+    setInterval(actualizarLineaTiempo, 60000);
+
+    aplicarVista();
+</script>

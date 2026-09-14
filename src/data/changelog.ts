@@ -1,8 +1,8 @@
-export const currentVersion = "3.16.0";
+export const currentVersion = "3.17.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "08 de septimebre del 2026";
+export const updateDate = "14 de septiembre del 2026";
 
 type Changes = {
     title: string;
@@ -12,23 +12,18 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Eventos en la agenda",
-        description: "Ahora es posible señalar un evento en la agenda así como reservar por completo un día para el mismo.",
-        type: "feature"
-    },
-    {
-        title: "Reportes de poligrafia",
-        description: "Se corrigió un error en la redacción de una sección del reporte de poligrafia.",
+        title: "Usuarios que pueden atender",
+        description: "Ahora al momento de crear una cita, solamente los usuarios con el rol adecuado pueden ser seleccionados como encargado de la misma.",
         type: "fix"
     },
     {
-        title: "Campos de paciente opcionales",
-        description: "Se hicieron opcionales ciertos campos del paciente en lugar de obligatorios.",
+        title: "Días bloqueados en el calendario",
+        description: "Se corrigió un error en el que se podía agendar citas en días que estaban bloqueados por completo por un evento.",
         type: "fix"
     },
     {
-        title: "Estilos en general",
-        description: "Se agregaron nuevos estilos para mejorar la apariencia general de la aplicación, desde animaciones en el menu del calendario hasta señalamientos en los campos que ahora pueden ser vacíos.",
+        title: "Fotos de perfil de los usuarios",
+        description: "Ahora en la lista de usuarios se muestran las fotos de perfil de cada uno.",
         type: "style"
     }
 ];
