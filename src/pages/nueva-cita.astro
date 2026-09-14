@@ -19,7 +19,7 @@ import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { clerkClient } from "@clerk/astro/server";
-import { crearCita, getInhabilesDesdeHoy } from "../services/citas.service";
+import { crearCita, getDiasBloqueadosDesdeHoy } from "../services/citas.service";
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user
@@ -35,10 +35,12 @@ try {
     const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
     const users    = Array.isArray(response) ? response : (response.data || []);
 
-    listaPsicologos = users.map(u => {
-        const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
-        return nombre || u.username || u.emailAddresses[0].emailAddress;
-    });
+    listaPsicologos = users
+        .filter(u => u.publicMetadata?.puedeAtender === true)
+        .map(u => {
+            const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+            return nombre || u.username || u.emailAddresses[0].emailAddress;
+        });
 } catch (e) {
     console.error("Error cargando psicólogos:", e);
 }
@@ -72,7 +74,7 @@ if (Astro.request.method === "POST") {
     }
 }
 
-const listaInhabiles = await getInhabilesDesdeHoy();
+const listaInhabiles = await getDiasBloqueadosDesdeHoy();
 ---
 
 <Layout title="Agendar Nueva Cita | Lab-Somno">
@@ -243,8 +245,8 @@ const listaInhabiles = await getInhabilesDesdeHoy();
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </div>
-            <h3 class="text-xl font-extrabold text-white mb-2">Día Inhábil</h3>
-            <p class="text-gray-400 text-sm mb-6">Este día está marcado como inhábil o vacacional. Por favor, selecciona otro día para la cita.</p>
+            <h3 class="text-xl font-extrabold text-white mb-2">Día Bloqueado</h3>
+            <p class="text-gray-400 text-sm mb-6">Este día está marcado como inhábil o tiene un evento que abarca todo el día. Por favor, selecciona otro día para la cita.</p>
             
             <button onclick="document.getElementById('modal-error-fecha').close()" type="button" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-xl border border-gray-700 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500">
                 Entendido

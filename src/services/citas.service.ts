@@ -63,14 +63,23 @@ export async function getDiasInhabilesDelMes(year: number, month: number): Promi
     return new Set(data?.map(d => d.fecha) ?? []);
 }
 
-async function esDiaInhabil(fechaISO: string): Promise<boolean> {
-    const { data } = await supabase
+async function esDiaBloqueado(fechaISO: string): Promise<boolean> {
+    const { data: inhabil } = await supabase
         .from("dias_inhabiles")
         .select("fecha")
         .eq("fecha", fechaISO)
-        .single();
+        .maybeSingle();
 
-    return !!data;
+    if (inhabil) return true;
+
+    const { data: evento } = await supabase
+        .from("eventos_dia")
+        .select("fecha")
+        .eq("fecha", fechaISO)
+        .eq("restringe_dia", true)
+        .maybeSingle();
+
+    return !!evento;
 }
 
 export async function completarCita(citaId: number): Promise<void> {
@@ -98,8 +107,8 @@ export async function reagendarCita(
 ): Promise<void> {
     const fechaSoloDia = nuevaFechaLocal.split("T")[0];
 
-    if (await esDiaInhabil(fechaSoloDia)) {
-        throw new Error(`El día ${fechaSoloDia} está marcado como inhábil.`);
+    if (await esDiaBloqueado(fechaSoloDia)) {
+        throw new Error(`El día ${fechaSoloDia} está bloqueado (es inhábil o tiene un evento de todo el día).`);
     }
 
     const { data: original, error: errorFetch } = await supabase
@@ -179,13 +188,21 @@ export async function procesarPeriodoInhabil(
     }
 }
 
-export async function getInhabilesDesdeHoy(): Promise<string[]> {
-    const { data } = await supabase
-        .from("dias_inhabiles")
-        .select("fecha")
-        .gte("fecha", new Date().toISOString().split("T")[0]);
+export async function getDiasBloqueadosDesdeHoy(): Promise<string[]> {
+    const hoy = new Date().toISOString().split("T")[0];
+
+    // Traemos ambas listas en paralelo
+    const [ { data: inhabiles }, { data: eventos } ] = await Promise.all([
+        supabase.from("dias_inhabiles").select("fecha").gte("fecha", hoy),
+        supabase.from("eventos_dia").select("fecha").gte("fecha", hoy).eq("restringe_dia", true)
+    ]);
     
-    return data?.map(d => d.fecha) ?? [];
+    const diasBloqueados = new Set<string>();
+    
+    inhabiles?.forEach(d => diasBloqueados.add(d.fecha));
+    eventos?.forEach(e => diasBloqueados.add(e.fecha));
+    
+    return Array.from(diasBloqueados);
 }
 
 export async function crearCita(params: {
@@ -209,8 +226,8 @@ export async function crearCita(params: {
         .eq("fecha", fechaSoloDia)
         .maybeSingle();
     
-    if (diaBloqueado) {
-        throw new Error(`⚠️ El día seleccionado (${fechaSoloDia}) está bloqueado como inhábil. Elige otra fecha.`);
+    if (await esDiaBloqueado(fechaSoloDia)) {
+        throw new Error(`⚠️ El día seleccionado (${fechaSoloDia}) está bloqueado como inhábil o por un evento. Elige otra fecha.`);
     }
     
     const { data: citaExistente } = await supabase
@@ -278,9 +295,9 @@ export async function crearCitasEnLote(
                 .eq("fecha", fechaSoloDia)
                 .maybeSingle();
 
-            if (diaBloqueado) {
+            if (await esDiaBloqueado(fechaSoloDia)) {
                 throw new Error(
-                    `El día ${fechaSoloDia} está bloqueado como inhábil. Elige otra fecha.`,
+                    `El día ${fechaSoloDia} está bloqueado. Elige otra fecha.`
                 );
             }
 

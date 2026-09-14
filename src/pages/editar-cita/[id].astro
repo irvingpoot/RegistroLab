@@ -37,10 +37,13 @@ try {
     const client = clerkClient(Astro);
     const response = await client.users.getUserList({ limit: 20 });
     const users = Array.isArray(response) ? response : (response.data || []);
-    listaEspecialistas = users.map(u => {
-        const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
-        return nombre || u.username || "Usuario Sin Nombre";
-    });
+    
+    listaEspecialistas = users
+        .filter(u => u.publicMetadata?.puedeAtender === true)
+        .map(u => {
+            const nombre = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+            return nombre || u.username || "Usuario Sin Nombre";
+        });
 } catch (e) {
     console.error("Error users:", e);
 }

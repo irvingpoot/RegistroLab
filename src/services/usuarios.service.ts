@@ -6,6 +6,7 @@ export type UsuarioResumen = {
     nombre: string;
     username: string;
     rol: Rol | undefined;
+    puedeAtender: boolean;
     creadoEl: number;
 };
 
@@ -17,6 +18,7 @@ function normalizarUsuario(u: any): UsuarioResumen {
         nombre:   `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || (u.username ?? "Sin nombre"),
         username: u.username ?? "—",
         rol:      u.publicMetadata?.role as Rol | undefined,
+        puedeAtender: !!u.publicMetadata?.puedeAtender,
         creadoEl: u.createdAt,
     };
 }
@@ -33,7 +35,7 @@ export async function listarUsuarios(astroContext: ClerkContext): Promise<Usuari
 
 export async function crearUsuario(
     astroContext: ClerkContext,
-    datos: { nombre: string; apellido: string; username: string; password: string; rol: Rol },
+    datos: { nombre: string; apellido: string; username: string; password: string; rol: Rol; puedeAtender: boolean },
 ): Promise<void> {
     if (datos.rol === "admin") {
         throw new Error("El rol admin no se asigna desde este panel.");
@@ -45,14 +47,14 @@ export async function crearUsuario(
         lastName:       datos.apellido,
         username:       datos.username,
         password:       datos.password,
-        publicMetadata: { role: datos.rol },
+        publicMetadata: { role: datos.rol, puedeAtender: datos.puedeAtender },
     });
 }
 
 export async function actualizarUsuario(
     astroContext: ClerkContext,
     userId: string,
-    datos: { username: string; rol: Rol },
+    datos: { username: string; rol: Rol; puedeAtender: boolean },
 ): Promise<void> {
     const client = clerkClient(astroContext);
 
@@ -65,7 +67,7 @@ export async function actualizarUsuario(
 
     await client.users.updateUser(userId, { username: datos.username });
     await client.users.updateUserMetadata(userId, {
-        publicMetadata: { role: datos.rol },
+        publicMetadata: { role: datos.rol, puedeAtender: datos.puedeAtender },
     });
 }
 
