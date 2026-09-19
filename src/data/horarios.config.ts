@@ -37,38 +37,38 @@ export const DIAS: { id: Dia; label: string }[] = [
 
 export const PSICOLOGOS: Psicologo[] = [
     { id: "jesus-moo", nombre: "Jesús Moo", color: "#bf9cfc" },
-    { id: "frida-flores", nombre: "Frida Flores", color: "#FFB7CE" },
+    { id: "frida-flores", nombre: "Frida Flores", color: "#fb8fb1" },
     { id: "jacqui-ravell", nombre: "Jacqui Ravell", color: "#ff81e3" },
     { id: "soraya-shurair", nombre: "Soraya Shurair", color: "#ff6568" },
-    { id: "alejandro-caballero", nombre: "Alejandro Caballero", color: "#ff62b4" },
+    { id: "alejandro-caballero", nombre: "Alejandro Caballero", color: "#80fff7" },
 ];
 
 export const DISPONIBILIDAD: Record<string, RangoDisponible[]> = {
     "jesus-moo": [
-        { dia: "lunes", inicio: "09:30", fin: "14:00" },
-        { dia: "martes", inicio: "09:30", fin: "14:00" },
-        { dia: "miercoles", inicio: "09:30", fin: "14:00" },
-        { dia: "jueves", inicio: "09:30", fin: "14:00" },
-        { dia: "viernes", inicio: "11:00", fin: "14:00" },
+        { dia: "lunes", inicio: "12:00", fin: "16:00" },
+        { dia: "martes", inicio: "10:00", fin: "13:30" },
+        { dia: "miercoles", inicio: "10:00", fin: "13:30" },
+        { dia: "jueves", inicio: "10:00", fin: "14:30" },
+        { dia: "viernes", inicio: "12:00", fin: "14:00" },
     ],
     "frida-flores": [
-        { dia: "lunes", inicio: "09:30", fin: "14:00" },
-        { dia: "martes", inicio: "09:30", fin: "14:00" },
-        { dia: "miercoles", inicio: "09:30", fin: "14:00" },
-        { dia: "jueves", inicio: "09:30", fin: "14:00" },
-        { dia: "viernes", inicio: "11:00", fin: "14:00" },
+        { dia: "lunes", inicio: "10:00", fin: "15:00" },
+        { dia: "martes", inicio: "10:00", fin: "15:00" },
+        { dia: "miercoles", inicio: "10:00", fin: "15:00" },
+        { dia: "jueves", inicio: "10:00", fin: "15:00" },
+        { dia: "viernes", inicio: "12:00", fin: "15:00" },
     ],
     "jacqui-ravell": [
-        { dia: "lunes", inicio: "10:00", fin: "14:00" },
-        { dia: "miercoles", inicio: "10:00", fin: "14:00" },
-        { dia: "viernes", inicio: "10:00", fin: "14:00" },
+        { dia: "lunes", inicio: "10:30", fin: "14:00" },
+        { dia: "miercoles", inicio: "10:30", fin: "14:00" },
+        { dia: "viernes", inicio: "10:30", fin: "14:00" },
     ],
     "soraya-shurair": [
-        { dia: "lunes", inicio: "10:00", fin: "12:00" },
-        { dia: "martes", inicio: "12:00", fin: "14:00" },
-        { dia: "miercoles", inicio: "10:00", fin: "13:00" },
-        { dia: "jueves", inicio: "10:00", fin: "14:00" },
-        { dia: "viernes", inicio: "10:00", fin: "12:00" },
+        { dia: "lunes", inicio: "10:00", fin: "15:30" },
+        { dia: "martes", inicio: "12:00", fin: "15:30" },
+        { dia: "miercoles", inicio: "10:00", fin: "15:30" },
+        { dia: "jueves", inicio: "12:00", fin: "15:30" },
+        { dia: "viernes", inicio: "10:00", fin: "15:30" },
     ],
     "alejandro-caballero": [
         { dia: "lunes", inicio: "10:00", fin: "12:00" },
