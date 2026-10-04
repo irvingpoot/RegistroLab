@@ -19,13 +19,17 @@ import Layout from "../layouts/Layout.astro"
 import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import PatientTypeModal from "../components/PatientTypeModal.astro"
-import PatientIcon from "../components/icons/PatientIcon.astro"
 import { getPacientes } from "../services/pacientes.service"
+
+import PatientIcon from "../components/icons/lista/PatientIcon.astro"
 import RightArrow from "../components/icons/RightArrow.astro"
 import LeftArrow from "../components/icons/LeftArrow.astro"
-import FilterIcon from "../components/icons/FilterIcon.astro"
-import FaceIcon from "../components/icons/FaceIcon.astro"
-import SleepIcon from "../components/icons/SleepIcon.astro"
+import FilterIcon from "../components/icons/lista/FilterIcon.astro"
+import SleepIcon from "../components/icons/lista/SleepIcon.astro"
+import SearchIcon from "../components/icons/SearchIcon.astro"
+import CrossIcon from "../components/icons/CrossIcon.astro"
+import FaceIcon from "../components/icons/lista/FaceIcon.astro"
+import PatientNotFoundIcon from "../components/icons/PatientNotFoundIcon.astro"
 
 const busqueda = Astro.url.searchParams.get("q") || "";
 const filtroSueno = Astro.url.searchParams.get("sueno") || "";
@@ -119,9 +123,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                 <form method="GET" id="form-filtro" class="flex flex-col sm:flex-row gap-2">
                     <div class="relative group flex-grow">
                         <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                            <svg class="w-4 h-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
-                            </svg>
+                            <SearchIcon class="w-4 h-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
                         </div>
                         <input
                             type="text"
@@ -133,9 +135,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                         />
                         {busqueda && (
                             <a href="/lista" class="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-white hover:bg-white/10 p-1.5 my-1.5 rounded-md transition-colors" title="Limpiar búsqueda">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                </svg>
+                                <CrossIcon class="w-4 h-4" />
                             </a>
                         )}
                     </div>
@@ -157,9 +157,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                         {filtroActivo ? filtroActivo : "Filtros"}
                         {filtroActivo && (
                             <a href={busqueda ? `/lista?q=${encodeURIComponent(busqueda)}` : "/lista"} class="ml-1 hover:text-white transition-colors" title="Quitar filtro" onclick="event.stopPropagation()">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                                </svg>
+                                <CrossIcon class="h-3.5 w-3.5" />
                             </a>
                         )}
                     </button>
@@ -169,17 +167,13 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                     <div class="flex items-center justify-between mb-4">
                         <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Filtrar por diagnóstico</p>
                         <button type="button" id="btn-cerrar-filtros" class="text-gray-500 hover:text-white transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
+                            <CrossIcon class="h-4 w-4 cursor-pointer" />
                         </button>
                     </div>
 
                     <div class="mb-4">
                         <div class="flex items-center gap-2 mb-2.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
+                            <SleepIcon class="h-3.5 w-3.5 text-blue-400" />
                             <span class="text-xs font-semibold text-blue-400 uppercase tracking-wider">Alteraciones de Sueño</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
@@ -200,9 +194,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
 
                     <div>
                         <div class="flex items-center gap-2 mb-2.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                            <FaceIcon class="h-3.5 w-3.5 text-purple-400" />
                             <span class="text-xs font-semibold text-purple-400 uppercase tracking-wider">Trastornos de Ánimo</span>
                         </div>
 
@@ -310,9 +302,7 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
                     {pacientes.length === 0 && (
                         <tr>
                             <td colspan="7" class="px-8 py-16 text-center text-gray-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
+                                <PatientNotFoundIcon class="h-10 w-10 mx-auto mb-3 opacity-30" />
                                 <p class="text-sm">
                                     No se encontraron pacientes{busqueda ? ` con el nombre "${busqueda}"` : ""}{filtroActivo ? ` con el filtro "${filtroActivo}"` : ""}.
                                 </p>

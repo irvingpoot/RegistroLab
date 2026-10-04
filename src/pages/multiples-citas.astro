@@ -16,6 +16,11 @@ import {
     type CitaLote,
     type ResultadoLote,
 } from "../services/citas.service";
+import DownTriangle from "../components/icons/DownTriangle.astro";
+import CrossIcon from "../components/icons/CrossIcon.astro";
+import CalendarIcon from "../components/icons/CalendarIcon.astro";
+import LeftTriangle from "../components/icons/LeftTriangle.astro";
+import RightTriangle from "../components/icons/RightTriangle.astro";
 
 const msjSecreto = import.meta.env.MSJ_SECRETO as string;
 
@@ -107,7 +112,7 @@ const opcionesReferencia = [
                 <div class="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] rounded-3xl pointer-events-none"></div>
 
                 <button type="button" id="btn-cerrar-admin" class="absolute top-5 right-5 z-20 bg-[#3a2825]/40 hover:bg-[#3a2825]/70 text-rose-300/90 hover:text-white p-2.5 rounded-full backdrop-blur-xl border border-rose-200/10 transition-all duration-200 cursor-pointer shadow-lg shadow-black/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <CrossIcon class="h-5 w-5" />
                 </button>
 
                 <div class="absolute bottom-0 left-0 right-0 p-10 z-10 flex flex-col items-center text-center">
@@ -229,7 +234,7 @@ const opcionesReferencia = [
                                 {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -247,7 +252,7 @@ const opcionesReferencia = [
                                 {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -261,7 +266,7 @@ const opcionesReferencia = [
                                 <option value="Por asignar">— Por definir —</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -283,7 +288,7 @@ const opcionesReferencia = [
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Fechas <span class="text-red-500">*</span></label>
                                 <button type="button" id="btn-abrir-calendario" class="w-full p-3 border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-400 font-medium transition-all text-sm flex items-center justify-between cursor-pointer">
                                     <span id="texto-fechas-seleccionadas">Seleccionar fechas...</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <CalendarIcon class="h-5 w-5" />
                                 </button>
                             </div>
                             
@@ -317,11 +322,11 @@ const opcionesReferencia = [
         <div class="p-5">
             <div class="flex justify-between items-center mb-4">
                 <button type="button" id="btn-prev-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    <LeftTriangle class="w-5 h-5" />
                 </button>
                 <h3 id="mes-anio-label" class="text-white font-bold capitalize">Mes Año</h3>
                 <button type="button" id="btn-next-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    <RightTriangle class="w-5 h-5" />
                 </button>
             </div>
             

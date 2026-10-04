@@ -20,6 +20,8 @@ import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import { clerkClient } from "@clerk/astro/server";
 import { crearCita, getDiasBloqueadosDesdeHoy } from "../services/citas.service";
+import DownTriangle from "../components/icons/DownTriangle.astro";
+import AlertIcon from "../components/icons/citas/AlertIcon.astro";
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user
@@ -149,9 +151,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                                 </select>
                                 
                                 <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                    </svg>
+                                    <DownTriangle class="h-4 w-4" />
                                 </div>
                             </div>
                         </div>
@@ -202,7 +202,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                                     <option class="bg-gray-900 text-gray-400" value="Por asignar">-- Por definir --</option>
                                 </select>
                                 <div class="absolute inset-y-0 right-0 flex items-center px-3 pt-1 pointer-events-none text-gray-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                    <DownTriangle class="h-4 w-4" />
                                 </div>
                             </div>
                         </div>
@@ -241,9 +241,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
     <dialog id="modal-error-fecha" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-sm text-center p-0 overflow-hidden outline-none">
         <div class="p-6">
             <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-900/30 border border-red-500/30 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-7 w-7 text-red-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertIcon class="h-7 w-7 text-red-500" />
             </div>
             <h3 class="text-xl font-extrabold text-white mb-2">Día Bloqueado</h3>
             <p class="text-gray-400 text-sm mb-6">Este día está marcado como inhábil o tiene un evento que abarca todo el día. Por favor, selecciona otro día para la cita.</p>
