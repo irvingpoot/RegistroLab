@@ -348,3 +348,84 @@ export async function crearCitasEnLote(
 
     return resultados;
 }
+
+
+export type EstadoCita = "pendiente" | "completada" | "cancelada";
+export const ESTADOS_CITA: EstadoCita[] = ["pendiente", "completada", "cancelada"];
+
+export type CampoBusqueda = "nombre" | "sintoma" | "telefono" | "observaciones" | "motivo";
+export const CAMPOS_BUSQUEDA: CampoBusqueda[] = ["nombre", "sintoma", "telefono", "observaciones", "motivo"];
+
+export interface FiltrosBusqueda {
+    q: string;
+    campos: CampoBusqueda[];
+    referencias: string[];
+    estados: EstadoCita[];
+    atendidoPor: string[];
+    registradoPor: string[];
+    offset: number;
+    limit: number;
+}
+
+function patronIlike(termino: string): string {
+    const literal = termino.replace(/[\\%_]/g, "\\$&");
+    const patron  = `%${literal}%`;
+    return `"${patron.replace(/[\\"]/g, "\\$&")}"`;
+}
+
+export async function buscarCitas(f: FiltrosBusqueda): Promise<{ citas: CitaResumen[]; total: number }> {
+    let query = supabase
+        .from("citas")
+        .select(
+            "id, fecha_hora, nombre, estado, referencia, sintoma, telefono, motivo, atendido_por, observaciones, registrado_por_id",
+            { count: "exact" },
+        );
+
+    const terminos = f.q.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+    const campos   = f.campos.length ? f.campos : CAMPOS_BUSQUEDA;
+
+    for (const t of terminos) {
+        const patron = patronIlike(t);
+        query = query.or(campos.map(c => `${c}.ilike.${patron}`).join(","));
+    }
+
+    if (f.referencias.length)   query = query.in("referencia", f.referencias);
+    if (f.atendidoPor.length)   query = query.in("atendido_por", f.atendidoPor);
+    if (f.registradoPor.length) query = query.in("registrado_por_id", f.registradoPor);
+
+    if (f.estados.length && f.estados.length < ESTADOS_CITA.length) {
+        const partes = f.estados.map(e => `estado.eq.${e}`);
+        if (f.estados.includes("pendiente")) partes.push("estado.is.null");
+        query = query.or(partes.join(","));
+    }
+
+    const { data, error, count } = await query
+        .order("fecha_hora", { ascending: false })
+        .order("id", { ascending: false })
+        .range(f.offset, f.offset + f.limit - 1);
+
+    if (error) throw new Error(`buscarCitas: ${error.message}`);
+    return { citas: (data ?? []) as CitaResumen[], total: count ?? 0 };
+}
+
+export async function cambiarEstadoCita(citaId: number, estado: EstadoCita): Promise<void> {
+    const { data, error } = await supabase
+        .from("citas")
+        .update({ estado })
+        .eq("id", citaId)
+        .select("id");
+
+    if (error) throw new Error(`cambiarEstadoCita: ${error.message}`);
+    if (!data?.length) throw new Error("No se encontró la cita.");
+}
+
+export async function eliminarCita(citaId: number): Promise<void> {
+    const { data, error } = await supabase
+        .from("citas")
+        .delete()
+        .eq("id", citaId)
+        .select("id");
+
+    if (error) throw new Error(`eliminarCita: ${error.message}`);
+    if (!data?.length) throw new Error("No se encontró la cita o no tienes permiso para eliminarla.");
+}
