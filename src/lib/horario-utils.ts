@@ -1,11 +1,10 @@
 /**
  * @file horario-utils.ts
  * @description Utilidades puras para construir la grilla de horarios (time-blocking).
- * No dependen de Supabase ni de Clerk: solo transforman los datos definidos en
- * `src/data/horarios.config.ts` en estructuras fáciles de pintar en la UI.
+ * No dependen de Supabase ni de Clerk: solo transforman los datos que ya
+ * trajo `obtenerHorariosCompletos()` (horarios-db.ts) en estructuras fáciles
+ * de pintar en la UI.
  */
-
-import type { RangoDisponible } from "../data/horarios.config";
 
 function aMinutos(hhmm: string): number {
     const [h, m] = hhmm.split(":").map(Number);
@@ -26,22 +25,23 @@ export function generarSlots(horaInicio = 8, horaFin = 20, pasoMin = 30): string
     return slots;
 }
 
+/**
+ * Construye el mapa `"dia-HH:MM" -> [psicologoId, ...]` que usa la grilla.
+ *
+ * @param bloquesPorPsicologo viene directo de `obtenerHorariosCompletos()`:
+ *   cada psicólogo mapea a una lista de bloques planos `"dia|HH:MM"`.
+ */
 export function construirMapaDisponibilidad(
-    disponibilidad: Record<string, RangoDisponible[]>,
-    pasoMin = 30,
+    bloquesPorPsicologo: Record<string, string[]>,
 ): Record<string, string[]> {
     const mapa: Record<string, string[]> = {};
 
-    for (const [psicologoId, rangos] of Object.entries(disponibilidad)) {
-        for (const rango of rangos) {
-            const inicio = aMinutos(rango.inicio);
-            const fin = aMinutos(rango.fin);
-
-            for (let m = inicio; m < fin; m += pasoMin) {
-                const key = `${rango.dia}-${aHHMM(m)}`;
-                if (!mapa[key]) mapa[key] = [];
-                mapa[key].push(psicologoId);
-            }
+    for (const [psicologoId, bloques] of Object.entries(bloquesPorPsicologo)) {
+        for (const bloque of bloques) {
+            const [dia, hora] = bloque.split("|");
+            const key = `${dia}-${hora}`;
+            if (!mapa[key]) mapa[key] = [];
+            mapa[key].push(psicologoId);
         }
     }
 
@@ -70,6 +70,10 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
         : limpio;
     const bigint = parseInt(full, 16);
     return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+}
+
+export function esHexValido(hex: string): boolean {
+    return /^#[0-9a-f]{6}$/i.test(hex);
 }
 
 export function rgba(hex: string, alpha: number): string {

@@ -1,15 +1,17 @@
 /**
  * @file horarios.config.ts
- * @description Fuente única de verdad para el horario de psicólogos.
+ * @description Tipos y constantes estáticas del módulo de horarios.
  *
- * No hay tabla en Supabase para esto a propósito: los psicólogos, su color
- * y su disponibilidad se definen aquí mismo, en código. Para agregar o
- * modificar un horario, edita los arreglos de abajo y despliega.
+ * Desde la migración a Supabase, los psicólogos, su color y su
+ * disponibilidad YA NO se definen aquí: viven en las tablas
+ * `psicologos_horario` y `horario_bloques` (ver migrations/001_horarios_supabase.sql
+ * y src/lib/horarios-db.ts). Este archivo solo conserva lo que sigue siendo
+ * fijo en código: los tipos compartidos y los días de la semana.
  *
- * Reglas:
+ * Reglas que se mantienen (ahora validadas también con CHECK constraints
+ * en la base de datos):
  * - Los días válidos son de lunes a viernes.
- * - `inicio`/`fin` van en formato "HH:MM", en múltiplos de 30 minutos,
- *   dentro del rango 08:00–20:00. `fin` es exclusivo.
+ * - Los bloques van en incrementos de 30 minutos, dentro del rango 08:00–20:00.
  * - `color` es cualquier hexadecimal válido (ej. "#3b82f6").
  */
 
@@ -17,6 +19,7 @@ export interface Psicologo {
     id: string;
     nombre: string;
     color: string;
+    clerkUserId: string | null;
 }
 
 export type Dia = "lunes" | "martes" | "miercoles" | "jueves" | "viernes";
@@ -35,46 +38,6 @@ export const DIAS: { id: Dia; label: string }[] = [
     { id: "viernes", label: "Viernes" },
 ];
 
-export const PSICOLOGOS: Psicologo[] = [
-    { id: "jesus-moo", nombre: "Jesús Moo", color: "#bf9cfc" },
-    { id: "frida-flores", nombre: "Frida Flores", color: "#fb8fb1" },
-    { id: "jacqui-ravell", nombre: "Jacqui Ravell", color: "#ff81e3" },
-    { id: "soraya-shurair", nombre: "Soraya Shurair", color: "#ff6568" },
-    { id: "alejandro-caballero", nombre: "Alejandro Caballero", color: "#80fff7" },
-];
-
-export const DISPONIBILIDAD: Record<string, RangoDisponible[]> = {
-    "jesus-moo": [
-        { dia: "lunes", inicio: "12:00", fin: "16:00" },
-        { dia: "martes", inicio: "10:00", fin: "13:30" },
-        { dia: "miercoles", inicio: "10:00", fin: "13:30" },
-        { dia: "jueves", inicio: "10:00", fin: "14:30" },
-        { dia: "viernes", inicio: "12:00", fin: "14:00" },
-    ],
-    "frida-flores": [
-        { dia: "lunes", inicio: "10:00", fin: "15:00" },
-        { dia: "martes", inicio: "10:00", fin: "15:00" },
-        { dia: "miercoles", inicio: "10:00", fin: "15:00" },
-        { dia: "jueves", inicio: "10:00", fin: "15:00" },
-        { dia: "viernes", inicio: "12:00", fin: "15:00" },
-    ],
-    "jacqui-ravell": [
-        { dia: "lunes", inicio: "10:30", fin: "14:00" },
-        { dia: "miercoles", inicio: "10:30", fin: "14:00" },
-        { dia: "viernes", inicio: "10:30", fin: "14:00" },
-    ],
-    "soraya-shurair": [
-        { dia: "lunes", inicio: "10:00", fin: "15:30" },
-        { dia: "martes", inicio: "12:00", fin: "15:30" },
-        { dia: "miercoles", inicio: "10:00", fin: "15:30" },
-        { dia: "jueves", inicio: "12:00", fin: "15:30" },
-        { dia: "viernes", inicio: "10:00", fin: "15:30" },
-    ],
-    "alejandro-caballero": [
-        { dia: "lunes", inicio: "10:00", fin: "12:00" },
-        { dia: "martes", inicio: "12:00", fin: "14:00" },
-        { dia: "miercoles", inicio: "10:00", fin: "13:00" },
-        { dia: "jueves", inicio: "10:00", fin: "14:00" },
-        { dia: "viernes", inicio: "10:00", fin: "12:00" },
-    ],
-};
+export const PASO_MIN = 30;
+export const HORA_INICIO_GRID = 8;
+export const HORA_FIN_GRID = 20;

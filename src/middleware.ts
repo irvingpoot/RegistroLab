@@ -24,6 +24,8 @@ const isProtectedRoute = createRouteMatcher([
     '/feedback',
     '/reportes',
     '/manuales',
+    '/usuarios',
+    '/horario',
     '/registro(.*)',
     '/paciente(.*)',
     '/editar-paciente(.*)',
