@@ -7,51 +7,66 @@
 import FaceIcon from "./icons/lista/FaceIcon.astro";
 import RightArrow from "./icons/RightArrow.astro";
 import SleepIcon from "./icons/lista/SleepIcon.astro";
+import AddPatientIcon from "./icons/dashboard/AddPatientIcon.astro";
+import CrossIcon from "./icons/CrossIcon.astro";
 ---
 
-<dialog id="modal-tipo-paciente" class="bg-gray-900 border border-gray-700 rounded-3xl p-0 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-3xl text-left m-auto outline-none">
-    <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
-        <h3 class="text-xl font-bold text-white flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            Registrar nuevo paciente
-        </h3>
-        <button onclick="document.getElementById('modal-tipo-paciente').close()" class="text-gray-500 hover:text-white transition-colors cursor-pointer text-2xl leading-none">&times;</button>
-    </div>
-    
-    <div class="p-6">
-        <p class="text-gray-400 mb-6 text-sm">Seleccione el tipo de paciente que desea registrar.</p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            <a href="/registro/sueno" class="block group relative bg-gray-800/40 hover:bg-blue-900/20 border border-gray-700/50 hover:border-blue-500/50 p-6 rounded-2xl transition-all cursor-pointer text-left no-underline">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="p-3 bg-blue-500/20 rounded-xl text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                        <SleepIcon class="size-8" />
-                    </div>
-                    <h4 class="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">Trastornos del Sueño</h4>
-                </div>
-                <p class="text-sm text-gray-400 leading-relaxed mb-4">
-                    Polisomnografía, insomnio, apnea, titulación CPAP y trastornos del ritmo circadiano.
-                </p>
-                <span class="flex text-xs font-bold text-blue-400 uppercase tracking-widest group-hover:translate-x-1 transition-transform">Seleccionar <RightArrow class="size-4" /></span>
-            </a>
-
-            <a href="/registro/animo" class="block group relative bg-gray-800/40 hover:bg-purple-900/20 border border-gray-700/50 hover:border-purple-500/50 p-6 rounded-2xl transition-all cursor-pointer text-left no-underline">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="p-3 bg-purple-500/20 rounded-xl text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                        <FaceIcon class="size-8" />
-                    </div>
-                    <h4 class="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">Estado de Ánimo</h4>
-                </div>
-                <p class="text-sm text-gray-400 leading-relaxed mb-4">
-                    Depresión, ansiedad, evaluación de funciones ejecutivas y protocolos TMS.
-                </p>
-                <span class="flex text-xs font-bold text-purple-400 uppercase tracking-widest group-hover:translate-x-1 transition-transform">Seleccionar <RightArrow class="size-4" /></span>
-            </a>
-
+<dialog
+    id="modal-tipo-paciente"
+    aria-labelledby="titulo-tipo-paciente"
+    class="m-auto w-[calc(100%-2rem)] max-w-3xl overflow-x-hidden overflow-y-auto rounded-[1.25rem] border border-white/10 bg-[#0f172a] p-0 text-left shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7)] outline-none"
+>
+    <div class="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5 md:px-8">
+        <div class="flex items-center gap-4">
+            <span class="pt-chip acc-emerald">
+                <AddPatientIcon class="size-5" />
+            </span>
+            <div>
+                <h3 id="titulo-tipo-paciente" class="text-xl font-semibold leading-tight tracking-tight text-white">Registrar nuevo paciente</h3>
+                <p class="mt-0.5 text-sm text-gray-400">Seleccione el tipo de paciente que desea registrar.</p>
+            </div>
         </div>
+
+        <button
+            type="button"
+            aria-label="Cerrar"
+            onclick="document.getElementById('modal-tipo-paciente').close()"
+            class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-gray-500 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400"
+        >
+            <CrossIcon class="size-5" />
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 md:p-8">
+
+        <a href="/registro/sueno" class="pt-opt acc-blue group">
+            <span class="pt-chip pt-chip-lg">
+                <SleepIcon class="size-7" />
+            </span>
+            <span class="mt-6 block text-xl font-semibold tracking-tight text-white">Trastornos del Sueño</span>
+            <span class="mt-2 block text-sm leading-relaxed text-gray-400">
+                Polisomnografía, insomnio, apnea, titulación CPAP y trastornos del ritmo circadiano.
+            </span>
+            <span class="pt-cta">
+                Seleccionar
+                <span class="pt-go inline-flex"><RightArrow class="size-4" /></span>
+            </span>
+        </a>
+
+        <a href="/registro/animo" class="pt-opt acc-purple group">
+            <span class="pt-chip pt-chip-lg">
+                <FaceIcon class="size-7" />
+            </span>
+            <span class="mt-6 block text-xl font-semibold tracking-tight text-white">Estado de Ánimo</span>
+            <span class="mt-2 block text-sm leading-relaxed text-gray-400">
+                Depresión, ansiedad, evaluación de funciones ejecutivas y protocolos TMS.
+            </span>
+            <span class="pt-cta">
+                Seleccionar
+                <span class="pt-go inline-flex"><RightArrow class="size-4" /></span>
+            </span>
+        </a>
+
     </div>
 </dialog>
 
@@ -63,8 +78,8 @@ import SleepIcon from "./icons/lista/SleepIcon.astro";
     }
 
     #modal-tipo-paciente::backdrop {
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(6px);
     }
 
     #modal-tipo-paciente[open] {
@@ -72,13 +87,67 @@ import SleepIcon from "./icons/lista/SleepIcon.astro";
     }
 
     @keyframes fade-in-patient-modal {
-        from { 
-            opacity: 0; 
-            transform: scale(0.95) translateY(10px); 
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
         }
-        to { 
-            opacity: 1; 
-            transform: scale(1) translateY(0); 
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
         }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+        #modal-tipo-paciente[open] { animation: none; }
+    }
+
+    .acc-blue    { --a: 59 130 246;  --t: 147 197 253; }
+    .acc-purple  { --a: 168 85 247;  --t: 216 180 254; }
+    .acc-emerald { --a: 16 185 129;  --t: 110 231 183; }
+
+    .pt-chip {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: .75rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .pt-chip-lg { width: 3.5rem; height: 3.5rem; border-radius: 1rem; }
+
+    .pt-opt {
+        display: flex;
+        flex-direction: column;
+        min-height: 15rem;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        border: 1px solid rgb(var(--a) / .25);
+        background: rgb(var(--a) / .08);
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color .2s ease, background-color .2s ease;
+    }
+    .pt-opt:hover {
+        border-color: rgb(var(--a) / .55);
+        background: rgb(var(--a) / .12);
+    }
+    .pt-opt:hover .pt-chip { background: rgb(var(--a)); color: #fff; }
+    .pt-opt:focus-visible { outline: 2px solid rgb(var(--t)); outline-offset: 2px; }
+
+    .pt-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        margin-top: auto;
+        padding-top: 1.25rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: rgb(var(--t));
+    }
+    .pt-go { transition: transform .2s ease; }
+    .pt-opt:hover .pt-go { transform: translateX(4px); }
 </style>

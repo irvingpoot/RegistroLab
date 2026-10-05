@@ -296,7 +296,7 @@ const { dias, slots, esAdmin, estilos, bloquesSetPorPsicologo, nombresPorId, cle
         for (const u of usuarios) {
             const ocupadoPor = vinculadoA.get(u.id);
             const etiqueta = ocupadoPor
-                ? `${u.nombre}${u.email ? ` (${u.email})` : ""} — ya vinculado a ${ocupadoPor}`
+                ? `${u.nombre}${u.email ? ` (${u.email})` : ""} — ya tiene un horario vinculado`
                 : `${u.nombre}${u.email ? ` (${u.email})` : ""}`;
             const seleccionado = u.id === valorActual ? "selected" : "";
             const deshabilitado = ocupadoPor ? "disabled" : "";
