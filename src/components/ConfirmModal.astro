@@ -1,0 +1,96 @@
+---
+/**
+ * @file ConfirmModal.astro
+ * @description Modal de confirmación genérico. Inclúyelo una vez en la página
+ * (o layout) y en cualquier script llama a `window.confirmarAccion(mensaje)`,
+ * que regresa una Promise<boolean> — igual que `window.confirm`, pero con la
+ * misma estética del resto de la app. No es específico de /horario: puede
+ * reusarse en cualquier otra pantalla que necesite confirmar una acción.
+ *
+ * Uso:
+ *   const ok = await window.confirmarAccion("¿Seguro que quieres continuar?");
+ *   if (!ok) return;
+ *
+ *   // con opciones:
+ *   await window.confirmarAccion("¿Eliminar este registro?", {
+ *       textoConfirmar: "Eliminar",
+ *       peligroso: true, // true (default) = botón rojo, false = botón cyan
+ *   });
+ */
+---
+
+<div id="confirm-modal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="relative w-full max-w-sm bg-[#0b0f19] border border-white/10 rounded-2xl p-6 shadow-2xl">
+        <p id="confirm-modal-mensaje" class="text-white/90 text-sm mb-6 leading-relaxed"></p>
+        <div class="flex justify-end gap-3">
+            <button
+                type="button"
+                id="confirm-modal-cancelar"
+                class="px-4 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30 text-sm cursor-pointer transition-colors"
+            >
+                Cancelar
+            </button>
+            <button
+                type="button"
+                id="confirm-modal-confirmar"
+                class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-black font-semibold text-sm cursor-pointer transition-colors"
+            >
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById("confirm-modal")!;
+    const mensajeEl = document.getElementById("confirm-modal-mensaje")!;
+    const btnCancelar = document.getElementById("confirm-modal-cancelar")!;
+    const btnConfirmar = document.getElementById("confirm-modal-confirmar") as HTMLButtonElement;
+
+    let resolverActual: ((valor: boolean) => void) | null = null;
+
+    function cerrar(resultado: boolean) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        if (resolverActual) {
+            resolverActual(resultado);
+            resolverActual = null;
+        }
+    }
+
+    btnCancelar.addEventListener("click", () => cerrar(false));
+    btnConfirmar.addEventListener("click", () => cerrar(true));
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) cerrar(false);
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.classList.contains("hidden")) cerrar(false);
+    });
+
+    const CLASES_BOTON_PELIGRO =
+        "px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-black font-semibold text-sm cursor-pointer transition-colors";
+    const CLASES_BOTON_NEUTRAL =
+        "px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-sm cursor-pointer transition-colors";
+
+    declare global {
+        interface Window {
+            confirmarAccion: (
+                mensaje: string,
+                opciones?: { textoConfirmar?: string; peligroso?: boolean },
+            ) => Promise<boolean>;
+        }
+    }
+
+    window.confirmarAccion = function (mensaje, opciones = {}) {
+        mensajeEl.textContent = mensaje;
+        btnConfirmar.textContent = opciones.textoConfirmar || "Confirmar";
+        btnConfirmar.className = opciones.peligroso === false ? CLASES_BOTON_NEUTRAL : CLASES_BOTON_PELIGRO;
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+
+        return new Promise((resolve) => {
+            resolverActual = resolve;
+        });
+    };
+</script>

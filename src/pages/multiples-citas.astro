@@ -12,10 +12,15 @@ import { clerkClient } from "@clerk/astro/server";
 import { esUsuarioConAccesoEspecial } from "../lib/permisos";
 import {
     crearCitasEnLote,
-    getInhabilesDesdeHoy,
+    getDiasBloqueadosDesdeHoy,
     type CitaLote,
     type ResultadoLote,
 } from "../services/citas.service";
+import DownTriangle from "../components/icons/DownTriangle.astro";
+import CrossIcon from "../components/icons/CrossIcon.astro";
+import CalendarIcon from "../components/icons/CalendarIcon.astro";
+import LeftTriangle from "../components/icons/LeftTriangle.astro";
+import RightTriangle from "../components/icons/RightTriangle.astro";
 
 const msjSecreto = import.meta.env.MSJ_SECRETO as string;
 
@@ -39,7 +44,7 @@ try {
     console.error("Error cargando perfiles:", e);
 }
 
-const listaInhabiles = await getInhabilesDesdeHoy();
+const listaInhabiles = await getDiasBloqueadosDesdeHoy();
 let resultados: ResultadoLote[] = [];
 let hayRespuesta = false;
 let totalExito   = 0;
@@ -70,6 +75,7 @@ const opcionesMotivo = [
 const opcionesReferencia = [
     { value: "Servicio Medico", label: "Servicio Médico" },
     { value: "Particular",      label: "Particular"      },
+    { value: "Protocolo",       label: "Protocolo (Tesis/Investigación)" },
 ];
 ---
 
@@ -87,41 +93,61 @@ const opcionesReferencia = [
             <HiddenModalIcon class="w-6 h-6" />
         </button>
 
-        <dialog 
-            id="modal-admin" 
-            class="m-auto bg-transparent border-0 rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop:backdrop-blur-xl w-full max-w-4xl p-0 overflow-hidden outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
+        <dialog
+            id="modal-admin"
+            class="m-auto bg-transparent border-0 rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop:backdrop-blur-xl backdrop:bg-[#1a0d0b]/60 w-full max-w-4xl max-h-[96dvh] p-0 overflow-x-hidden overflow-y-auto outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
         >
-            <div class="relative w-full h-[600px] overflow-hidden rounded-3xl">
+            <div class="relative flex min-h-[min(600px,88dvh)] w-full flex-col overflow-hidden rounded-3xl">
 
-                <img 
-                    src="https://images.unsplash.com/photo-1721062383099-c7ad7edc8842?q=80&w=871&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
-                    alt="Imagen de fondo" 
-                    class="absolute inset-0 w-full h-full object-cover scale-105"
-                    style="transform-origin: center;"
+                <img
+                    src="https://images.unsplash.com/photo-1698544922251-533dd07cdbfd?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                    alt=""
+                    class="photo absolute inset-0 w-full h-full object-cover"
                 />
 
-                <div class="absolute inset-0 bg-[#2a1a18]/20"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-[#1f1311]/95 via-[#2a1a18]/50 to-transparent"></div>
+                <!-- Tinte cálido, degradado inferior y resplandor rosa -->
+                <div class="absolute inset-0 bg-[#2a1a18]/25"></div>
+                <div class="absolute inset-0 bg-[linear-gradient(to_top,rgba(31,19,17,0.96)_0%,rgba(31,19,17,0.72)_38%,transparent_78%)]"></div>
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(240,105,161,0.28),transparent_65%)]"></div>
+                <div class="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.55)] rounded-3xl pointer-events-none"></div>
 
-                <div class="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] rounded-3xl pointer-events-none"></div>
+                <!-- Marco fino -->
+                <div class="absolute inset-3 rounded-[1.25rem] border border-[#f5d0cc]/15 pointer-events-none"></div>
 
-                <button type="button" id="btn-cerrar-admin" class="absolute top-5 right-5 z-20 bg-[#3a2825]/40 hover:bg-[#3a2825]/70 text-rose-300/90 hover:text-white p-2.5 rounded-full backdrop-blur-xl border border-rose-200/10 transition-all duration-200 cursor-pointer shadow-lg shadow-black/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button type="button" id="btn-cerrar-admin" class="absolute top-6 right-6 z-20 bg-[#3a2825]/40 hover:bg-[#3a2825]/70 text-rose-300/90 hover:text-white p-2.5 rounded-full backdrop-blur-xl border border-rose-200/10 transition-all duration-200 cursor-pointer shadow-lg shadow-black/20">
+                    <CrossIcon class="h-5 w-5" />
                 </button>
 
-                <div class="absolute bottom-0 left-0 right-0 p-10 z-10 flex flex-col items-center text-center">
+                <div class="rise relative z-10 mt-auto flex flex-col items-center px-6 pb-9 pt-24 text-center md:px-10">
 
-                    <h3 class="text-4xl font-extrabold text-[#fdf6f5] leading-tight mb-5 drop-shadow-xl">
+                    <h3 id="msg-titulo" class="text-4xl md:text-5xl font-semibold leading-none text-[#fdf6f5] [text-shadow:0_4px_30px_rgba(240,105,161,0.45)]">
                         ¡Holaaaaaaaaa!
                     </h3>
 
-                    <div class="bg-[#362320]/40 backdrop-blur-lg border border-[#a67c78]/20 rounded-3xl p-6 mb-8 shadow-2xl shadow-black/50 max-w-2xl w-full">
-                        <p class="text-[#f2e1df] text-base leading-relaxed font-medium drop-shadow-sm">
+                    <div class="mt-3 flex items-center gap-3 text-[#f2b8cf]/80" aria-hidden="true">
+                        <span class="h-px w-14 bg-gradient-to-r from-transparent to-[#f2b8cf]/60"></span>
+                        <svg class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2z" /></svg>
+                        <span class="h-px w-14 bg-gradient-to-l from-transparent to-[#f2b8cf]/60"></span>
+                    </div>
+
+                    <div class="relative mt-9 w-full max-w-2xl rounded-[1.75rem] border border-[#e8b4b0]/20 bg-[#362320]/35 px-8 pb-7 pt-9 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
+                        <span class="absolute -top-5 left-1/2 grid size-10 -translate-x-1/2 place-items-center rounded-full bg-[#f069a1] text-white ring-4 ring-[#1f1311]/60 shadow-[0_8px_24px_-4px_rgba(240,105,161,0.7)]">
+                            <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+                        </span>
+                        <p
+                            id="msg-texto"
+                            class={`break-words leading-relaxed text-[#f2e1df] ${
+                                String(msjSecreto ?? '').length > 600 ? 'text-sm md:text-base'
+                                : String(msjSecreto ?? '').length > 300 ? 'text-base md:text-lg'
+                                : String(msjSecreto ?? '').length > 140 ? 'text-lg md:text-xl'
+                                : 'text-xl md:text-2xl'
+                            }`}
+                        >
                             {msjSecreto}
                         </p>
                     </div>
 
-                    <button type="button" id="btn-guardar-admin" class="bg-[#f069a1] hover:bg-[#a36965] hover:scale-105 text-white font-bold py-3.5 px-12 rounded-full transition-all duration-200 cursor-pointer text-sm uppercase tracking-wider shadow-xl shadow-[#4a2e2a]/50 active:scale-95">
+                    <button type="button" id="btn-guardar-admin" class="mt-7 cursor-pointer rounded-full bg-[#f069a1] px-12 py-3.5 text-sm font-semibold text-white shadow-[0_12px_36px_-8px_rgba(240,105,161,0.65)] transition-all duration-200 hover:scale-105 hover:bg-[#e0558f] active:scale-95">
                         Cerrar
                     </button>
                 </div>
@@ -228,7 +254,7 @@ const opcionesReferencia = [
                                 {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -246,7 +272,7 @@ const opcionesReferencia = [
                                 {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -260,7 +286,7 @@ const opcionesReferencia = [
                                 <option value="Por asignar">— Por definir —</option>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                <DownTriangle class="h-4 w-4" />
                             </div>
                         </div>
                     </div>
@@ -282,7 +308,7 @@ const opcionesReferencia = [
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Fechas <span class="text-red-500">*</span></label>
                                 <button type="button" id="btn-abrir-calendario" class="w-full p-3 border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-400 font-medium transition-all text-sm flex items-center justify-between cursor-pointer">
                                     <span id="texto-fechas-seleccionadas">Seleccionar fechas...</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <CalendarIcon class="h-5 w-5" />
                                 </button>
                             </div>
                             
@@ -316,11 +342,11 @@ const opcionesReferencia = [
         <div class="p-5">
             <div class="flex justify-between items-center mb-4">
                 <button type="button" id="btn-prev-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    <LeftTriangle class="w-5 h-5" />
                 </button>
                 <h3 id="mes-anio-label" class="text-white font-bold capitalize">Mes Año</h3>
                 <button type="button" id="btn-next-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    <RightTriangle class="w-5 h-5" />
                 </button>
             </div>
             
@@ -364,6 +390,16 @@ const opcionesReferencia = [
     input[type="time"]::-webkit-calendar-picker-indicator {
         filter: invert(.6);
         cursor: pointer;
+    }
+
+    dialog[open] .photo { animation: kb 20s ease-out forwards; }
+    dialog[open] .rise  { animation: rise .9s .3s cubic-bezier(.2, .8, .2, 1) both; }
+
+    @keyframes kb   { from { transform: scale(1.04); } to { transform: scale(1.14); } }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (prefers-reduced-motion: reduce) {
+        dialog[open] .photo, dialog[open] .rise { animation: none; }
     }
 </style>
 
@@ -452,7 +488,7 @@ const opcionesReferencia = [
             if (isInhabil) {
                 classes += "bg-red-900/30 text-red-500 cursor-not-allowed border border-red-500/30 opacity-60 font-medium";
                 btn.disabled = true;
-                btn.title = "Día inhábil";
+                btn.title = "Día bloqueado (Inhábil o Evento)";
             } else if (isSelected) {
                 classes += "bg-blue-600 text-white shadow-md font-bold cursor-pointer hover:bg-blue-500";
             } else {
@@ -578,6 +614,34 @@ const opcionesReferencia = [
         modalAdmin.addEventListener("click", (e) => {
             if (e.target === modalAdmin) cerrarModalAdmin();
         });
+
+        // Reduce la letra hasta que el modal quepa en pantalla
+        const msgTexto = document.getElementById("msg-texto");
+        const msgTitulo = document.getElementById("msg-titulo");
+
+        const ajustarTextoModal = () => {
+            if (!modalAdmin.open || !msgTexto || !msgTitulo) return;
+
+            msgTexto.style.fontSize = "";
+            msgTitulo.style.fontSize = "";
+            const desborda = () => modalAdmin.scrollHeight > modalAdmin.clientHeight + 1;
+
+            let t = parseFloat(getComputedStyle(msgTexto).fontSize);
+            while (desborda() && t > 13) {
+                t -= 1;
+                msgTexto.style.fontSize = `${t}px`;
+            }
+
+            let h = parseFloat(getComputedStyle(msgTitulo).fontSize);
+            while (desborda() && h > 32) {
+                h -= 2;
+                msgTitulo.style.fontSize = `${h}px`;
+            }
+        };
+
+        new MutationObserver(ajustarTextoModal).observe(modalAdmin, { attributes: true, attributeFilter: ["open"] });
+        window.addEventListener("resize", ajustarTextoModal);
+        document.fonts?.ready.then(ajustarTextoModal);
     }
 
 </script>

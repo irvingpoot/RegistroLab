@@ -1,0 +1,687 @@
+---
+/**
+ * @file citas/gestor.astro
+ * @description Gestor de citas: buscador con filtros combinables sobre toda la tabla `citas`.
+ *
+ * FUNCIONAMIENTO:
+ * - Inicia con solo el buscador centrado. Al buscar, el bloque sube (animación FLIP) y
+ *   aparecen los resultados debajo, conservando texto y filtros.
+ * - Búsqueda y cambio de estado se hacen con fetch contra /api/citas/buscar y
+ *   /api/citas/estado, por lo que la página nunca recarga y la búsqueda no se pierde.
+ * - Las listas de "Atendido por" y "Registrado por" salen de Clerk, igual que nueva-cita.astro.
+ *
+ * La lógica de acceso a datos vive en: src/services/citas.service.ts
+ */
+
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import ConfirmModal from "../components/ConfirmModal.astro";
+import { clerkClient } from "@clerk/astro/server";
+import SearchIcon from "../components/icons/SearchIcon.astro";
+
+let listaPsicologos: string[] = [];
+let listaRegistradores: string[] = [];
+
+try {
+    const client   = clerkClient(Astro);
+    const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
+    const users    = Array.isArray(response) ? response : (response.data || []);
+
+    const nombreDe = (u: (typeof users)[number]) => {
+        const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+        return nombre || u.username || u.emailAddresses[0]?.emailAddress || "";
+    };
+
+    listaPsicologos = users.filter(u => u.publicMetadata?.puedeAtender === true).map(nombreDe).filter(Boolean);
+    listaRegistradores = users.map(nombreDe).filter(Boolean);
+} catch (e) {
+    console.error("Error cargando usuarios para el gestor:", e);
+}
+
+const chipBase =
+    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border border-gray-700 bg-gray-900/50 text-gray-400 " +
+    "cursor-pointer select-none transition-colors hover:border-gray-500 hover:text-gray-200 " +
+    "peer-focus-visible:ring-2 peer-focus-visible:ring-blue-400 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-gray-950";
+
+const chipAzul    = `${chipBase} peer-checked:bg-blue-600/25 peer-checked:border-blue-500 peer-checked:text-blue-200`;
+const chipMorado  = `${chipBase} peer-checked:bg-purple-600/25 peer-checked:border-purple-500 peer-checked:text-purple-200`;
+
+const camposBusqueda = [
+    { value: "nombre",        label: "Nombre" },
+    { value: "sintoma",       label: "Síntoma" },
+    { value: "telefono",      label: "Teléfono" },
+    { value: "observaciones", label: "Observaciones" },
+    { value: "motivo",        label: "Motivo" },
+];
+
+const referencias = [
+    { value: "Particular",      label: "Particular" },
+    { value: "Servicio Medico", label: "Servicio médico" },
+    { value: "Protocolo", label: "Protocolo" },
+];
+
+const estados = [
+    { value: "pendiente",  label: "Pendiente",  clase: `${chipBase} peer-checked:bg-amber-500/20 peer-checked:border-amber-500 peer-checked:text-amber-200` },
+    { value: "completada", label: "Completada", clase: `${chipBase} peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 peer-checked:text-emerald-200` },
+    { value: "cancelada",  label: "Cancelada",  clase: `${chipBase} peer-checked:bg-red-500/20 peer-checked:border-red-500 peer-checked:text-red-200` },
+];
+
+const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
+---
+
+<Layout title="Gestor de citas | Lab-Somno">
+    <ReturnButton href="/citas" text="Volver a la agenda" />
+
+    <main id="gestor" data-fase="inicio" class="max-w-5xl mx-auto px-4 pb-24">
+        <div class="spacer spacer-top" aria-hidden="true"></div>
+
+        <section id="buscador" class="w-full">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+                    Gestor de <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">Citas</span>
+                </h1>
+                <p class="text-gray-400 mt-2 text-sm md:text-base">Busca en todo el historial por paciente, síntoma, teléfono, observación o motivo.</p>
+            </div>
+
+            <form id="form-busqueda" role="search" autocomplete="off" class="space-y-5">
+                <div class="relative">
+                    <SearchIcon class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                    <input
+                        id="q"
+                        name="q"
+                        type="text"
+                        enterkeyhint="search"
+                        maxlength="120"
+                        placeholder="Nombre, síntoma, teléfono, observación…"
+                        aria-label="Buscar citas"
+                        class="w-full pl-12 pr-32 py-4 text-lg rounded-2xl border border-gray-700 bg-gray-900/60 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                    <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-xl shadow-lg shadow-blue-900/20 transition-colors cursor-pointer">
+                        Buscar
+                    </button>
+                </div>
+
+                <div class="rounded-2xl border border-gray-800 bg-gray-900/40 p-4 md:p-5 space-y-5">
+                    <fieldset>
+                        <legend class="text-xs font-bold text-gray-500 mb-2">Buscar en <span class="font-normal text-gray-600">(sin selección, busca en todos)</span></legend>
+                        <div class="flex flex-wrap gap-2">
+                            {camposBusqueda.map(c => (
+                                <label>
+                                    <input type="checkbox" name="campo" value={c.value} class="peer sr-only" />
+                                    <span class={chipAzul}>{c.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
+
+                    <div class="grid md:grid-cols-2 gap-5 border-t border-gray-800/70 pt-5">
+                        <fieldset>
+                            <legend class="text-xs font-bold text-gray-500 mb-2">Referencia</legend>
+                            <div class="flex flex-wrap gap-2">
+                                {referencias.map(r => (
+                                    <label>
+                                        <input type="checkbox" name="referencia" value={r.value} class="peer sr-only" />
+                                        <span class={chipAzul}>{r.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend class="text-xs font-bold text-gray-500 mb-2">Estado</legend>
+                            <div class="flex flex-wrap gap-2">
+                                {estados.map(e => (
+                                    <label>
+                                        <input type="checkbox" name="estado" value={e.value} class="peer sr-only" />
+                                        <span class={e.clase}>{e.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend class="text-xs font-bold text-gray-500 mb-2">Atendido por</legend>
+                            <div class="flex flex-wrap gap-2">
+                                {atendidoPorOpciones.map(n => (
+                                    <label>
+                                        <input type="checkbox" name="atendido_por" value={n} class="peer sr-only" />
+                                        <span class={chipMorado}>{n}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend class="text-xs font-bold text-gray-500 mb-2">Registrado por</legend>
+                            <div class="flex flex-wrap gap-2">
+                                {listaRegistradores.length === 0 && (
+                                    <span class="text-sm text-gray-600">No se pudo cargar la lista de usuarios.</span>
+                                )}
+                                {listaRegistradores.map(n => (
+                                    <label>
+                                        <input type="checkbox" name="registrado_por" value={n} class="peer sr-only" />
+                                        <span class={chipMorado}>{n}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-gray-800/70 pt-4 text-sm">
+                        <span id="contador-filtros" class="text-gray-500">Sin filtros activos</span>
+                        <button type="button" id="btn-limpiar" class="text-gray-400 hover:text-white underline-offset-4 hover:underline transition-colors cursor-pointer">
+                            Limpiar todo
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section id="resultados" hidden class="w-full mt-10" aria-labelledby="resumen">
+            <p id="resumen" class="text-sm text-gray-400 mb-4 min-h-5" role="status" aria-live="polite"></p>
+            <div id="lista" class="grid gap-4 lg:grid-cols-2" aria-busy="false"></div>
+            <div id="mas" class="flex justify-center mt-8" hidden>
+                <button type="button" id="btn-mas" class="px-6 py-2.5 rounded-full border border-gray-700 text-gray-300 hover:border-blue-500 hover:text-white hover:bg-blue-600/10 transition-colors cursor-pointer text-sm"></button>
+            </div>
+        </section>
+
+        <div class="spacer spacer-bottom" aria-hidden="true"></div>
+    </main>
+
+    <div id="toast" role="status" aria-live="polite" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl text-sm text-white shadow-2xl border opacity-0 pointer-events-none transition-opacity duration-300 max-w-[90vw] text-center"></div>
+    <ConfirmModal />
+</Layout>
+
+<style>
+    #gestor {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100dvh - 6rem);
+    }
+    .spacer { flex: 0 0 0; }
+    #gestor[data-fase="inicio"] .spacer-top    { flex: 1 1 0; }
+    #gestor[data-fase="inicio"] .spacer-bottom { flex: 1.4 1 0; }
+
+    :global(.cita-resultado[data-estado="cancelada"] .cita-nombre) {
+        text-decoration: line-through;
+        text-decoration-color: rgb(248 113 113 / 0.5);
+    }
+    :global(.cita-resultado mark) {
+        background: rgb(59 130 246 / 0.35);
+        color: #fff;
+        border-radius: 3px;
+        padding: 0 2px;
+    }
+</style>
+
+<script>
+    type Estado = "pendiente" | "completada" | "cancelada";
+
+    interface Cita {
+        id: number;
+        fecha_hora: string;
+        nombre: string;
+        estado: Estado | null;
+        referencia: string | null;
+        sintoma: string | null;
+        telefono: string | null;
+        motivo: string | null;
+        atendido_por: string | null;
+        observaciones: string | null;
+        registrado_por_id: string | null;
+    }
+
+    const PAGINA = 30;
+    const EASING = "cubic-bezier(.22,1,.36,1)";
+    const reducirMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+    const main       = $("gestor");
+    const buscador   = $("buscador");
+    const form       = $<HTMLFormElement>("form-busqueda");
+    const inputQ     = $<HTMLInputElement>("q");
+    const resultados = $("resultados");
+    const resumen    = $("resumen");
+    const lista      = $("lista");
+    const contMas    = $("mas");
+    const btnMas     = $<HTMLButtonElement>("btn-mas");
+    const contFiltros = $("contador-filtros");
+    const toast      = $("toast");
+
+
+    const ICONOS = {
+        pendiente:  `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`,
+        completada: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
+        cancelada:  `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
+    };
+
+    const WA_ICONO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-blue-500 group-hover/wa:text-green-500 transition-colors shrink-0" aria-hidden="true"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>`;
+
+    const ESTADO_META: Record<Estado, { label: string; franja: string; activo: string }> = {
+        pendiente:  { label: "Pendiente",  franja: "bg-amber-500",   activo: "bg-amber-500/20 text-amber-300 border-amber-500/60" },
+        completada: { label: "Completada", franja: "bg-emerald-500", activo: "bg-emerald-500/20 text-emerald-300 border-emerald-500/60" },
+        cancelada:  { label: "Cancelada",  franja: "bg-red-500",     activo: "bg-red-500/20 text-red-300 border-red-500/60" },
+    };
+    const ESTADOS: Estado[] = ["pendiente", "completada", "cancelada"];
+
+    const MOTIVO_COLORES: Record<string, string> = {
+        entrevista:  "bg-blue-500/20 text-blue-300 border-blue-500/50",
+        seguimiento: "bg-purple-500/20 text-purple-300 border-purple-500/50",
+        tratamiento: "bg-emerald-500/20 text-emerald-300 border-emerald-500/50",
+        otro:        "bg-amber-500/20 text-amber-300 border-amber-500/50",
+    };
+    const MOTIVO_DEFECTO = "bg-gray-700/50 text-gray-400 border-gray-600";
+
+    const esc = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+
+    let paramsBase = new URLSearchParams();
+    let terminos: string[] = [];
+    let camposBuscados: string[] = [];
+    let items: Cita[] = [];
+    let total = 0;
+    let ejecutada = false;
+    let secuencia = 0;
+
+    function resaltar(texto: string | null | undefined, campo: string): string {
+        if (!texto) return "";
+        if (!terminos.length || !camposBuscados.includes(campo)) return esc(texto);
+        const re = new RegExp(`(${terminos.map(escRe).join("|")})`, "gi");
+        return texto
+            .split(re)
+            .map((trozo, i) => (i % 2 ? `<mark>${esc(trozo)}</mark>` : esc(trozo)))
+            .join("");
+    }
+
+    function tarjeta(c: Cita): string {
+        const est: Estado = c.estado ?? "pendiente";
+        const meta = ESTADO_META[est];
+        const d = new Date(c.fecha_hora);
+        const zona = "America/Merida";
+        const fecha = d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: zona });
+        const hora  = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: zona });
+        const motivoTexto  = c.motivo ? c.motivo.replace("_", " ") : "Sin motivo";
+        const motivoClase  = MOTIVO_COLORES[c.motivo ?? ""] ?? MOTIVO_DEFECTO;
+
+        let telefono = `<span>Sin teléfono registrado</span>`;
+        if (c.telefono) {
+            const numero = c.telefono.replace(/\D/g, "");
+            const diaTexto = d.toLocaleDateString("es-MX", { day: "numeric", month: "long", timeZone: zona });
+            const msg = `Hola ${c.nombre || "Paciente"}, le escribimos de RegistroLab para confirmar su cita del día *${diaTexto}* a las *${hora}*. ¿Podría confirmar su asistencia?`;
+            const link = `https://wa.me/52${numero}?text=${encodeURIComponent(msg)}`;
+            telefono = `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer" class="hover:text-green-400 transition-colors border-b border-transparent hover:border-green-400/50" title="Enviar WhatsApp de confirmación">${resaltar(c.telefono, "telefono")}</a>`;
+        }
+
+        const botonesEstado = ESTADOS.map((e) => {
+            const activo = e === est;
+            const clase = activo
+                ? ESTADO_META[e].activo
+                : "border-transparent text-gray-500 hover:text-gray-200 hover:bg-white/5";
+            return `<button type="button" data-set-estado="${e}" aria-pressed="${activo}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors cursor-pointer disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${clase}">${ICONOS[e]}<span>${ESTADO_META[e].label}</span></button>`;
+        }).join("");
+
+        const observaciones = c.observaciones
+            ? `<div class="pt-1">
+                    <span class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Observaciones</span>
+                    <p class="text-sm text-gray-300 italic leading-relaxed text-pretty whitespace-pre-line bg-gray-800/30 p-2 rounded-lg border border-white/5">${resaltar(c.observaciones, "observaciones")}</p>
+                </div>`
+            : "";
+
+        return `
+        <article class="cita-resultado relative overflow-hidden bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 rounded-2xl p-5 pl-6 transition-colors duration-300" data-id="${c.id}" data-estado="${est}">
+            <span class="absolute inset-y-0 left-0 w-1.5 ${meta.franja}" aria-hidden="true"></span>
+
+            <div class="flex justify-between items-start gap-4 mb-3">
+                <div class="flex-1 min-w-0">
+                    <h3 class="cita-nombre text-lg font-semibold text-gray-100 capitalize text-pretty break-words leading-tight">${resaltar(c.nombre, "nombre")}</h3>
+                    <div class="flex items-center gap-1.5 text-sm text-gray-400 mt-1 group/wa">${WA_ICONO}${telefono}</div>
+                </div>
+                <div class="flex flex-col items-end shrink-0 text-right">
+                    <span class="text-xl font-mono font-bold text-white tracking-tight whitespace-nowrap">${esc(hora)}</span>
+                    <span class="text-xs text-blue-400 font-medium mt-0.5 capitalize">${esc(fecha)}</span>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <span class="inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${motivoClase}">${resaltar(motivoTexto, "motivo")}</span>
+
+                <div class="grid grid-cols-3 gap-3 py-3 border-t border-gray-800/50">
+                    <div class="min-w-0"><span class="block text-[10px] uppercase text-gray-500 font-bold">Atiende</span><span class="text-sm font-medium text-purple-300 break-words">${esc(c.atendido_por || "Sin asignar")}</span></div>
+                    <div class="min-w-0"><span class="block text-[10px] uppercase text-gray-500 font-bold">Referencia</span><span class="text-sm text-gray-300 break-words">${esc(c.referencia || "—")}</span></div>
+                    <div class="min-w-0"><span class="block text-[10px] uppercase text-gray-500 font-bold">Síntoma</span><span class="text-sm text-gray-300 break-words">${resaltar(c.sintoma, "sintoma") || "—"}</span></div>
+                </div>
+
+                ${observaciones}
+
+                <p class="text-xs text-gray-500"><strong>Agendado por:</strong> ${esc(c.registrado_por_id || "—")}</p>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-800/50">
+                    <div role="group" aria-label="Estado de la cita" class="inline-flex flex-wrap gap-0.5 rounded-full border border-gray-800 bg-gray-950/40 p-0.5">${botonesEstado}</div>
+                    <div class="flex items-center gap-4">
+                        <a href="/editar-cita/${c.id}" class="text-xs text-gray-400 hover:text-white hover:underline flex items-center gap-1 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                            Editar cita
+                        </a>
+                        <button type="button" data-eliminar aria-label="Eliminar cita" title="Eliminar cita" class="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </article>`;
+    }
+
+    const esqueletos = () =>
+        Array.from({ length: 4 }, () =>
+            `<div class="rounded-2xl border border-gray-800 bg-gray-900/40 p-5 animate-pulse space-y-4" aria-hidden="true">
+                <div class="flex justify-between"><div class="h-5 w-1/2 rounded bg-gray-800"></div><div class="h-6 w-16 rounded bg-gray-800"></div></div>
+                <div class="h-4 w-1/3 rounded bg-gray-800/70"></div>
+                <div class="h-12 rounded bg-gray-800/50"></div>
+                <div class="h-8 w-2/3 rounded-full bg-gray-800/60"></div>
+            </div>`).join("");
+
+    const vacio = () => `
+        <div class="lg:col-span-2 flex flex-col items-center text-center py-14 px-6 rounded-2xl border border-dashed border-gray-800 bg-gray-900/20">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-gray-600 mb-4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" /></svg>
+            <h3 class="text-lg font-semibold text-gray-200">No encontramos citas con esa búsqueda</h3>
+            <p class="text-sm text-gray-500 mt-1 max-w-sm">Revisa la ortografía, prueba con menos palabras o quita algún filtro para ampliar los resultados.</p>
+            <button type="button" data-accion="limpiar" class="mt-5 px-5 py-2 rounded-full border border-gray-700 text-gray-300 hover:border-blue-500 hover:text-white transition-colors text-sm cursor-pointer">Limpiar filtros</button>
+        </div>`;
+
+    const errorVista = (msg: string) => `
+        <div class="lg:col-span-2 flex flex-col items-center text-center py-12 px-6 rounded-2xl border border-red-500/30 bg-red-950/20">
+            <h3 class="text-lg font-semibold text-red-200">No se pudo completar la búsqueda</h3>
+            <p class="text-sm text-red-300/70 mt-1">${esc(msg)}</p>
+            <button type="button" data-accion="reintentar" class="mt-5 px-5 py-2 rounded-full bg-red-600/80 hover:bg-red-500 text-white text-sm transition-colors cursor-pointer">Reintentar</button>
+        </div>`;
+
+
+    function transicionar(cambio: () => void) {
+        const antes = buscador.getBoundingClientRect().top;
+        cambio();
+        const dy = antes - buscador.getBoundingClientRect().top;
+        if (!dy || reducirMovimiento) return;
+        buscador.animate(
+            [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }],
+            { duration: 700, easing: EASING },
+        );
+    }
+
+    function irAResultados() {
+        if (main.dataset.fase === "resultados") return;
+        transicionar(() => {
+            main.dataset.fase = "resultados";
+            resultados.hidden = false;
+        });
+        if (!reducirMovimiento) {
+            resultados.animate(
+                [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }],
+                { duration: 500, delay: 250, easing: EASING, fill: "backwards" },
+            );
+        }
+    }
+
+    function volverAlInicio() {
+        transicionar(() => {
+            main.dataset.fase = "inicio";
+            resultados.hidden = true;
+        });
+        lista.innerHTML = "";
+        items = [];
+        total = 0;
+        ejecutada = false;
+    }
+
+
+    function leerFormulario(): URLSearchParams {
+        const params = new URLSearchParams();
+        for (const [clave, valor] of new FormData(form)) {
+            if (typeof valor === "string" && valor.trim() !== "") params.append(clave, valor.trim());
+        }
+        return params;
+    }
+
+    function pintarResumen() {
+        if (!items.length && !total) {
+            resumen.textContent = "";
+            return;
+        }
+        const n = total === 1 ? "1 cita encontrada" : `${total} citas encontradas`;
+        resumen.textContent = items.length < total ? `${n} · mostrando ${items.length}` : n;
+    }
+
+    function pintarLista() {
+        lista.innerHTML = items.length ? items.map(tarjeta).join("") : vacio();
+        pintarResumen();
+        const restantes = total - items.length;
+        contMas.hidden = restantes <= 0;
+        btnMas.textContent = `Mostrar más (${restantes} restantes)`;
+    }
+
+    async function pedir(offset: number): Promise<{ citas: Cita[]; total: number }> {
+        const params = new URLSearchParams(paramsBase);
+        params.set("offset", String(offset));
+        params.set("limit", String(PAGINA));
+        const res = await fetch(`/api/citas/buscar?${params}`, { headers: { Accept: "application/json" } });
+        if (!res.ok) {
+            const cuerpo = await res.json().catch(() => null);
+            throw new Error(cuerpo?.error ?? `Error ${res.status}`);
+        }
+        return res.json();
+    }
+
+    async function ejecutarBusqueda() {
+        const mia = ++secuencia;
+
+        paramsBase = leerFormulario();
+        const q = paramsBase.get("q") ?? "";
+        terminos = q.split(/\s+/).filter(Boolean).slice(0, 6);
+        camposBuscados = paramsBase.getAll("campo");
+        if (!camposBuscados.length) camposBuscados = ["nombre", "sintoma", "telefono", "observaciones", "motivo"];
+
+        const primera = !ejecutada;
+        ejecutada = true;
+        lista.setAttribute("aria-busy", "true");
+        lista.innerHTML = esqueletos();
+        contMas.hidden = true;
+        resumen.textContent = "Buscando…";
+        if (primera) irAResultados();
+
+        try {
+            const datos = await pedir(0);
+            if (mia !== secuencia) return;
+            items = datos.citas;
+            total = datos.total;
+            pintarLista();
+        } catch (e) {
+            if (mia !== secuencia) return;
+            items = [];
+            total = 0;
+            resumen.textContent = "";
+            lista.innerHTML = errorVista(e instanceof Error ? e.message : "Error desconocido");
+        } finally {
+            if (mia === secuencia) lista.setAttribute("aria-busy", "false");
+        }
+    }
+
+    async function cargarMas() {
+        const mia = secuencia;
+        btnMas.disabled = true;
+        btnMas.textContent = "Cargando…";
+        try {
+            const datos = await pedir(items.length);
+            if (mia !== secuencia) return;
+            items = items.concat(datos.citas);
+            total = datos.total;
+            pintarLista();
+        } catch (e) {
+            mostrarToast(e instanceof Error ? e.message : "No se pudieron cargar más citas", true);
+        } finally {
+            btnMas.disabled = false;
+            btnMas.textContent = `Mostrar más (${Math.max(total - items.length, 0)} restantes)`;
+        }
+    }
+
+
+    let temporizadorToast: number | undefined;
+    function mostrarToast(texto: string, esError = false) {
+        toast.textContent = texto;
+        toast.className = toast.className
+            .replace(/bg-\S+|border-(?:emerald|red)-\S+/g, "")
+            .trim();
+        toast.classList.add(...(esError ? ["bg-red-900", "border-red-500/50"] : ["bg-gray-800", "border-emerald-500/40"]));
+        toast.classList.replace("opacity-0", "opacity-100");
+        window.clearTimeout(temporizadorToast);
+        temporizadorToast = window.setTimeout(() => toast.classList.replace("opacity-100", "opacity-0"), 2800);
+    }
+
+    async function cambiarEstado(card: HTMLElement, nuevo: Estado) {
+        const id = Number(card.dataset.id);
+        const cita = items.find((c) => c.id === id);
+        if (!cita || (cita.estado ?? "pendiente") === nuevo) return;
+
+        const botones = card.querySelectorAll<HTMLButtonElement>("[data-set-estado]");
+        botones.forEach((b) => (b.disabled = true));
+        card.classList.add("opacity-70");
+
+        try {
+            const res = await fetch("/api/citas/estado", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, estado: nuevo }),
+            });
+            if (!res.ok) {
+                const cuerpo = await res.json().catch(() => null);
+                throw new Error(cuerpo?.error ?? `Error ${res.status}`);
+            }
+
+            cita.estado = nuevo;
+            const plantilla = document.createElement("template");
+            plantilla.innerHTML = tarjeta(cita).trim();
+            const nueva = plantilla.content.firstElementChild as HTMLElement;
+            card.replaceWith(nueva);
+            if (!reducirMovimiento) {
+                nueva.animate(
+                    [{ boxShadow: "0 0 0 2px rgb(59 130 246 / 0.7)" }, { boxShadow: "0 0 0 0 rgb(59 130 246 / 0)" }],
+                    { duration: 700, easing: "ease-out" },
+                );
+            }
+            mostrarToast(`Cita de ${cita.nombre} marcada como ${ESTADO_META[nuevo].label.toLowerCase()}`);
+        } catch (e) {
+            botones.forEach((b) => (b.disabled = false));
+            card.classList.remove("opacity-70");
+            mostrarToast(e instanceof Error ? e.message : "No se pudo actualizar el estado", true);
+        }
+    }
+
+    async function eliminarCitaDeCard(card: HTMLElement) {
+        const id = Number(card.dataset.id);
+        const cita = items.find((c) => c.id === id);
+        if (!cita) return;
+
+        const d = new Date(cita.fecha_hora);
+        const fecha = d.toLocaleDateString("es-MX", { day: "numeric", month: "long", timeZone: "America/Merida" });
+        const hora  = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Merida" });
+
+        const ok = await window.confirmarAccion(
+            `¿Eliminar definitivamente la cita de ${cita.nombre} del ${fecha} a las ${hora}? Esta acción no se puede deshacer.`,
+            { textoConfirmar: "Eliminar", peligroso: true },
+        );
+        if (!ok) return;
+
+        const boton = card.querySelector<HTMLButtonElement>("[data-eliminar]");
+        if (boton) boton.disabled = true;
+        card.classList.add("opacity-50", "pointer-events-none");
+
+        try {
+            const res = await fetch("/api/citas/eliminar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+            if (!res.ok) {
+                const cuerpo = await res.json().catch(() => null);
+                throw new Error(cuerpo?.error ?? `Error ${res.status}`);
+            }
+
+            items = items.filter((c) => c.id !== id);
+            total = Math.max(total - 1, 0);
+            pintarResumen();
+            contMas.hidden = total - items.length <= 0;
+
+            if (reducirMovimiento) {
+                card.remove();
+            } else {
+                await card.animate(
+                    [{ opacity: 0.5, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.97)" }],
+                    { duration: 250, easing: "ease-in", fill: "forwards" },
+                ).finished;
+                card.remove();
+            }
+            mostrarToast(`Cita de ${cita.nombre} eliminada`);
+        } catch (e) {
+            card.classList.remove("opacity-50", "pointer-events-none");
+            if (boton) boton.disabled = false;
+            mostrarToast(e instanceof Error ? e.message : "No se pudo eliminar la cita", true);
+        }
+    }
+
+
+    function actualizarContador() {
+        const activos = form.querySelectorAll(
+            'input[name="referencia"]:checked, input[name="estado"]:checked, input[name="atendido_por"]:checked, input[name="registrado_por"]:checked',
+        ).length;
+        contFiltros.textContent = activos === 0 ? "Sin filtros activos" : activos === 1 ? "1 filtro activo" : `${activos} filtros activos`;
+    }
+
+    function limpiar() {
+        secuencia++;
+        form.reset();
+        actualizarContador();
+        if (ejecutada) volverAlInicio();
+        inputQ.focus();
+    }
+
+    let temporizadorFiltros: number | undefined;
+    form.addEventListener("change", () => {
+        actualizarContador();
+        if (!ejecutada) return;
+        window.clearTimeout(temporizadorFiltros);
+        temporizadorFiltros = window.setTimeout(ejecutarBusqueda, 250);
+    });
+
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        window.clearTimeout(temporizadorFiltros);
+        ejecutarBusqueda();
+    });
+
+    $("btn-limpiar").addEventListener("click", limpiar);
+    btnMas.addEventListener("click", cargarMas);
+
+    resultados.addEventListener("click", (e) => {
+        const objetivo = e.target as HTMLElement;
+        const botonEliminar = objetivo.closest<HTMLElement>("[data-eliminar]");
+        const botonEstado = objetivo.closest<HTMLElement>("[data-set-estado]");
+        if (botonEstado) {
+            const card = botonEstado.closest<HTMLElement>(".cita-resultado");
+            if (card) cambiarEstado(card, botonEstado.dataset.setEstado as Estado);
+            return;
+        }
+        if (botonEliminar) {
+            const card = botonEliminar.closest<HTMLElement>(".cita-resultado");
+            if (card) eliminarCitaDeCard(card);
+            return;
+        }
+
+        const accion = objetivo.closest<HTMLElement>("[data-accion]")?.dataset.accion;
+        if (accion === "reintentar") ejecutarBusqueda();
+        if (accion === "limpiar") limpiar();
+    });
+
+    actualizarContador();
+    inputQ.focus();
+</script>

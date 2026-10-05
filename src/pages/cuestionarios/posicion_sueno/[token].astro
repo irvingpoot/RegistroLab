@@ -393,7 +393,6 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
 </LayoutCuestionario>
 
 <script is:inline>
-    // ── Checkboxes interactivos ──────────────────────────────────────────────
     const cards = document.querySelectorAll('.posicion-card');
 
     cards.forEach(card => {
@@ -405,7 +404,6 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
 
         checkbox.addEventListener('change', () => {
             if (checkbox.checked) {
-                // Estado: seleccionado
                 card.classList.remove('border-gray-200');
                 card.classList.add('border-indigo-500', 'shadow-md', 'shadow-indigo-900/10');
                 checkboxCustom.classList.remove('border-gray-300');
@@ -414,7 +412,6 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
                 porcentajeField.classList.remove('hidden');
                 porcentajeInput.required = true;
             } else {
-                // Estado: deseleccionado
                 card.classList.add('border-gray-200');
                 card.classList.remove('border-indigo-500', 'shadow-md', 'shadow-indigo-900/10');
                 checkboxCustom.classList.add('border-gray-300');
@@ -428,7 +425,6 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
         });
     });
 
-    // ── Contador de porcentaje total ─────────────────────────────────────────
     const totalDisplay = document.getElementById('total-display');
     const totalValor = document.getElementById('total-valor');
     const totalBarra = document.getElementById('total-barra');
@@ -479,12 +475,10 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
         }
     }
 
-    // Actualiza el contador al escribir en cualquier input de porcentaje
     document.querySelectorAll('.porcentaje-input').forEach(inp => {
         inp.addEventListener('input', actualizarTotal);
     });
 
-    // ── Modal de confirmación ────────────────────────────────────────────────
     const form = document.getElementById('cuestionario-form');
     const btnPre = document.getElementById('btn-pre-submit');
     const modal = document.getElementById('modal-confirm');
@@ -493,14 +487,12 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
 
     if (btnPre) {
         btnPre.addEventListener('click', () => {
-            // Verificar que al menos una posición esté seleccionada
             const checkedBoxes = document.querySelectorAll('.posicion-checkbox:checked');
             if (checkedBoxes.length === 0) {
                 alert('Por favor selecciona al menos una posición al dormir.');
                 return;
             }
 
-            // Verificar que el total sea 100%
             const visibleInputs = Array.from(document.querySelectorAll('.porcentaje-field:not(.hidden) .porcentaje-input'));
             let suma = 0;
             visibleInputs.forEach(inp => { suma += parseInt(inp.value || '0', 10); });
@@ -510,7 +502,6 @@ const textoFase = { 'pre': 'Pre-Tratamiento', 'inter': 'Intermedio', 'post': 'Po
                 return;
             }
 
-            // Validación nativa del formulario
             if (form.reportValidity()) {
                 modal.showModal();
             }

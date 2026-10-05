@@ -1,0 +1,107 @@
+---
+/**
+ * @file horario.astro
+ * @description Horario visual (time-blocking) de disponibilidad de psicólogos.
+ * Los datos viven en Supabase (psicologos_horario + horario_bloques, ver
+ * migrations/001_horarios_supabase.sql). Cada psicólogo puede editar su
+ * propio horario y color; un admin (publicMetadata.role === "admin")
+ * puede editar cualquiera, dar de alta psicólogos nuevos y eliminarlos.
+ *
+ * Esta página solo orquesta: trae los datos y arma los componentes. La UI
+ * vive en src/components/horario/:
+ *   - HorarioGrid.astro           pills + grilla de solo lectura
+ *   - EditorHorarioModal.astro    modal de edición (horario, color, vincular, eliminar)
+ *   - AgregarPsicologoModal.astro modal de alta (solo admin)
+ *   - ../ConfirmModal.astro       modal de confirmación genérico (reemplaza window.confirm)
+ *
+ * Los tres modales se comunican con la grilla por CustomEvents en `document`
+ * ("horario:editar", "horario:agregar-psicologo").
+ */
+
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import ConfirmModal from "../components/ConfirmModal.astro";
+import HorarioGrid from "../components/horario/HorarioGrid.astro";
+import EditorHorarioModal from "../components/horario/EditorHorarioModal.astro";
+import AgregarPsicologoModal from "../components/horario/AgregarPsicologoModal.astro";
+import { DIAS, HORA_INICIO_GRID, HORA_FIN_GRID, PASO_MIN } from "../data/horarios.config";
+import { obtenerHorariosCompletos, obtenerPsicologoPorClerkId } from "../lib/horarios-db";
+import {
+    generarSlots,
+    construirMapaDisponibilidad,
+    construirEstilosPorPsicologo,
+    obtenerDiaHoy,
+} from "../lib/horario-utils";
+
+const user = await Astro.locals.currentUser();
+const horarioVisible = user?.publicMetadata?.horarioVisible === true;
+
+if (!horarioVisible) {
+    return Astro.redirect("/dashboard");
+}
+
+const esAdmin = user?.publicMetadata?.role === "admin";
+
+const { psicologos: PSICOLOGOS, bloquesPorPsicologo } = await obtenerHorariosCompletos();
+const miPsicologo = user ? await obtenerPsicologoPorClerkId(user.id) : null;
+
+const slots = generarSlots(HORA_INICIO_GRID, HORA_FIN_GRID, PASO_MIN);
+const mapa = construirMapaDisponibilidad(bloquesPorPsicologo);
+const estilos = construirEstilosPorPsicologo(PSICOLOGOS);
+const diaHoy = obtenerDiaHoy();
+
+const nombresPorId = Object.fromEntries(PSICOLOGOS.map((p) => [p.id, p.nombre]));
+const clerkIdPorPsicologo = Object.fromEntries(PSICOLOGOS.map((p) => [p.id, p.clerkUserId]));
+
+const bloquesSetPorPsicologo: Record<string, string[]> = {};
+for (const [id, bloques] of Object.entries(bloquesPorPsicologo)) {
+    bloquesSetPorPsicologo[id] = bloques.map((b) => b.replace("|", "-"));
+}
+---
+
+<Layout title="Horario | Lab-Somno">
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <main class="max-w-6xl mx-auto pt-10 pb-20 px-6">
+
+        <div class="relative mb-10">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none mix-blend-screen"></div>
+
+            <div class="max-w-7xl mx-auto mb-10 relative">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-balance text-center">Horarios del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">laboratorio</span></h1>
+                <p class=" pt-5 text-lg text-gray-400 text-center">
+                    Desde aquí puedes visualizar los horarios de disponibilidad de todos{esAdmin ? " y editar cualquier horario" : miPsicologo ? " y editar el tuyo" : ""}.
+                </p>
+            </div>
+        </div>
+
+        <HorarioGrid
+            psicologos={PSICOLOGOS}
+            estilos={estilos}
+            dias={DIAS}
+            slots={slots}
+            mapa={mapa}
+            diaHoy={diaHoy}
+            esAdmin={esAdmin}
+            miPsicologoId={miPsicologo?.id ?? null}
+        />
+    </main>
+
+    <EditorHorarioModal
+        dias={DIAS}
+        slots={slots}
+        esAdmin={esAdmin}
+        estilos={estilos}
+        bloquesSetPorPsicologo={bloquesSetPorPsicologo}
+        nombresPorId={nombresPorId}
+        clerkIdPorPsicologo={clerkIdPorPsicologo}
+    />
+
+    {esAdmin && (
+        <AgregarPsicologoModal
+            nombresPorId={nombresPorId}
+            clerkIdPorPsicologo={clerkIdPorPsicologo}
+        />
+    )}
+
+    <ConfirmModal />
+</Layout>

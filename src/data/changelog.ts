@@ -1,8 +1,8 @@
-export const currentVersion = "3.16.0";
+export const currentVersion = "4.0.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "08 de septimebre del 2026";
+export const updateDate = "5 de octubre del 2026";
 
 type Changes = {
     title: string;
@@ -12,23 +12,33 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Eventos en la agenda",
-        description: "Ahora es posible señalar un evento en la agenda así como reservar por completo un día para el mismo.",
+        title: "Gestor de citas",
+        description: "Desde /gestor, ahora es posible gestionar todas las citas en la base de datos, incluyendo la creación, edición y eliminación de citas.",
         type: "feature"
     },
     {
-        title: "Reportes de poligrafia",
-        description: "Se corrigió un error en la redacción de una sección del reporte de poligrafia.",
+        title: "Horario de psicólogos",
+        description: "Ahora es posible visualizar y gestionar el horario de cada psicólogo en la aplicación.",
+        type: "feature"
+    },
+    {
+        title: "Opción de procololo",
+        description: "Ahora al seleccionar 'Procololo' en el formulario de creación de citas, se mostrará la información correspondiente.",
         type: "fix"
     },
     {
-        title: "Campos de paciente opcionales",
-        description: "Se hicieron opcionales ciertos campos del paciente en lugar de obligatorios.",
-        type: "fix"
+        title: "Dashboard y login renovado",
+        description: "Se ha rediseñado el dashboard y el login para mejorar la experiencia del usuario.",
+        type: "style"
     },
     {
-        title: "Estilos en general",
-        description: "Se agregaron nuevos estilos para mejorar la apariencia general de la aplicación, desde animaciones en el menu del calendario hasta señalamientos en los campos que ahora pueden ser vacíos.",
+        title: "Eventos de calendario",
+        description: "Al hacer click en el botón de crear/editar evento, ahora la página se desplazará automáticamente para mostrar el formulario.",
+        type: "style"
+    },
+    {
+        title: "Tabla de usuarios",
+        description: "Se cambió el estilo de la tabla de usuarios.",
         type: "style"
     }
 ];

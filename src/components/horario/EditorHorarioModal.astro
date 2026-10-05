@@ -1,0 +1,369 @@
+---
+/**
+ * @file EditorHorarioModal.astro
+ * @description Modal para editar el horario y color de un psicólogo (y, si
+ * eres admin, vincular su cuenta de Clerk o eliminarlo). No sabe quién dio
+ * clic en "editar": se abre quien sea que dispare el evento
+ * `document` -> "horario:editar" con `{ detail: { psicologoId } }`
+ * (lo dispara HorarioGrid.astro).
+ *
+ * Requiere que <ConfirmModal /> esté presente en la página para el flujo
+ * de eliminar (usa `window.confirmarAccion`).
+ */
+
+import type { Dia } from "../../data/horarios.config";
+import type { EstiloPsicologo } from "../../lib/horario-utils";
+
+interface Props {
+    dias: { id: Dia; label: string }[];
+    slots: string[];
+    esAdmin: boolean;
+    estilos: Record<string, EstiloPsicologo>;
+    bloquesSetPorPsicologo: Record<string, string[]>;
+    nombresPorId: Record<string, string>;
+    clerkIdPorPsicologo: Record<string, string | null>;
+}
+
+const { dias, slots, esAdmin, estilos, bloquesSetPorPsicologo, nombresPorId, clerkIdPorPsicologo } = Astro.props;
+---
+
+<div id="modal-editor" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0b0f19] border border-white/10 rounded-2xl p-6 shadow-2xl">
+        <button type="button" id="modal-cerrar" class="absolute top-4 right-4 text-white/50 hover:text-white cursor-pointer text-xl leading-none">✕</button>
+
+        <div class="flex items-center gap-4 mb-4 flex-wrap">
+            <h2 class="text-2xl font-bold text-white" id="modal-titulo">Editar horario</h2>
+            <div class="flex items-center gap-2 ml-auto">
+                <label for="modal-color-hex" class="text-sm text-white/50">Color</label>
+                <input type="color" id="modal-color-picker" class="w-9 h-9 rounded-lg border border-white/10 bg-transparent cursor-pointer" />
+                <input type="text" id="modal-color-hex" maxlength="7" placeholder="#3b82f6" class="w-24 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-cyan-400" />
+            </div>
+        </div>
+
+        <p class="text-sm text-white/40 mb-4">
+            Haz clic y arrastra sobre los bloques para marcarlos como disponibles. Clic sobre un bloque marcado lo quita.
+        </p>
+
+        <div class="overflow-x-auto">
+            <div id="editor-grid" class="grid grid-cols-[70px_repeat(5,minmax(90px,1fr))] min-w-[600px] select-none">
+                <div class="pb-2"></div>
+                {dias.map((dia) => (
+                    <div class="text-center pb-2 border-b border-white/10 text-xs font-bold uppercase tracking-widest text-white/40">
+                        {dia.label}
+                    </div>
+                ))}
+                {slots.map((slot, rowIndex) => (
+                    <Fragment>
+                        <div class="relative pr-3 border-r border-white/5 flex items-start justify-end">
+                            <span class="-mt-1.5 text-[10px] text-white/30">{slot.endsWith(":00") ? slot : ""}</span>
+                        </div>
+                        {dias.map((dia) => (
+                            <button
+                                type="button"
+                                class="editor-slot h-6 border border-white/5 hover:border-blue-600/50 transition-colors cursor-pointer"
+                                data-dia={dia.id}
+                                data-slot={slot}
+                                data-row={rowIndex}
+                            ></button>
+                        ))}
+                    </Fragment>
+                ))}
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-6 gap-3 flex-wrap">
+            <div class="flex items-center gap-3">
+                {esAdmin && (
+                    <div id="modal-vincular-wrap" class="flex items-center gap-2">
+                        <label for="modal-clerk-select" class="text-sm text-white/50">Cuenta vinculada</label>
+                        <select id="modal-clerk-select" class="px-2 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-cyan-400 w-56">
+                            <option value="">Cargando usuarios…</option>
+                        </select>
+                        <button type="button" id="btn-vincular" class="px-3 py-1.5 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30 text-sm cursor-pointer">Vincular</button>
+                    </div>
+                )}
+                {esAdmin && (
+                    <button type="button" id="btn-eliminar-psicologo" class="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:text-red-300 hover:border-red-400/60 text-sm cursor-pointer">
+                        Eliminar psicólogo
+                    </button>
+                )}
+            </div>
+            <div class="flex items-center gap-3 ml-auto">
+                <span id="modal-estado" class="text-sm text-white/40"></span>
+                <button type="button" id="btn-guardar" class="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-black text-sm transition-colors cursor-pointer">
+                    Guardar horario
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script define:vars={{ estilos, bloquesSetPorPsicologo, esAdmin, nombresPorId, clerkIdPorPsicologo }}>
+    const modal = document.getElementById("modal-editor");
+    const modalTitulo = document.getElementById("modal-titulo");
+    const modalEstado = document.getElementById("modal-estado");
+    const colorPicker = document.getElementById("modal-color-picker");
+    const colorHexInput = document.getElementById("modal-color-hex");
+    const btnGuardar = document.getElementById("btn-guardar");
+    const btnCerrar = document.getElementById("modal-cerrar");
+    const vincularWrap = document.getElementById("modal-vincular-wrap");
+    const clerkSelect = document.getElementById("modal-clerk-select");
+    const btnVincular = document.getElementById("btn-vincular");
+    const btnEliminarPsicologo = document.getElementById("btn-eliminar-psicologo");
+    const editorSlots = document.querySelectorAll(".editor-slot");
+    let usuariosClerkCache = null;
+
+    let psicologoEditando = null;
+    let seleccionActual = new Set();
+    let arrastrando = false;
+    let modoArrastre = "agregar";
+
+    const HEX_REGEX = /^#[0-9a-fA-F]{6}$/;
+
+    function normalizarHex(valor) {
+        if (!valor) return null;
+        const v = valor.trim();
+        return HEX_REGEX.test(v) ? v : null;
+    }
+
+    function pintarSlotEditor(btn) {
+        const key = `${btn.dataset.dia}-${btn.dataset.slot}`;
+        if (seleccionActual.has(key)) {
+            btn.style.backgroundColor = colorHexInput.value || "#3b82f6";
+            btn.style.opacity = "0.9";
+        } else {
+            btn.style.backgroundColor = "";
+            btn.style.opacity = "";
+        }
+    }
+
+    function repintarEditor() {
+        editorSlots.forEach(pintarSlotEditor);
+    }
+
+    function abrirEditor(psicologoId) {
+        psicologoEditando = psicologoId;
+        const nombre = nombresPorId[psicologoId] || psicologoId;
+        modalTitulo.textContent = `Editar horario — ${nombre}`;
+        modalEstado.textContent = "";
+
+        const color = estilos[psicologoId]?.hex || "#3b82f6";
+        colorPicker.value = color;
+        colorHexInput.value = color;
+
+        seleccionActual = new Set(bloquesSetPorPsicologo[psicologoId] || []);
+        repintarEditor();
+
+        if (esAdmin) poblarSelectVinculacion(clerkSelect, psicologoId);
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+    }
+
+    document.addEventListener("horario:editar", (e) => abrirEditor(e.detail.psicologoId));
+
+    function cerrarEditor() {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        psicologoEditando = null;
+    }
+
+    btnCerrar.addEventListener("click", cerrarEditor);
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) cerrarEditor();
+    });
+
+    colorPicker.addEventListener("input", () => {
+        colorHexInput.value = colorPicker.value;
+        repintarEditor();
+    });
+    colorHexInput.addEventListener("input", () => {
+        const hex = normalizarHex(colorHexInput.value);
+        if (hex) colorPicker.value = hex;
+        repintarEditor();
+    });
+
+    function toggleSlot(btn, forzarEstado) {
+        const key = `${btn.dataset.dia}-${btn.dataset.slot}`;
+        const marcado = seleccionActual.has(key);
+        const nuevoEstado = forzarEstado ?? !marcado;
+        if (nuevoEstado) seleccionActual.add(key);
+        else seleccionActual.delete(key);
+        pintarSlotEditor(btn);
+    }
+
+    editorSlots.forEach((btn) => {
+        btn.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            arrastrando = true;
+            const key = `${btn.dataset.dia}-${btn.dataset.slot}`;
+            modoArrastre = seleccionActual.has(key) ? "quitar" : "agregar";
+            toggleSlot(btn, modoArrastre === "agregar");
+        });
+        btn.addEventListener("mouseenter", () => {
+            if (!arrastrando) return;
+            toggleSlot(btn, modoArrastre === "agregar");
+        });
+        btn.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            const key = `${btn.dataset.dia}-${btn.dataset.slot}`;
+            toggleSlot(btn, !seleccionActual.has(key));
+        }, { passive: false });
+    });
+    document.addEventListener("mouseup", () => { arrastrando = false; });
+
+    async function guardarHorario() {
+        if (!psicologoEditando) return;
+        const hex = normalizarHex(colorHexInput.value);
+        if (!hex) {
+            modalEstado.textContent = "Color hex inválido (usa el formato #rrggbb).";
+            modalEstado.className = "text-sm text-red-400";
+            return;
+        }
+
+        modalEstado.textContent = "Guardando...";
+        modalEstado.className = "text-sm text-white/40";
+        btnGuardar.disabled = true;
+
+        const bloques = Array.from(seleccionActual).map((key) => {
+            const idx = key.lastIndexOf("-");
+            return { dia: key.slice(0, idx), horaInicio: key.slice(idx + 1) };
+        });
+
+        try {
+            const [respBloques, respColor] = await Promise.all([
+                fetch("/api/horario/bloques", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ psicologoId: psicologoEditando, bloques }),
+                }),
+                fetch("/api/horario/psicologo", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ psicologoId: psicologoEditando, color: hex }),
+                }),
+            ]);
+
+            if (!respBloques.ok || !respColor.ok) {
+                const err = await (respBloques.ok ? respColor : respBloques).json().catch(() => ({}));
+                throw new Error(err.error || "Error al guardar");
+            }
+
+            modalEstado.textContent = "Guardado. Recargando...";
+            modalEstado.className = "text-sm text-emerald-400";
+            setTimeout(() => window.location.reload(), 600);
+        } catch (err) {
+            modalEstado.textContent = err.message || "Error al guardar";
+            modalEstado.className = "text-sm text-red-400";
+            btnGuardar.disabled = false;
+        }
+    }
+
+    btnGuardar.addEventListener("click", guardarHorario);
+
+    async function obtenerUsuariosClerk() {
+        if (usuariosClerkCache) return usuariosClerkCache;
+        const resp = await fetch("/api/horario/usuarios-clerk");
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || "No se pudo cargar la lista de usuarios");
+        }
+        const { usuarios } = await resp.json();
+        usuariosClerkCache = usuarios;
+        return usuarios;
+    }
+
+    async function poblarSelectVinculacion(selectEl, psicologoIdActual) {
+        selectEl.innerHTML = `<option value="">Cargando usuarios…</option>`;
+        selectEl.disabled = true;
+
+        let usuarios;
+        try {
+            usuarios = await obtenerUsuariosClerk();
+        } catch (err) {
+            selectEl.innerHTML = `<option value="">${err.message}</option>`;
+            return;
+        }
+
+        const vinculadoA = new Map();
+        for (const [pid, cuid] of Object.entries(clerkIdPorPsicologo)) {
+            if (cuid && pid !== psicologoIdActual) vinculadoA.set(cuid, nombresPorId[pid] || pid);
+        }
+
+        const valorActual = psicologoIdActual ? (clerkIdPorPsicologo[psicologoIdActual] || "") : "";
+
+        const opciones = [`<option value="">— sin vincular —</option>`];
+        for (const u of usuarios) {
+            const ocupadoPor = vinculadoA.get(u.id);
+            const etiqueta = ocupadoPor
+                ? `${u.nombre}${u.email ? ` (${u.email})` : ""} — ya tiene un horario vinculado`
+                : `${u.nombre}${u.email ? ` (${u.email})` : ""}`;
+            const seleccionado = u.id === valorActual ? "selected" : "";
+            const deshabilitado = ocupadoPor ? "disabled" : "";
+            opciones.push(`<option value="${u.id}" ${seleccionado} ${deshabilitado}>${etiqueta}</option>`);
+        }
+
+        selectEl.innerHTML = opciones.join("");
+        selectEl.disabled = false;
+    }
+
+    if (esAdmin) {
+        btnVincular.addEventListener("click", async () => {
+            if (!psicologoEditando) return;
+            const clerkUserId = clerkSelect.value || null;
+            modalEstado.textContent = "Vinculando...";
+            modalEstado.className = "text-sm text-white/40";
+            try {
+                const resp = await fetch("/api/horario/psicologo", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ psicologoId: psicologoEditando, clerkUserId }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || "Error al vincular");
+                }
+                clerkIdPorPsicologo[psicologoEditando] = clerkUserId;
+                modalEstado.textContent = "Cuenta vinculada.";
+                modalEstado.className = "text-sm text-emerald-400";
+            } catch (err) {
+                modalEstado.textContent = err.message || "Error al vincular";
+                modalEstado.className = "text-sm text-red-400";
+            }
+        });
+
+        btnEliminarPsicologo.addEventListener("click", async () => {
+            if (!psicologoEditando) return;
+            const nombre = nombresPorId[psicologoEditando] || psicologoEditando;
+
+            const confirmado = await window.confirmarAccion(
+                `¿Eliminar a ${nombre} y todo su horario? Esta acción no se puede deshacer.`,
+                { textoConfirmar: "Eliminar" },
+            );
+            if (!confirmado) return;
+
+            modalEstado.textContent = "Eliminando...";
+            modalEstado.className = "text-sm text-white/40";
+            btnEliminarPsicologo.disabled = true;
+
+            try {
+                const resp = await fetch("/api/horario/psicologo", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ psicologoId: psicologoEditando }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.error || "Error al eliminar");
+                }
+                modalEstado.textContent = "Eliminado. Recargando...";
+                modalEstado.className = "text-sm text-emerald-400";
+                setTimeout(() => window.location.reload(), 600);
+            } catch (err) {
+                modalEstado.textContent = err.message || "Error al eliminar";
+                modalEstado.className = "text-sm text-red-400";
+                btnEliminarPsicologo.disabled = false;
+            }
+        });
+    }
+</script>

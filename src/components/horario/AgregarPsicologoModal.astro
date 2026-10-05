@@ -1,0 +1,182 @@
+---
+/**
+ * @file AgregarPsicologoModal.astro
+ * @description Modal para dar de alta un psicólogo nuevo. Solo tiene sentido
+ * renderizarlo cuando `esAdmin` es true (el padre lo condiciona). Se abre
+ * cuando HorarioGrid.astro dispara `document` -> "horario:agregar-psicologo".
+ */
+
+interface Props {
+    nombresPorId: Record<string, string>;
+    clerkIdPorPsicologo: Record<string, string | null>;
+}
+
+const { nombresPorId, clerkIdPorPsicologo } = Astro.props;
+---
+
+<div id="modal-alta" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="relative w-full max-w-md bg-[#0b0f19] border border-white/10 rounded-2xl p-6 shadow-2xl">
+        <button type="button" id="modal-alta-cerrar" class="absolute top-4 right-4 text-white/50 hover:text-white cursor-pointer text-xl leading-none">✕</button>
+        <h2 class="text-xl font-bold text-white mb-4">Agregar psicólogo</h2>
+        <div class="flex flex-col gap-3">
+            <div>
+                <label class="text-sm text-white/50 block mb-1">Nombre</label>
+                <input type="text" id="alta-nombre" class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-cyan-400" />
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-white/50">Color</label>
+                <input type="color" id="alta-color-picker" value="#3b82f6" class="w-9 h-9 rounded-lg border border-white/10 bg-transparent cursor-pointer" />
+                <input type="text" id="alta-color-hex" value="#3b82f6" maxlength="7" class="w-24 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:outline-none focus:border-cyan-400" />
+            </div>
+            <div>
+                <label class="text-sm text-white/50 block mb-1">Cuenta vinculada (opcional, puedes vincularla después)</label>
+                <select id="alta-clerk-select" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-cyan-400">
+                    <option value="">— sin vincular —</option>
+                </select>
+            </div>
+            <button type="button" id="btn-crear-psicologo" class="mt-2 px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-black font-semibold text-sm transition-colors cursor-pointer">
+                Crear
+            </button>
+            <span id="alta-estado" class="text-sm text-white/40"></span>
+        </div>
+    </div>
+</div>
+
+<script define:vars={{ nombresPorId, clerkIdPorPsicologo }}>
+    const modalAlta = document.getElementById("modal-alta");
+    const btnCerrarAlta = document.getElementById("modal-alta-cerrar");
+    const altaNombre = document.getElementById("alta-nombre");
+    const altaColorPicker = document.getElementById("alta-color-picker");
+    const altaColorHex = document.getElementById("alta-color-hex");
+    const altaClerkSelect = document.getElementById("alta-clerk-select");
+    const btnCrear = document.getElementById("btn-crear-psicologo");
+    const altaEstado = document.getElementById("alta-estado");
+    let usuariosClerkCache = null;
+
+    const HEX_REGEX = /^#[0-9a-fA-F]{6}$/;
+    function normalizarHex(valor) {
+        if (!valor) return null;
+        const v = valor.trim();
+        return HEX_REGEX.test(v) ? v : null;
+    }
+
+    function slugify(nombre) {
+        return nombre
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s-]/g, "")
+            .trim()
+            .replace(/\s+/g, "-");
+    }
+
+    async function obtenerUsuariosClerk() {
+        if (usuariosClerkCache) return usuariosClerkCache;
+        const resp = await fetch("/api/horario/usuarios-clerk");
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || "No se pudo cargar la lista de usuarios");
+        }
+        const { usuarios } = await resp.json();
+        usuariosClerkCache = usuarios;
+        return usuarios;
+    }
+
+    async function poblarSelectVinculacion() {
+        altaClerkSelect.innerHTML = `<option value="">Cargando usuarios…</option>`;
+        altaClerkSelect.disabled = true;
+
+        let usuarios;
+        try {
+            usuarios = await obtenerUsuariosClerk();
+        } catch (err) {
+            altaClerkSelect.innerHTML = `<option value="">${err.message}</option>`;
+            return;
+        }
+
+        const vinculados = new Map();
+        for (const [pid, cuid] of Object.entries(clerkIdPorPsicologo)) {
+            if (cuid) vinculados.set(cuid, nombresPorId[pid] || pid);
+        }
+
+        const opciones = [`<option value="">— sin vincular —</option>`];
+        for (const u of usuarios) {
+            const ocupadoPor = vinculados.get(u.id);
+            const etiqueta = ocupadoPor
+                ? `${u.nombre}${u.email ? ` (${u.email})` : ""} — ya vinculado a ${ocupadoPor}`
+                : `${u.nombre}${u.email ? ` (${u.email})` : ""}`;
+            const deshabilitado = ocupadoPor ? "disabled" : "";
+            opciones.push(`<option value="${u.id}" ${deshabilitado}>${etiqueta}</option>`);
+        }
+
+        altaClerkSelect.innerHTML = opciones.join("");
+        altaClerkSelect.disabled = false;
+    }
+
+    document.addEventListener("horario:agregar-psicologo", () => {
+        altaNombre.value = "";
+        altaColorPicker.value = "#3b82f6";
+        altaColorHex.value = "#3b82f6";
+        altaEstado.textContent = "";
+        poblarSelectVinculacion();
+        modalAlta.classList.remove("hidden");
+        modalAlta.classList.add("flex");
+    });
+
+    btnCerrarAlta.addEventListener("click", () => {
+        modalAlta.classList.add("hidden");
+        modalAlta.classList.remove("flex");
+    });
+    modalAlta.addEventListener("click", (e) => {
+        if (e.target === modalAlta) {
+            modalAlta.classList.add("hidden");
+            modalAlta.classList.remove("flex");
+        }
+    });
+
+    altaColorPicker.addEventListener("input", () => { altaColorHex.value = altaColorPicker.value; });
+    altaColorHex.addEventListener("input", () => {
+        const hex = normalizarHex(altaColorHex.value);
+        if (hex) altaColorPicker.value = hex;
+    });
+
+    btnCrear.addEventListener("click", async () => {
+        const nombre = altaNombre.value.trim();
+        const hex = normalizarHex(altaColorHex.value);
+        if (!nombre) {
+            altaEstado.textContent = "El nombre es requerido.";
+            altaEstado.className = "text-sm text-red-400";
+            return;
+        }
+        if (!hex) {
+            altaEstado.textContent = "Color hex inválido.";
+            altaEstado.className = "text-sm text-red-400";
+            return;
+        }
+
+        altaEstado.textContent = "Creando...";
+        altaEstado.className = "text-sm text-white/40";
+
+        try {
+            const resp = await fetch("/api/horario/psicologo", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: slugify(nombre),
+                    nombre,
+                    color: hex,
+                    clerkUserId: altaClerkSelect.value || null,
+                }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || "Error al crear");
+            }
+            altaEstado.textContent = "Creado. Recargando...";
+            altaEstado.className = "text-sm text-emerald-400";
+            setTimeout(() => window.location.reload(), 600);
+        } catch (err) {
+            altaEstado.textContent = err.message || "Error al crear";
+            altaEstado.className = "text-sm text-red-400";
+        }
+    });
+</script>
