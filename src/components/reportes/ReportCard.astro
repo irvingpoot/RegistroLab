@@ -1,0 +1,100 @@
+---
+import ReportIcon from './ReportIcon.astro';
+import RightArrow from '../icons/RightArrow.astro';
+interface Props {
+    id: string;
+    titulo: string;
+    descripcion: string;
+    icono: 'medical' | 'activity' | 'chart' | 'document' | 'moon' | 'calendar';
+    color: 'blue' | 'emerald' | 'purple' | 'amber' | 'indigo' | 'rose';
+    tag: string;
+    formato: string;
+}
+
+const { id, titulo, descripcion, icono, color, tag, formato } = Astro.props;
+
+const acento = `acc-${color}`;
+---
+<button
+    type="button"
+    data-titulo={titulo}
+    data-id={id}
+    class={`btn-generar rep-card group ${acento}`}
+>
+    <span class="flex items-start justify-between gap-3">
+        <span class="rep-chip">
+            <ReportIcon nombre={icono} class="size-6" />
+        </span>
+        <span class="rep-tag">{tag}</span>
+    </span>
+
+    <span class="mt-8 block text-xl font-semibold tracking-tight text-white">{titulo}</span>
+    <span class="mt-2 block text-sm leading-relaxed text-gray-400">{descripcion}</span>
+
+    <span class="rep-cta">
+        <span class="inline-flex items-center gap-1.5">
+            Generar archivo
+            <span class="rep-go"><RightArrow class="size-4" /></span>
+        </span>
+        <span class="rep-fmt">{formato}</span>
+    </span>
+</button>
+
+<style>
+    .rep-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: 16rem;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        border: 1px solid rgb(var(--a) / .25);
+        background: rgb(var(--a) / .07);
+        text-align: left;
+        cursor: pointer;
+        transition: border-color .2s ease, background-color .2s ease;
+    }
+    .rep-card:hover { border-color: rgb(var(--a) / .55); background: rgb(var(--a) / .12); }
+    .rep-card:focus-visible { outline: 2px solid rgb(var(--t)); outline-offset: 2px; }
+    .rep-card:disabled { justify-content: center; cursor: not-allowed; }
+
+    .rep-chip {
+        display: grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: .875rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .rep-card:hover .rep-chip { background: rgb(var(--a)); color: #fff; }
+
+    .rep-tag {
+        padding: .2rem .625rem;
+        border-radius: 9999px;
+        font-size: .75rem;
+        font-weight: 500;
+        color: rgb(var(--t));
+        background: rgb(var(--a) / .12);
+        border: 1px solid rgb(var(--a) / .25);
+    }
+    .rep-cta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding-top: 1.5rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: rgb(var(--t));
+    }
+    .rep-go { display: inline-flex; transition: transform .2s ease; }
+    .rep-card:hover .rep-go { transform: translateX(4px); }
+    .rep-fmt {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: .75rem;
+        font-weight: 500;
+        color: #6b7280;
+    }
+</style>

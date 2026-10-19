@@ -2,7 +2,7 @@
  * @file api/citas/buscar.ts
  * @description GET /api/citas/buscar — búsqueda de citas para el gestor.
  * Query params: q, campo (múltiple), referencia, estado, atendido_por,
- * registrado_por (múltiples), offset, limit.
+ * registrado_por, servicio (múltiples), offset, limit.
  */
 import type { APIRoute } from "astro";
 import {
@@ -16,7 +16,8 @@ import {
 export const prerender = false;
 
 const REFERENCIAS_VALIDAS = ["Particular", "Servicio Medico", "Protocolo"];
-const LIMITE_MAXIMO = 60;
+const LIMITE_MAXIMO = 30;
+const ID_SERVICIO_VALIDO = /^[\w-]{1,64}$/;
 
 const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -42,6 +43,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
             estados:       p.getAll("estado").filter((e): e is EstadoCita => (ESTADOS_CITA as string[]).includes(e)),
             atendidoPor:   p.getAll("atendido_por").slice(0, 30),
             registradoPor: p.getAll("registrado_por").slice(0, 30),
+            servicios:     p.getAll("servicio").filter(id => ID_SERVICIO_VALIDO.test(id)).slice(0, 30),
             offset:        entero(p.get("offset"), 0),
             limit:         Math.min(Math.max(entero(p.get("limit"), 30), 1), LIMITE_MAXIMO),
         });

@@ -9,8 +9,14 @@
 
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
+import { requerirSesion } from "../../lib/api-auth";
 
-export const GET: APIRoute = async ({ url }) => {
+export const prerender = false;
+
+export const GET: APIRoute = async ({ url, locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     const q = url.searchParams.get("q")?.trim() ?? "";
 
     if (q.length < 2) {

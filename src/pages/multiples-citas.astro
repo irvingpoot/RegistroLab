@@ -170,7 +170,7 @@ const opcionesReferencia = [
                     ¡{totalExito} {totalExito === 1 ? "cita agendada" : "citas agendadas"}!
                 </h2>
                 <p class="text-gray-400 mt-2 text-center">Todas se guardaron correctamente.</p>
-                <script>setTimeout(() => { window.location.replace("/citas"); }, 2500);</script>
+                <script is:inline>setTimeout(() => { window.location.replace("/citas"); }, 2500);</script>
             </div>
         </div>
     )}
@@ -227,7 +227,7 @@ const opcionesReferencia = [
             </div>
         </div>
 
-        <form id="form-masivo" method="POST">
+        <form id="form-masivo" method="POST" data-hay-error={totalError > 0 ? "1" : undefined}>
             <input type="hidden" name="lote_json" id="lote_json" />
             
             <div class="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden mb-6">
@@ -294,6 +294,19 @@ const opcionesReferencia = [
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Número de Sesión Inicial</label>
                         <input type="number" id="campo-sesion-inicial" min="1" placeholder="Ej. 1, 4 (Opcional)" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
+                    </div>
+
+                    <div>
+                        <label for="campo-precio" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Precio de la sesión <span id="precio-obligatorio" class="text-red-500 hidden">*</span></label>
+                        <div class="relative">
+                            <select id="campo-precio" data-estado="cargando" disabled class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+                                <option value="" disabled selected>Cargando precios…</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                <DownTriangle class="h-4 w-4" />
+                            </div>
+                        </div>
+                        <p id="precio-aviso" role="status" class="hidden mt-1.5 text-xs text-amber-400"></p>
                     </div>
 
                     <div class="md:col-span-2">
@@ -555,6 +568,16 @@ const opcionesReferencia = [
             }
         });
 
+        const precioSel = document.getElementById("campo-precio");
+        if (precioSel.dataset.estado === "cargando") {
+            alert("Espera un momento: todavía se están cargando los precios.");
+            return;
+        }
+        if (!precioSel.disabled && !precioSel.value) {
+            precioSel.classList.add(...ERROR_INPUT);
+            valido = false;
+        }
+
         if (!valido) return;
 
         const getVal = (id) => document.getElementById(`campo-${id}`).value.trim();
@@ -564,6 +587,9 @@ const opcionesReferencia = [
         let numContador = numInicialStr ? parseInt(numInicialStr) : null;
 
         const fechasOrdenadas = Array.from(fechasSeleccionadas).sort();
+        const seleccionServicio = window.seleccionServicioLote
+            ? window.seleccionServicioLote()
+            : { servicioId: null, precioId: null };
 
         fechasOrdenadas.forEach(fecha => {
             let obsFinal = getVal("observaciones");
@@ -584,6 +610,8 @@ const opcionesReferencia = [
                 observaciones: obsFinal || null,
                 atendidoPor:   getVal("atendido_por"),
                 servicio:      servicioActual,
+                servicioId:    seleccionServicio.servicioId,
+                precioId:      seleccionServicio.precioId,
             });
         });
 
@@ -615,7 +643,6 @@ const opcionesReferencia = [
             if (e.target === modalAdmin) cerrarModalAdmin();
         });
 
-        // Reduce la letra hasta que el modal quepa en pantalla
         const msgTexto = document.getElementById("msg-texto");
         const msgTitulo = document.getElementById("msg-titulo");
 
@@ -644,4 +671,104 @@ const opcionesReferencia = [
         document.fonts?.ready.then(ajustarTextoModal);
     }
 
+</script>
+
+<script>
+    import { obtenerCatalogo, type ServicioCatalogo } from "../lib/catalogo-servicios";
+    
+    type Codigo = "TMS" | "NFB";
+    const PREFIJOS: Record<Codigo, string> = { TMS: "tms", NFB: "nfb" };
+
+    const selectPrecio = document.getElementById("campo-precio") as HTMLSelectElement;
+    const aviso = document.getElementById("precio-aviso");
+    const asterisco = document.getElementById("precio-obligatorio");
+    const form = document.getElementById("form-masivo");
+    const moneda = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+    const normalizar = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+    let catalogo: ServicioCatalogo[] = [];
+    let catalogoCargado = false;
+    let codigoActual: Codigo = "TMS";
+
+    function servicioDe(codigo: Codigo): ServicioCatalogo | undefined {
+        return catalogo.find((s) => {
+            const nombre = normalizar(s.nombre);
+            return nombre.startsWith(PREFIJOS[codigo]) && nombre.includes("sesion");
+        });
+    }
+
+    function opcion(valor: string, texto: string, disabled = false, selected = false) {
+        const op = document.createElement("option");
+        op.value = valor;
+        op.textContent = texto;
+        op.className = "bg-gray-900";
+        op.disabled = disabled;
+        op.selected = selected;
+        return op;
+    }
+
+    function sinPrecio(texto: string, mensaje: string) {
+        selectPrecio.replaceChildren(opcion("", texto, true, true));
+        selectPrecio.disabled = true;
+        selectPrecio.dataset.estado = "sin-precio";
+        asterisco?.classList.add("hidden");
+        if (aviso) {
+            aviso.textContent = mensaje;
+            aviso.classList.remove("hidden");
+        }
+    }
+
+    function pintarPrecios() {
+        selectPrecio.classList.remove("ring-2", "ring-red-500", "border-red-500");
+
+        if (!catalogoCargado) {
+            return sinPrecio("Catálogo no disponible", "No se pudo cargar el catálogo de servicios. Recarga la página; si continúas, las citas se guardarán sin precio.");
+        }
+
+        const servicio = servicioDe(codigoActual);
+        if (!servicio) {
+            return sinPrecio("Sin precio en el catálogo", `No hay un servicio "${codigoActual} (Sesión)" en el catálogo. Las citas se guardarán sin precio.`);
+        }
+
+        aviso?.classList.add("hidden");
+        asterisco?.classList.remove("hidden");
+        selectPrecio.disabled = false;
+        selectPrecio.dataset.estado = "listo";
+
+        selectPrecio.replaceChildren();
+        if (servicio.precios.length === 1) {
+            const p = servicio.precios[0];
+            selectPrecio.append(opcion(p.id, `${p.etiqueta} · ${p.monto === 0 ? "Sin costo" : moneda.format(p.monto)}`, false, true));
+        } else {
+            selectPrecio.append(opcion("", "Selecciona el precio", true, true));
+            servicio.precios.forEach((p) =>
+                selectPrecio.append(opcion(p.id, `${p.etiqueta} · ${p.monto === 0 ? "Sin costo" : moneda.format(p.monto)}`)),
+            );
+        }
+    }
+
+    (window as any).seleccionServicioLote = () => {
+        const servicio = servicioDe(codigoActual);
+        if (!servicio || selectPrecio.disabled || !selectPrecio.value) {
+            return { servicioId: null, precioId: null };
+        }
+        return { servicioId: servicio.id, precioId: selectPrecio.value };
+    };
+
+    document.querySelectorAll<HTMLElement>("[data-servicio]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            codigoActual = btn.dataset.servicio as Codigo;
+            if (catalogoCargado) pintarPrecios();
+        });
+    });
+
+    (async () => {
+        try {
+            catalogo = await obtenerCatalogo({ forzar: (form as HTMLElement | null)?.dataset.hayError === "1" });
+            catalogoCargado = true;
+        } catch {
+            catalogoCargado = false;
+        }
+        pintarPrecios();
+    })();
 </script>

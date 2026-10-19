@@ -1,0 +1,586 @@
+---
+/**
+ * @file servicios.astro
+ * @description Catálogo de servicios y precios del laboratorio.
+ *
+ * Lectura: src/services/servicios.service.ts (getServiciosAdmin, siempre fresco desde Supabase).
+ * Escritura: POST / PATCH / DELETE a /api/servicios/admin (protegido con Clerk + rol).
+ */
+
+import Layout from "../layouts/Layout.astro";
+import RightArrow from "../components/icons/RightArrow.astro";
+import CheckIcon from "../components/icons/CheckIcon.astro";
+import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
+import { tieneAccesoRuta } from "../lib/permisos";
+import { getServiciosAdmin, type ServicioAdmin } from "../services/servicios.service";
+import ReturnButton from "../components/ReturnButton.astro";
+
+if (!tieneAccesoRuta(Astro.locals.userRole, "/servicios")) {
+    return Astro.redirect("/dashboard");
+}
+
+let servicios: ServicioAdmin[] = [];
+let errorCarga = false;
+
+try {
+    servicios = await getServiciosAdmin();
+} catch (e) {
+    console.error("Error cargando servicios:", e);
+    errorCarga = true;
+}
+
+const formatoMoneda = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+const normalizar = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+const total = servicios.length;
+const totalActivos = servicios.filter((s) => s.activo).length;
+
+const datosJson = JSON.stringify(servicios).replace(/</g, "\\u003c");
+---
+
+<Layout title="Servicios | Lab-Somno">
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <main class="max-w-6xl mx-auto pt-8 pb-24 px-6">
+
+        <header class="mt-6 flex flex-col gap-6 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
+            <div class="min-w-0">
+                <h1 class="text-5xl md:text-7xl text-white tracking-tight leading-none">Servicios</h1>
+                <p class="mt-4 text-lg text-gray-400 max-w-md">Catálogo de servicios y precios del laboratorio.</p>
+            </div>
+
+            {!errorCarga && (
+                <button
+                    id="btn-nuevo"
+                    type="button"
+                    class="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                >
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                    Nuevo servicio
+                </button>
+            )}
+        </header>
+
+        <section class="mt-8 animate-fade-in-up" aria-labelledby="g-catalogo">
+            {errorCarga ? (
+                <div class="panel acc-rose flex flex-col items-center gap-2 px-6 py-12 text-center">
+                    <p class="text-2xl text-white">No se pudo cargar el catálogo</p>
+                    <p class="max-w-sm text-sm text-gray-400">Revisa la conexión con la base de datos e intenta de nuevo.</p>
+                    <a href="/servicios" class="mt-3 rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600">
+                        Reintentar
+                    </a>
+                </div>
+            ) : total === 0 ? (
+                <div class="panel acc-amber flex flex-col items-center gap-3 px-6 py-14 text-center">
+                    <span class="mod-chip mod-chip-lg"><ServiciosIcon class="size-6" /></span>
+                    <p class="text-2xl text-white">Aún no hay servicios</p>
+                    <p class="max-w-sm text-sm text-gray-400">Registra el primero para poder elegirlo con su precio al agendar una cita.</p>
+                    <button
+                        type="button"
+                        data-accion="nuevo"
+                        class="mt-2 cursor-pointer rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+                    >
+                        Registrar servicio
+                    </button>
+                </div>
+            ) : (
+                <div class="panel acc-amber">
+                    <div class="panel-title flex flex-wrap items-center justify-between gap-3">
+                        <h2 id="g-catalogo">Catálogo</h2>
+                        <span id="contador" class="text-xs font-normal text-gray-400">
+                            {totalActivos} de {total} {total === 1 ? "servicio activo" : "servicios activos"}
+                        </span>
+                    </div>
+
+                    <div class="border-b border-white/10 px-5 py-3">
+                        <label for="buscar" class="sr-only">Buscar servicio</label>
+                        <input
+                            id="buscar"
+                            type="search"
+                            autocomplete="off"
+                            placeholder="Buscar por nombre, descripción o etiqueta de precio"
+                            class="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        />
+                    </div>
+
+                    <ul id="lista-servicios" class="divide-y divide-white/5">
+                        {servicios.map((s) => (
+                            <li
+                                class="serv-row acc-amber"
+                                data-id={s.id}
+                                data-activo={s.activo ? "1" : "0"}
+                                data-busqueda={normalizar([s.nombre, s.descripcion ?? "", ...s.precios.map((p) => p.etiqueta)].join(" "))}
+                            >
+                                <span class="mod-chip"><ServiciosIcon class="size-5" /></span>
+
+                                <div class={`min-w-0 flex-1 ${s.activo ? "" : "opacity-60"}`}>
+                                    <p class="flex flex-wrap items-center gap-2">
+                                        <span class="font-semibold text-white">{s.nombre}</span>
+                                        {!s.activo && <span class="mod-lock">Inactivo</span>}
+                                    </p>
+                                    {s.descripcion && (
+                                        <p class="mt-0.5 text-sm leading-snug text-gray-400">{s.descripcion}</p>
+                                    )}
+                                    <ul class="mt-2.5 flex flex-wrap gap-2">
+                                        {s.precios.map((p) => (
+                                            <li class="precio-chip">
+                                                <span class="text-gray-300">{p.etiqueta}</span>
+                                                <span class="font-semibold text-white">{formatoMoneda.format(p.monto)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div class="flex w-full flex-wrap items-center gap-1 pl-[3.5rem] sm:w-auto sm:shrink-0 sm:pl-0">
+                                    <button type="button" data-accion="editar" data-id={s.id} aria-label={`Editar ${s.nombre}`}
+                                        class="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400">
+                                        Editar
+                                    </button>
+                                    <button type="button" data-accion="estado" data-id={s.id} aria-label={`${s.activo ? "Desactivar" : "Activar"} ${s.nombre}`}
+                                        class="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-400">
+                                        {s.activo ? "Desactivar" : "Activar"}
+                                    </button>
+                                    <button type="button" data-accion="eliminar" data-id={s.id} aria-label={`Eliminar ${s.nombre}`}
+                                        class="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-2 focus-visible:outline-red-400">
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <p id="sin-resultados" class="hidden px-5 py-10 text-center text-sm text-gray-400">
+                        Ningún servicio coincide con la búsqueda.
+                    </p>
+                </div>
+            )}
+        </section>
+    </main>
+
+    <!-- Crear / editar -->
+    <dialog
+        id="dlg-servicio"
+        class="m-auto w-[calc(100%-2rem)] max-w-xl rounded-2xl border border-white/10 bg-[#0f172a] p-0 text-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]"
+    >
+        <form id="form-servicio" novalidate class="flex max-h-[85vh] flex-col">
+            <div class="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-5">
+                <h2 id="dlg-titulo" class="text-3xl leading-none text-white">Nuevo servicio</h2>
+                <button type="button" data-cerrar aria-label="Cerrar"
+                    class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-gray-400 transition-colors hover:bg-white/10 hover:text-white">
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                </button>
+            </div>
+
+            <div class="space-y-5 overflow-y-auto px-6 py-5">
+                <div>
+                    <label for="in-nombre" class="mb-1.5 block text-sm font-medium text-gray-300">Nombre</label>
+                    <input id="in-nombre" type="text" maxlength="120" autocomplete="off" placeholder="Ej. Poligrafía de sueño"
+                        class="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2.5 text-white placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                </div>
+
+                <div>
+                    <label for="in-desc" class="mb-1.5 block text-sm font-medium text-gray-300">Descripción <span class="font-normal text-gray-500">(opcional)</span></label>
+                    <textarea id="in-desc" rows="2" maxlength="300" placeholder="Qué incluye el servicio"
+                        class="w-full resize-none rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2.5 text-white placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"></textarea>
+                </div>
+
+                <fieldset>
+                    <legend class="mb-1 text-sm font-medium text-gray-300">Precios</legend>
+                    <p class="mb-3 text-xs text-gray-500">Agrega más de uno si el costo varía, por ejemplo por urgencia o convenio.</p>
+                    <div id="lista-precios" class="space-y-2"></div>
+                    <button type="button" id="btn-add-precio"
+                        class="mt-3 cursor-pointer rounded-lg px-2.5 py-1.5 text-sm font-semibold text-blue-300 transition-colors hover:bg-blue-500/10 hover:text-blue-200">
+                        Agregar otro precio
+                    </button>
+                </fieldset>
+
+                <label class="flex cursor-pointer items-center gap-2.5 text-sm text-gray-300">
+                    <input id="in-activo" type="checkbox" checked class="size-4 cursor-pointer accent-blue-500" />
+                    Disponible para agendar citas
+                </label>
+
+                <p id="form-error" role="alert" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"></p>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
+                <button type="button" data-cerrar
+                    class="cursor-pointer rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-guardar"
+                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">
+                    <CheckIcon class="size-4" />
+                    Guardar servicio
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Confirmar eliminación -->
+    <dialog
+        id="dlg-eliminar"
+        class="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-white/10 bg-[#0f172a] p-0 text-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]"
+    >
+        <div class="px-6 pb-5 pt-5">
+            <h2 class="text-3xl leading-none text-white">Eliminar servicio</h2>
+            <p id="eliminar-texto" class="mt-3 text-sm leading-relaxed text-gray-300"></p>
+            <p class="mt-2 text-sm leading-relaxed text-gray-400">
+                Se borrarán también sus precios. Si solo quieres que deje de aparecer al agendar, desactívalo.
+            </p>
+            <p id="eliminar-error" role="alert" class="mt-3 hidden rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"></p>
+        </div>
+        <div class="flex justify-end gap-3 border-t border-white/10 px-6 py-4">
+            <button type="button" data-cerrar
+                class="cursor-pointer rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600">
+                Cancelar
+            </button>
+            <button type="button" id="btn-confirmar-eliminar"
+                class="cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-wait disabled:opacity-60">
+                Eliminar servicio
+            </button>
+        </div>
+    </dialog>
+
+    <!-- Fila de precio (se clona desde el script) -->
+    <template id="tpl-precio">
+        <div class="fila-precio grid grid-cols-[1fr_7.5rem_auto] items-center gap-2">
+            <input data-campo="etiqueta" type="text" maxlength="40" autocomplete="off" placeholder="Etiqueta, ej. Estándar" aria-label="Etiqueta del precio"
+                class="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2.5 text-white placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            <div class="relative">
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input data-campo="monto" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Monto en pesos"
+                    class="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-7 pr-3 text-white placeholder-gray-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            </div>
+            <button type="button" data-quitar aria-label="Quitar este precio"
+                class="grid size-9 cursor-pointer place-items-center rounded-lg text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300">
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+        </div>
+    </template>
+
+    <script id="servicios-data" type="application/json" is:inline set:html={datosJson} />
+</Layout>
+
+<style>
+    .acc-amber { --a: 245 158 11; --t: 252 211 77; }
+    .acc-rose  { --a: 244 63 94;  --t: 253 164 175; }
+
+    .panel {
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .4);
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    .panel-title {
+        padding: 1rem 1.25rem .75rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: #9ca3af;
+        border-bottom: 1px solid rgb(255 255 255 / .1);
+    }
+
+    .serv-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        transition: background-color .15s ease;
+    }
+    @media (min-width: 640px) {
+        .serv-row { flex-wrap: nowrap; align-items: center; }
+    }
+    .serv-row:hover { background: rgb(var(--a) / .06); }
+    .serv-row.hidden { display: none; }
+
+    .mod-chip {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: .75rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+    }
+    .mod-chip-lg { width: 3.25rem; height: 3.25rem; border-radius: 1rem; }
+
+    .mod-lock {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        flex-shrink: 0;
+        padding: .2rem .5rem;
+        border-radius: 9999px;
+        font-size: .6875rem;
+        color: #d1d5db;
+        white-space: nowrap;
+        background: rgb(0 0 0 / .4);
+        border: 1px solid rgb(255 255 255 / .1);
+    }
+
+    .precio-chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: .5rem;
+        padding: .25rem .625rem;
+        border-radius: 9999px;
+        font-size: .8125rem;
+        background: rgb(var(--a) / .12);
+        border: 1px solid rgb(var(--a) / .25);
+    }
+
+    dialog::backdrop {
+        background: rgb(0 0 0 / .6);
+        backdrop-filter: blur(2px);
+    }
+</style>
+
+<script>
+    import { limpiarCatalogoCache } from "../lib/catalogo-servicios";
+
+    type Precio = { id: string; etiqueta: string; monto: number };
+    type Servicio = { id: string; nombre: string; descripcion: string | null; activo: boolean; precios: Precio[] };
+
+    const FLASH = "servicios:flash";
+    const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+
+    const datos: Servicio[] = JSON.parse(el("servicios-data")?.textContent || "[]");
+    const porId = new Map(datos.map((s) => [s.id, s]));
+
+    const dlgServicio = el<HTMLDialogElement>("dlg-servicio");
+    const dlgEliminar = el<HTMLDialogElement>("dlg-eliminar");
+    const form = el<HTMLFormElement>("form-servicio");
+    const tpl = el<HTMLTemplateElement>("tpl-precio");
+    const listaPrecios = el<HTMLDivElement>("lista-precios");
+    const inNombre = el<HTMLInputElement>("in-nombre");
+    const inDesc = el<HTMLTextAreaElement>("in-desc");
+    const inActivo = el<HTMLInputElement>("in-activo");
+    const formError = el<HTMLParagraphElement>("form-error");
+    const btnGuardar = el<HTMLButtonElement>("btn-guardar");
+    const btnConfirmarEliminar = el<HTMLButtonElement>("btn-confirmar-eliminar");
+    const eliminarTexto = el<HTMLParagraphElement>("eliminar-texto");
+    const eliminarError = el<HTMLParagraphElement>("eliminar-error");
+
+    let editandoId: string | null = null;
+    let eliminandoId: string | null = null;
+
+
+    const normalizar = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    function mostrarAviso(mensaje: string) {
+        const aviso = document.createElement("div");
+        aviso.setAttribute("role", "status");
+        aviso.className =
+            "fixed bottom-6 left-1/2 z-[100] -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-[#0f172a] px-4 py-3 text-sm font-medium text-emerald-300 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]";
+        aviso.textContent = mensaje;
+        document.body.appendChild(aviso);
+        setTimeout(() => aviso.remove(), 3500);
+    }
+
+    async function llamar(metodo: "POST" | "PATCH" | "DELETE", cuerpo: unknown) {
+        const res = await fetch("/api/servicios/admin", {
+            method: metodo,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cuerpo),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || "No se pudo completar la operación");
+        return json;
+    }
+
+    function terminar(mensaje: string) {
+        limpiarCatalogoCache();
+        try { sessionStorage.setItem(FLASH, mensaje); } catch { /* sin aviso tras recargar */ }
+        location.reload();
+    }
+
+    function ponerError(nodo: HTMLElement | null, mensaje: string) {
+        if (!nodo) return;
+        nodo.textContent = mensaje;
+        nodo.classList.remove("hidden");
+    }
+
+    function quitarError(nodo: HTMLElement | null) {
+        nodo?.classList.add("hidden");
+    }
+
+
+    try {
+        const pendiente = sessionStorage.getItem(FLASH);
+        if (pendiente) {
+            sessionStorage.removeItem(FLASH);
+            mostrarAviso(pendiente);
+        }
+    } catch { /* sessionStorage no disponible */ }
+
+
+    function agregarFilaPrecio(precio?: { id?: string; etiqueta: string; monto?: number }) {
+        if (!tpl || !listaPrecios) return;
+        const fila = (tpl.content.firstElementChild as HTMLElement).cloneNode(true) as HTMLElement;
+        const etiqueta = fila.querySelector<HTMLInputElement>('[data-campo="etiqueta"]')!;
+        const monto = fila.querySelector<HTMLInputElement>('[data-campo="monto"]')!;
+
+        if (precio?.id) fila.dataset.precioId = precio.id;
+        if (precio) etiqueta.value = precio.etiqueta;
+        if (precio?.monto !== undefined) monto.value = String(precio.monto);
+
+        listaPrecios.appendChild(fila);
+        if (!precio) etiqueta.focus();
+    }
+
+    function leerPrecios() {
+        const filas = Array.from(listaPrecios?.querySelectorAll<HTMLElement>(".fila-precio") ?? []);
+        return filas.map((fila) => {
+            const crudo = fila.querySelector<HTMLInputElement>('[data-campo="monto"]')!.value.trim();
+            return {
+                id: fila.dataset.precioId || undefined,
+                etiqueta: fila.querySelector<HTMLInputElement>('[data-campo="etiqueta"]')!.value.trim(),
+                monto: crudo === "" ? Number.NaN : Number(crudo),
+            };
+        });
+    }
+
+    listaPrecios?.addEventListener("click", (e) => {
+        const quitar = (e.target as HTMLElement).closest("[data-quitar]");
+        if (!quitar) return;
+        if (listaPrecios.children.length <= 1) {
+            ponerError(formError, "El servicio necesita al menos un precio.");
+            return;
+        }
+        quitar.closest(".fila-precio")?.remove();
+        quitarError(formError);
+    });
+
+    el("btn-add-precio")?.addEventListener("click", () => {
+        if ((listaPrecios?.children.length ?? 0) >= 10) {
+            ponerError(formError, "Un servicio puede tener máximo 10 precios.");
+            return;
+        }
+        quitarError(formError);
+        agregarFilaPrecio();
+    });
+
+
+    function abrirFormulario(servicio?: Servicio) {
+        if (!dlgServicio || !inNombre || !inDesc || !inActivo || !listaPrecios) return;
+
+        editandoId = servicio?.id ?? null;
+        el("dlg-titulo")!.textContent = servicio ? "Editar servicio" : "Nuevo servicio";
+        inNombre.value = servicio?.nombre ?? "";
+        inDesc.value = servicio?.descripcion ?? "";
+        inActivo.checked = servicio?.activo ?? true;
+        listaPrecios.replaceChildren();
+        quitarError(formError);
+
+        if (servicio && servicio.precios.length > 0) {
+            servicio.precios.forEach((p) => agregarFilaPrecio(p));
+        } else {
+            agregarFilaPrecio({ etiqueta: "Estándar" });
+        }
+
+        dlgServicio.showModal();
+        inNombre.focus();
+    }
+
+    form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        quitarError(formError);
+
+        const nombre = inNombre?.value.trim() ?? "";
+        const precios = leerPrecios();
+
+        if (nombre.length < 2) return ponerError(formError, "Escribe el nombre del servicio (mínimo 2 caracteres).");
+        if (precios.some((p) => !p.etiqueta)) return ponerError(formError, "Cada precio necesita una etiqueta.");
+        if (precios.some((p) => !Number.isFinite(p.monto) || p.monto < 0)) {
+            return ponerError(formError, "Escribe un monto válido en cada precio.");
+        }
+
+        if (btnGuardar) { btnGuardar.disabled = true; }
+        try {
+            await llamar("POST", {
+                id: editandoId ?? undefined,
+                nombre,
+                descripcion: inDesc?.value.trim() || null,
+                activo: inActivo?.checked ?? true,
+                precios,
+            });
+            terminar(editandoId ? "Servicio actualizado" : "Servicio creado");
+        } catch (err) {
+            ponerError(formError, (err as Error).message);
+            if (btnGuardar) { btnGuardar.disabled = false; }
+        }
+    });
+
+
+    async function alternarEstado(servicio: Servicio, boton: HTMLButtonElement) {
+        boton.disabled = true;
+        try {
+            await llamar("PATCH", { id: servicio.id, activo: !servicio.activo });
+            terminar(servicio.activo ? "Servicio desactivado" : "Servicio activado");
+        } catch (err) {
+            boton.disabled = false;
+            mostrarAviso((err as Error).message);
+        }
+    }
+
+    function pedirEliminar(servicio: Servicio) {
+        eliminandoId = servicio.id;
+        if (eliminarTexto) eliminarTexto.textContent = `¿Eliminar "${servicio.nombre}" del catálogo?`;
+        quitarError(eliminarError);
+        if (btnConfirmarEliminar) btnConfirmarEliminar.disabled = false;
+        dlgEliminar?.showModal();
+    }
+
+    btnConfirmarEliminar?.addEventListener("click", async () => {
+        if (!eliminandoId) return;
+        btnConfirmarEliminar.disabled = true;
+        try {
+            await llamar("DELETE", { id: eliminandoId });
+            terminar("Servicio eliminado");
+        } catch (err) {
+            ponerError(eliminarError, (err as Error).message);
+            btnConfirmarEliminar.disabled = false;
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        const boton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-accion]");
+        if (!boton) return;
+
+        const accion = boton.dataset.accion;
+        if (accion === "nuevo") return abrirFormulario();
+
+        const servicio = porId.get(boton.dataset.id ?? "");
+        if (!servicio) return;
+
+        if (accion === "editar") abrirFormulario(servicio);
+        if (accion === "estado") alternarEstado(servicio, boton);
+        if (accion === "eliminar") pedirEliminar(servicio);
+    });
+
+    el("btn-nuevo")?.addEventListener("click", () => abrirFormulario());
+
+
+    [dlgServicio, dlgEliminar].forEach((dlg) => {
+        dlg?.addEventListener("click", (e) => {
+            const objetivo = e.target as HTMLElement;
+            if (objetivo === dlg || objetivo.closest("[data-cerrar]")) dlg.close();
+        });
+    });
+
+
+    const buscar = el<HTMLInputElement>("buscar");
+    const filas = Array.from(document.querySelectorAll<HTMLElement>("#lista-servicios > li"));
+    const sinResultados = el("sin-resultados");
+
+    buscar?.addEventListener("input", () => {
+        const consulta = normalizar(buscar.value.trim());
+        let visibles = 0;
+        filas.forEach((fila) => {
+            const coincide = !consulta || (fila.dataset.busqueda ?? "").includes(consulta);
+            fila.classList.toggle("hidden", !coincide);
+            if (coincide) visibles++;
+        });
+        sinResultados?.classList.toggle("hidden", visibles > 0);
+    });
+</script>

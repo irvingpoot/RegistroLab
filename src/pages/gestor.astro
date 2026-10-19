@@ -9,6 +9,8 @@
  * - Búsqueda y cambio de estado se hacen con fetch contra /api/citas/buscar y
  *   /api/citas/estado, por lo que la página nunca recarga y la búsqueda no se pierde.
  * - Las listas de "Atendido por" y "Registrado por" salen de Clerk, igual que nueva-cita.astro.
+ * - El filtro "Servicio" sale del catálogo en caché (lib/catalogo-servicios, el mismo de nueva-cita y editar-cita); cada tarjeta muestra el
+ *   servicio de la cita y su precio.
  *
  * La lógica de acceso a datos vive en: src/services/citas.service.ts
  */
@@ -45,6 +47,7 @@ const chipBase =
 
 const chipAzul    = `${chipBase} peer-checked:bg-blue-600/25 peer-checked:border-blue-500 peer-checked:text-blue-200`;
 const chipMorado  = `${chipBase} peer-checked:bg-purple-600/25 peer-checked:border-purple-500 peer-checked:text-purple-200`;
+const chipVerde   = `${chipBase} peer-checked:bg-emerald-600/25 peer-checked:border-emerald-500 peer-checked:text-emerald-200`;
 
 const camposBusqueda = [
     { value: "nombre",        label: "Nombre" },
@@ -139,6 +142,13 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
                             </div>
                         </fieldset>
 
+                        <fieldset class="md:col-span-2">
+                            <legend class="text-xs font-bold text-gray-500 mb-2">Servicio</legend>
+                            <div id="filtro-servicios" data-chip={chipVerde} class="flex flex-wrap gap-2">
+                                <span class="text-sm text-gray-600">Cargando servicios…</span>
+                            </div>
+                        </fieldset>
+
                         <fieldset>
                             <legend class="text-xs font-bold text-gray-500 mb-2">Atendido por</legend>
                             <div class="flex flex-wrap gap-2">
@@ -215,6 +225,8 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 </style>
 
 <script>
+    import { obtenerCatalogo } from "../lib/catalogo-servicios";
+
     type Estado = "pendiente" | "completada" | "cancelada";
 
     interface Cita {
@@ -229,9 +241,13 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         atendido_por: string | null;
         observaciones: string | null;
         registrado_por_id: string | null;
+        servicio_id: string | null;
+        servicio_nombre: string | null;
+        precio_etiqueta: string | null;
+        precio_monto: number | null;
     }
 
-    const PAGINA = 30;
+    const PAGINA = 15;
     const EASING = "cubic-bezier(.22,1,.36,1)";
     const reducirMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -275,6 +291,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
     const esc = (s: string) =>
         s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const MONEDA = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 
 
     let paramsBase = new URLSearchParams();
@@ -329,6 +346,22 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
                 </div>`
             : "";
 
+        const monto = c.precio_monto == null ? NaN : Number(c.precio_monto);
+        const precioTexto = Number.isFinite(monto) ? MONEDA.format(monto) : null;
+        const servicio = c.servicio_nombre
+            ? `<div class="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                    <div class="min-w-0">
+                        <span class="block text-[10px] uppercase text-gray-500 font-bold">Servicio</span>
+                        <span class="text-sm font-medium text-gray-100 break-words">${esc(c.servicio_nombre)}</span>
+                        ${c.precio_etiqueta ? `<span class="block text-xs text-gray-500">${esc(c.precio_etiqueta)}</span>` : ""}
+                    </div>
+                    ${precioTexto ? `<span class="text-lg font-mono font-bold text-emerald-300 whitespace-nowrap">${esc(precioTexto)}</span>` : ""}
+                </div>`
+            : `<div class="rounded-xl border border-dashed border-gray-800 px-3 py-2">
+                    <span class="block text-[10px] uppercase text-gray-500 font-bold">Servicio</span>
+                    <span class="text-sm text-gray-600">Sin servicio registrado</span>
+                </div>`;
+
         return `
         <article class="cita-resultado relative overflow-hidden bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 rounded-2xl p-5 pl-6 transition-colors duration-300" data-id="${c.id}" data-estado="${est}">
             <span class="absolute inset-y-0 left-0 w-1.5 ${meta.franja}" aria-hidden="true"></span>
@@ -346,6 +379,8 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 
             <div class="space-y-3">
                 <span class="inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${motivoClase}">${resaltar(motivoTexto, "motivo")}</span>
+
+                ${servicio}
 
                 <div class="grid grid-cols-3 gap-3 py-3 border-t border-gray-800/50">
                     <div class="min-w-0"><span class="block text-[10px] uppercase text-gray-500 font-bold">Atiende</span><span class="text-sm font-medium text-purple-300 break-words">${esc(c.atendido_por || "Sin asignar")}</span></div>
@@ -632,7 +667,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 
     function actualizarContador() {
         const activos = form.querySelectorAll(
-            'input[name="referencia"]:checked, input[name="estado"]:checked, input[name="atendido_por"]:checked, input[name="registrado_por"]:checked',
+            'input[name="referencia"]:checked, input[name="estado"]:checked, input[name="servicio"]:checked, input[name="atendido_por"]:checked, input[name="registrado_por"]:checked',
         ).length;
         contFiltros.textContent = activos === 0 ? "Sin filtros activos" : activos === 1 ? "1 filtro activo" : `${activos} filtros activos`;
     }
@@ -682,6 +717,28 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         if (accion === "limpiar") limpiar();
     });
 
+    async function cargarFiltroServicios() {
+        const cont = $("filtro-servicios");
+        const clase = cont.dataset.chip ?? "";
+        const aviso = (texto: string) => `<span class="text-sm text-gray-600">${esc(texto)}</span>`;
+        try {
+            const catalogo = await obtenerCatalogo();
+            cont.innerHTML = catalogo.length
+                ? catalogo
+                    .map(
+                        (sv) => `<label>
+                                <input type="checkbox" name="servicio" value="${esc(sv.id)}" class="peer sr-only" />
+                                <span class="${clase}">${esc(sv.nombre)}</span>
+                            </label>`,
+                    )
+                    .join("")
+                : aviso("Aún no hay servicios en el catálogo.");
+        } catch {
+            cont.innerHTML = aviso("No se pudo cargar el catálogo de servicios.");
+        }
+    }
+
+    cargarFiltroServicios();
     actualizarContador();
     inputQ.focus();
 </script>

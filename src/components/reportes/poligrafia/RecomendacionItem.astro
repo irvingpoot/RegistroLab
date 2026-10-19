@@ -1,0 +1,56 @@
+---
+interface Props {
+    value: string;
+    titulo: string;
+    descripcion: string;
+    checked?: boolean;
+}
+
+const { value, titulo, descripcion, checked = true } = Astro.props;
+---
+<label class="rec-item">
+    <input type="checkbox" value={value} checked={checked} class="rec-checkbox" />
+    <span class="min-w-0">
+        <span class="rec-title block text-sm font-medium text-white">{titulo}</span>
+        <span class="mt-0.5 block text-xs leading-relaxed text-gray-500">{descripcion}</span>
+    </span>
+</label>
+
+<style>
+    .rec-item {
+        display: flex;
+        align-items: flex-start;
+        gap: .875rem;
+        padding: .875rem;
+        border-radius: .875rem;
+        border: 1px solid rgb(255 255 255 / .07);
+        background: rgb(255 255 255 / .03);
+        cursor: pointer;
+        transition: border-color .15s ease, background-color .15s ease;
+    }
+    .rec-item:hover { background: rgb(255 255 255 / .06); }
+    .rec-item:has(.rec-checkbox:checked) {
+        border-color: rgb(var(--a) / .45);
+        background: rgb(var(--a) / .09);
+    }
+    .rec-item .rec-title { transition: color .15s ease; }
+    .rec-item:has(.rec-checkbox:checked) .rec-title { color: rgb(var(--t)); }
+    .rec-checkbox {
+        -webkit-appearance: none;
+        appearance: none;
+        flex-shrink: 0;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: .1rem;
+        border-radius: .4rem;
+        border: 1.5px solid #475569;
+        background: transparent;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+    .rec-checkbox:checked {
+        background: rgb(var(--a)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 10 4 4 8-8'/%3E%3C/svg%3E") center / 72% no-repeat;
+        border-color: rgb(var(--a));
+    }
+    .rec-checkbox:focus-visible { outline: 2px solid rgb(var(--t)); outline-offset: 2px; }
+</style>

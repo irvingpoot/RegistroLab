@@ -5,6 +5,12 @@
  */
 
 import { supabase } from "../lib/supabase";
+import { getPrecioParaCita, type PrecioParaCita } from "./servicios.service";
+
+/** Columnas de una cita que se leen para las vistas */
+// Debe ser UN solo literal (sin "+" ni plantillas): así el cliente de Supabase infiere los tipos de las columnas.
+const COLUMNAS_CITA =
+    "id, fecha_hora, nombre, estado, referencia, sintoma, telefono, motivo, atendido_por, observaciones, registrado_por_id, servicio_id, servicio_nombre, precio_etiqueta, precio_monto" as const;
 
 export interface Cita {
     id: number;
@@ -18,6 +24,10 @@ export interface Cita {
     motivo: string | null;
     estado: 'pendiente' | 'completada' | 'cancelada' | null;
     atendido_por: string | null;
+    servicio_id: string | null;
+    servicio_nombre: string | null;
+    precio_etiqueta: string | null;
+    precio_monto: number | null;
 }
 
 export type CitaResumen = Pick<Cita,
@@ -32,6 +42,10 @@ export type CitaResumen = Pick<Cita,
     | "atendido_por"
     | "observaciones"
     | "registrado_por_id"
+    | "servicio_id"
+    | "servicio_nombre"
+    | "precio_etiqueta"
+    | "precio_monto"
     
 >;
 
@@ -41,7 +55,7 @@ export async function getCitasDelMes(year: number, month: number): Promise<CitaR
 
     const { data, error } = await supabase
         .from("citas")
-        .select("id, fecha_hora, nombre, estado, referencia, sintoma, telefono, motivo, atendido_por, observaciones, registrado_por_id")
+        .select(COLUMNAS_CITA)
         .gte("fecha_hora", startDateStr)
         .lte("fecha_hora", endDateStr)
         .order("fecha_hora", { ascending: true });
@@ -113,7 +127,7 @@ export async function reagendarCita(
 
     const { data: original, error: errorFetch } = await supabase
         .from("citas")
-        .select("nombre, telefono, motivo, sintoma, referencia, atendido_por, observaciones")
+        .select("nombre, telefono, motivo, sintoma, referencia, atendido_por, observaciones, servicio_id, servicio_nombre, precio_etiqueta, precio_monto")
         .eq("id", citaId)
         .single();
 
@@ -130,6 +144,10 @@ export async function reagendarCita(
         referencia:        original.referencia,
         atendido_por:      original.atendido_por,
         observaciones:     original.observaciones,
+        servicio_id:       original.servicio_id,
+        servicio_nombre:   original.servicio_nombre,
+        precio_etiqueta:   original.precio_etiqueta,
+        precio_monto:      original.precio_monto,
         fecha_hora:        nuevaFechaISO,
         estado:            "pendiente",
         registrado_por_id: registradoPor,
@@ -214,6 +232,8 @@ export async function crearCita(params: {
     observaciones: string | null;
     atendidoPor: string;
     registradoPorId: string;
+    servicioId?: string | null;
+    precioId?: string | null;
 }): Promise<void> {
     const fechaObj = new Date(`${params.fechaLocal}-06:00`);
     const fechaISO = fechaObj.toISOString();
@@ -241,6 +261,17 @@ export async function crearCita(params: {
         throw new Error(`⚠️ Agenda ocupada: ${params.atendidoPor} ya tiene una cita a esa hora.`);
     }
     
+    let servicio: PrecioParaCita | null = null;
+    if (params.servicioId || params.precioId) {
+        if (!params.servicioId || !params.precioId) {
+            throw new Error("⚠️ Selecciona el servicio y el precio.");
+        }
+        servicio = await getPrecioParaCita(params.servicioId, params.precioId);
+        if (!servicio) {
+            throw new Error("⚠️ El servicio o precio seleccionado ya no está disponible. Actualiza la página y elige de nuevo.");
+        }
+    }
+
     const { error } = await supabase.from("citas").insert([{
         nombre:            params.nombre,
         telefono:          params.telefono,
@@ -252,6 +283,10 @@ export async function crearCita(params: {
         estado:            "pendiente",
         registrado_por_id: params.registradoPorId,
         atendido_por:      params.atendidoPor,
+        servicio_id:       servicio?.servicio_id ?? null,
+        servicio_nombre:   servicio?.servicio_nombre ?? null,
+        precio_etiqueta:   servicio?.precio_etiqueta ?? null,
+        precio_monto:      servicio?.precio_monto ?? null,
     }]);
 
     if (error) throw new Error(`crearCita: ${error.message}`);
@@ -267,6 +302,8 @@ export interface CitaLote {
     observaciones: string | null;
     atendidoPor: string;
     servicio: "TMS" | "NFB";     
+    servicioId?: string | null;
+    precioId?: string | null;
 }
 
 export interface ResultadoLote {
@@ -282,17 +319,31 @@ export async function crearCitasEnLote(
 ): Promise<ResultadoLote[]> {
     const resultados: ResultadoLote[] = [];
 
+    const serviciosResueltos = new Map<string, PrecioParaCita | null>();
+    const resolverServicio = async (servicioId: string, precioId: string) => {
+        const clave = `${servicioId}:${precioId}`;
+        if (!serviciosResueltos.has(clave)) {
+            serviciosResueltos.set(clave, await getPrecioParaCita(servicioId, precioId));
+        }
+        return serviciosResueltos.get(clave) ?? null;
+    };
+
     for (let i = 0; i < citas.length; i++) {
         const c = citas[i];
 
         try {
-            const fechaSoloDia = c.fechaLocal.split("T")[0];
+            let servicioCopia: PrecioParaCita | null = null;
+            if (c.servicioId || c.precioId) {
+                if (!c.servicioId || !c.precioId) {
+                    throw new Error("Selecciona el servicio y el precio.");
+                }
+                servicioCopia = await resolverServicio(c.servicioId, c.precioId);
+                if (!servicioCopia) {
+                    throw new Error("El servicio o precio seleccionado ya no está disponible. Actualiza la página y vuelve a intentarlo.");
+                }
+            }
 
-            const { data: diaBloqueado } = await supabase
-                .from("dias_inhabiles")
-                .select("fecha")
-                .eq("fecha", fechaSoloDia)
-                .maybeSingle();
+            const fechaSoloDia = c.fechaLocal.split("T")[0];
 
             if (await esDiaBloqueado(fechaSoloDia)) {
                 throw new Error(
@@ -330,6 +381,10 @@ export async function crearCitasEnLote(
                 estado:            "pendiente",
                 registrado_por_id: registradoPorId,
                 atendido_por:      c.atendidoPor,
+                servicio_id:       servicioCopia?.servicio_id ?? null,
+                servicio_nombre:   servicioCopia?.servicio_nombre ?? null,
+                precio_etiqueta:   servicioCopia?.precio_etiqueta ?? null,
+                precio_monto:      servicioCopia?.precio_monto ?? null,
             }]);
 
             if (error) throw new Error(error.message);
@@ -356,6 +411,19 @@ export const ESTADOS_CITA: EstadoCita[] = ["pendiente", "completada", "cancelada
 export type CampoBusqueda = "nombre" | "sintoma" | "telefono" | "observaciones" | "motivo";
 export const CAMPOS_BUSQUEDA: CampoBusqueda[] = ["nombre", "sintoma", "telefono", "observaciones", "motivo"];
 
+export async function getServiciosParaFiltro(): Promise<{ id: string; nombre: string }[]> {
+    const { data, error } = await supabase
+        .from("servicios")
+        .select("id, nombre")
+        .order("nombre", { ascending: true });
+
+    if (error) {
+        console.error("getServiciosParaFiltro:", error);
+        return [];
+    }
+    return (data ?? []).map(s => ({ id: String(s.id), nombre: String(s.nombre) }));
+}
+
 export interface FiltrosBusqueda {
     q: string;
     campos: CampoBusqueda[];
@@ -363,6 +431,7 @@ export interface FiltrosBusqueda {
     estados: EstadoCita[];
     atendidoPor: string[];
     registradoPor: string[];
+    servicios?: string[];
     offset: number;
     limit: number;
 }
@@ -376,10 +445,7 @@ function patronIlike(termino: string): string {
 export async function buscarCitas(f: FiltrosBusqueda): Promise<{ citas: CitaResumen[]; total: number }> {
     let query = supabase
         .from("citas")
-        .select(
-            "id, fecha_hora, nombre, estado, referencia, sintoma, telefono, motivo, atendido_por, observaciones, registrado_por_id",
-            { count: "exact" },
-        );
+        .select(COLUMNAS_CITA, { count: "exact" });
 
     const terminos = f.q.trim().split(/\s+/).filter(Boolean).slice(0, 6);
     const campos   = f.campos.length ? f.campos : CAMPOS_BUSQUEDA;
@@ -392,6 +458,7 @@ export async function buscarCitas(f: FiltrosBusqueda): Promise<{ citas: CitaResu
     if (f.referencias.length)   query = query.in("referencia", f.referencias);
     if (f.atendidoPor.length)   query = query.in("atendido_por", f.atendidoPor);
     if (f.registradoPor.length) query = query.in("registrado_por_id", f.registradoPor);
+    if (f.servicios?.length)    query = query.in("servicio_id", f.servicios);
 
     if (f.estados.length && f.estados.length < ESTADOS_CITA.length) {
         const partes = f.estados.map(e => `estado.eq.${e}`);

@@ -1,123 +1,137 @@
 ---
 /**
- * @component SystemUpdates.astro
- * @description Diseño "Neural Timeline" - Corrección de Scroll y Altura.
+ * @component SystemUpdate.astro
+ * @description Botón de versión + modal de novedades ("bitácora de cambios").
+ *
+ * Concepto: panel en dos columnas. A la izquierda, el título y un filtro por
+ * tipo que tiñe el ambiente del panel; a la derecha, los cambios como tarjetas
+ * grandes numeradas con efecto de luz que sigue al cursor. La versión queda
+ * como dato secundario.
  */
 import { currentVersion, isMajorUpdate, updateDate, changes } from "../data/changelog";
 
-const types: Record<string, { color: string, label: string, dot: string }> = {
-    feature: { 
-        color: "text-blue-400 border-blue-500/30 bg-blue-500/10 shadow-[0_0_15px_-3px_rgba(59,130,246,0.3)]", 
-        label: "NUEVO",
-        dot: "bg-blue-400"
-    },
-    fix: { 
-        color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]", 
-        label: "FIX",
-        dot: "bg-emerald-400"
-    },
-    style: { 
-        color: "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10 shadow-[0_0_15px_-3px_rgba(192,38,211,0.3)]", 
-        label: "ESTILO",
-        dot: "bg-fuchsia-400"
-    }
-};
----
+type TipoCambio = "feature" | "fix" | "style";
 
-<div class="fixed bottom-4 right-4 inline-block z-40">
-    <button id="btn-updates-trigger" class="
-        group relative flex items-center gap-3 pl-3 pr-4 py-1.5 rounded-xl
-        bg-[#0f172a]/80 backdrop-blur-md border border-white/10
-        hover:border-blue-500/40 hover:bg-[#1e293b]
-        transition-all duration-300 shadow-lg
-    ">
-        <div class="relative flex items-center justify-center w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 group-hover:text-white group-hover:bg-blue-500 transition-colors">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 22 4-10 4 10"/></svg>
-            <span id="update-badge" class="hidden absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-[#0f172a]"></span>
+const tipos: Record<TipoCambio, { label: string; filtro: string }> = {
+    feature: { label: "Nuevo", filtro: "Novedades" },
+    fix: { label: "Fix", filtro: "Correcciones" },
+    style: { label: "Estilo", filtro: "Mejoras visuales" },
+};
+
+const tipoDe = (t: string): TipoCambio => (t in tipos ? (t as TipoCambio) : "fix");
+
+const lista = changes.map((c, i) => ({
+    ...c,
+    tipo: tipoDe(c.type),
+    num: String(i + 1).padStart(2, "0"),
+}));
+
+const conteo = (Object.keys(tipos) as TipoCambio[])
+    .map((tipo) => ({ tipo, n: lista.filter((c) => c.tipo === tipo).length }))
+    .filter((x) => x.n > 0);
+
+const versionLimpia = String(currentVersion).replace(/^v/i, "");
+const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}`;
+---
+<div class="fixed bottom-4 right-4 z-40">
+    <button
+        id="btn-updates-trigger"
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`Novedades de la versión ${currentVersion}`}
+        class="su-trigger group"
+    >
+        <span class="su-trigger-chip">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path>
+            </svg>
+            <span id="update-badge" class="hidden absolute -top-1 -right-1 size-2.5">
+                <span class="motion-safe:animate-ping absolute inline-flex size-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex size-2.5 rounded-full bg-red-500 border border-[#0f172a]"></span>
             </span>
-        </div>
-        <div class="flex flex-col items-start">
-            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Versión</span>
-            <span class="text-xs font-mono text-slate-200 group-hover:text-blue-300 transition-colors">{currentVersion}</span>
-        </div>
+        </span>
+        <span class="flex flex-col items-start leading-none">
+            <span class="text-[10px] uppercase tracking-[0.14em] text-gray-400 font-semibold">Versión</span>
+            <span class="mt-1 text-xs font-mono text-gray-200 group-hover:text-blue-300 transition-colors">{currentVersion}</span>
+        </span>
     </button>
 </div>
 
-<dialog id="modal-updates" class="bg-transparent p-0 backdrop:bg-[#000]/70 backdrop:backdrop-blur-sm z-[100] open:animate-in">
-    <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        
-        <div id="modal-panel-updates" class="
-            relative w-full max-w-lg max-h-[90vh] flex flex-col
-            bg-[#050505] rounded-[24px] border border-[#1e293b]
-            shadow-[0_0_60px_-15px_rgba(59,130,246,0.15)]
-            transform scale-95 opacity-0 transition-all duration-500 cubic-bezier(0.2, 0.8, 0.2, 1) overflow-hidden
-        ">
-            <div class="absolute top-0 left-0 w-full h-[180px] bg-gradient-to-b from-[#0f172a] to-[#050505] z-0 shrink-0"></div>
-            <div class="absolute -top-20 -left-20 w-64 h-64 bg-blue-600/20 blur-[80px] rounded-full animate-pulse-slow z-0 pointer-events-none"></div>
-            <div class="absolute -top-20 -right-20 w-64 h-64 bg-violet-600/10 blur-[80px] rounded-full animate-pulse-slow delay-1000 z-0 pointer-events-none"></div>
+<dialog id="modal-updates" class="su-dialog" aria-labelledby="su-title">
+    <div id="modal-panel-updates" class="su-panel" data-filter="all">
 
-            <div class="relative z-10 flex flex-col h-full overflow-hidden">
-                
-                <div class="px-8 pt-8 pb-4 shrink-0">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h2 class="text-2xl font-bold text-white">Novedades</h2>
-                            <p class="text-sm text-slate-400 flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Todo funciona correctamente
-                            </p>
-                        </div>
-                        <button id="btn-close-modal" class="p-2 rounded-full text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    </div>
+        <button id="btn-close-modal" type="button" aria-label="Cerrar" class="su-close">
+            <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
 
-                    <div class="mt-3 flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-transparent border border-blue-500/20">
-                        <div>
-                            <span class="text-xs font-bold text-blue-400 uppercase tracking-widest">Versión</span>
-                            <div class="text-lg font-mono font-bold text-white mt-0.5">{currentVersion}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-xs text-slate-500 font-medium">Lanzamiento</span>
-                            <div class="text-sm text-slate-300">{updateDate}</div>
-                        </div>
-                    </div>
-                </div>
+        <aside class="su-aside">
+            <div class="su-glow" aria-hidden="true"></div>
 
-                <div class="px-8 py-2 overflow-y-auto custom-scrollbar flex-1">
-                    <div class="relative border-l border-slate-800 ml-3 space-y-8 py-4">
-                        {changes.map((change, index) => {
-                            const style = types[change.type] || types.fix;
-                            return (
-                                <div class="relative pl-8 group" style={`animation-delay: ${index * 100}ms`}>
-                                    <div class={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[#050505] ${style.dot}`}></div>
-                                    <div class="flex flex-col gap-2">
-                                        <div class="flex items-center gap-3">
-                                            <span class={`px-2 py-0.5 text-[10px] font-bold rounded-md border backdrop-blur-sm uppercase tracking-wider ${style.color}`}>
-                                                {style.label}
-                                            </span>
-                                            <h3 class="text-slate-200 font-medium text-sm sticky top-0">{change.title}</h3>
-                                        </div>
-                                        <p class="text-slate-400 text-xs leading-relaxed max-w-sm">
-                                            {change.description}
-                                        </p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-                
-                <div class="px-8 pb-8 pt-4 shrink-0 bg-gradient-to-t from-[#050505] to-transparent">
-                    <button id="btn-dismiss-update" class="w-full py-3 rounded-xl bg-white text-black font-bold text-sm hover:bg-slate-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] cursor-pointer">
-                        Entendido
+            <div class="relative z-10">
+                <span class="su-eyebrow">
+                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path></svg>
+                    Novedades
+                </span>
+                <h2 id="su-title" class="su-title">Qué hay de nuevo</h2>
+
+                <nav class="su-filters" aria-label="Filtrar cambios por tipo">
+                    <button type="button" class="su-filter" data-filter-btn="all" data-tipo="all" aria-pressed="true">
+                        <span class="su-filter-name">Todo</span>
+                        <span class="su-filter-n">{lista.length}</span>
                     </button>
-                </div>
-
+                    {conteo.map(({ tipo, n }) => (
+                        <button type="button" class="su-filter" data-filter-btn={tipo} data-tipo={tipo} aria-pressed="false">
+                            <span class="su-filter-name">{tipos[tipo].filtro}</span>
+                            <span class="su-filter-n">{n}</span>
+                        </button>
+                    ))}
+                </nav>
             </div>
-        </div>
+
+            <div class="su-meta">
+                <span class="su-meta-label">Versión</span>
+                <span class="su-meta-version">v{versionLimpia}</span>
+                <span class="su-meta-date">{updateDate}</span>
+            </div>
+        </aside>
+
+        <section class="su-main">
+            <div id="su-scroll" class="su-scroll custom-scrollbar">
+                <ol class="su-list">
+                    {lista.map((c) => (
+                        <li class="su-card" data-tipo={c.tipo}>
+                            <span class="su-num" aria-hidden="true">{c.num}</span>
+
+                            <span class="su-chip" aria-hidden="true">
+                                {c.tipo === "feature" && (
+                                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7L19 16z"></path></svg>
+                                )}
+                                {c.tipo === "fix" && (
+                                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4 2.6-2.6z"></path></svg>
+                                )}
+                                {c.tipo === "style" && (
+                                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.4 3.4A2 2 0 0 1 12 22z"></path><circle cx="7.5" cy="11" r="1"></circle><circle cx="12" cy="7" r="1"></circle><circle cx="16.5" cy="11" r="1"></circle></svg>
+                                )}
+                                <span class="text-xs text-center">{tipos[c.tipo].label}</span>
+                            </span>
+
+                            <div class="relative min-w-0">
+                                <h3 class="su-card-title">{c.title}</h3>
+                                <p class="su-card-desc">{c.description}</p>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+
+            <footer class="su-footer">
+                <p id="su-status" class="su-status" aria-live="polite">{textoTotal}</p>
+                <button id="btn-dismiss-update" type="button" class="su-cta group">
+                    Entendido
+                    <svg class="size-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                </button>
+            </footer>
+        </section>
     </div>
 </dialog>
 
@@ -129,59 +143,427 @@ const types: Record<string, { color: string, label: string, dot: string }> = {
         const btnTrigger = document.getElementById('btn-updates-trigger');
         const btnClose = document.getElementById('btn-close-modal');
         const btnDismiss = document.getElementById('btn-dismiss-update');
+        const scroll = document.getElementById('su-scroll');
+        const status = document.getElementById('su-status');
+        if (!modal || !panel) return;
 
-        const storedVersion = localStorage.getItem('app_version_seen');
-        const hasNewVersion = storedVersion !== currentVersion;
+        const KEY = 'app_version_seen';
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const cards = [...panel.querySelectorAll('.su-card')];
+        const filtros = [...panel.querySelectorAll('[data-filter-btn]')];
+
+        const leer = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+        const marcarVista = () => {
+            try { localStorage.setItem(KEY, currentVersion); } catch { /* almacenamiento no disponible */ }
+            badge?.classList.add('hidden');
+        };
+
+        const animarTarjetas = () => {
+            let i = 0;
+            cards.forEach((card) => {
+                card.classList.remove('is-in');
+                if (card.hidden) return;
+                card.style.setProperty('--i', String(i++));
+                void card.offsetWidth;
+                card.classList.add('is-in');
+            });
+        };
+
+        const aplicarFiltro = (f) => {
+            panel.dataset.filter = f;
+            filtros.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.filterBtn === f)));
+            let visibles = 0;
+            cards.forEach((card) => {
+                const mostrar = f === 'all' || card.dataset.tipo === f;
+                card.hidden = !mostrar;
+                if (mostrar) visibles++;
+            });
+            if (status) status.textContent = f === 'all'
+                ? `${cards.length} ${cards.length === 1 ? 'cambio' : 'cambios'}`
+                : `${visibles} de ${cards.length}`;
+            scroll?.scrollTo({ top: 0 });
+            animarTarjetas();
+        };
+        filtros.forEach((b) => b.addEventListener('click', () => aplicarFiltro(b.dataset.filterBtn)));
+
+        scroll?.addEventListener('pointermove', (e) => {
+            const card = e.target instanceof Element ? e.target.closest('.su-card') : null;
+            if (!card) return;
+            const r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+            card.style.setProperty('--my', `${e.clientY - r.top}px`);
+        });
+
+        let cerrando = false;
 
         const openModal = () => {
-            if (!modal || !panel) return;
+            if (modal.open) return;
+            cerrando = false;
+            modal.classList.remove('is-closing');
             modal.showModal();
-            setTimeout(() => {
-                panel.classList.remove('scale-95', 'opacity-0');
-                panel.classList.add('scale-100', 'opacity-100');
-            }, 10);
+            scroll?.scrollTo({ top: 0 });
+            requestAnimationFrame(() => {
+                panel.classList.add('is-open');
+                animarTarjetas();
+            });
         };
 
         const closeModal = () => {
-            if (!modal || !panel) return;
-            panel.classList.remove('scale-100', 'opacity-100');
-            panel.classList.add('scale-95', 'opacity-0');
-            
+            if (!modal.open || cerrando) return;
+            cerrando = true;
+            panel.classList.remove('is-open');
+            modal.classList.add('is-closing');
             setTimeout(() => {
                 modal.close();
-                if(badge) badge.classList.add('hidden');
-                localStorage.setItem('app_version_seen', currentVersion);
-            }, 300);
+                modal.classList.remove('is-closing');
+                cards.forEach((c) => c.classList.remove('is-in'));
+                marcarVista();
+            }, reduce ? 0 : 240);
         };
 
-        if (hasNewVersion) {
+        if (leer() !== currentVersion) {
             if (isMajorUpdate) setTimeout(openModal, 1000);
-            else if (badge) badge.classList.remove('hidden');
+            else badge?.classList.remove('hidden');
         }
 
-        if (btnTrigger) {
-            btnTrigger.addEventListener('click', () => {
-                openModal();
-                if (badge) badge.classList.add('hidden');
-                localStorage.setItem('app_version_seen', currentVersion);
-            });
-        }
+        btnTrigger?.addEventListener('click', () => {
+            openModal();
+            marcarVista();
+        });
 
-        [btnClose, btnDismiss].forEach(btn => btn?.addEventListener('click', closeModal));
-        if (modal) {
-            modal.addEventListener('click', e => e.target === modal && closeModal());
-        }
+        [btnClose, btnDismiss].forEach((btn) => btn?.addEventListener('click', closeModal));
+
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        modal.addEventListener('cancel', (e) => { e.preventDefault(); closeModal(); });
     });
 </script>
 
 <style>
-    dialog[open] { animation: fade-in 50ms forwards; }
-    @keyframes fade-in { from { background: transparent; } to { background: rgba(0,0,0,0.7); } }
-    @keyframes pulse-slow { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.1); } }
-    .animate-pulse-slow { animation: pulse-slow 4s infinite ease-in-out; }
+    [data-tipo="all"]     { --a: 129 140 248; --t: 199 210 254; }
+    [data-tipo="feature"] { --a: 59 130 246;  --t: 147 197 253; }
+    [data-tipo="fix"]     { --a: 16 185 129;  --t: 110 231 183; }
+    [data-tipo="style"]   { --a: 168 85 247;  --t: 216 180 254; }
+
+    .su-trigger {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .375rem 1rem .375rem .375rem;
+        border-radius: 9999px;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .75);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px -10px rgb(0 0 0 / .6);
+        cursor: pointer;
+        transition: border-color .2s ease, background-color .2s ease;
+    }
+    .su-trigger:hover { border-color: rgb(59 130 246 / .45); background: rgb(30 41 59 / .9); }
+    .su-trigger:focus-visible { outline: 2px solid rgb(147 197 253); outline-offset: 2px; }
+    .su-trigger-chip {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        background: rgb(59 130 246 / .18);
+        color: rgb(147 197 253);
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .su-trigger:hover .su-trigger-chip { background: rgb(59 130 246); color: #fff; }
+
+    .su-dialog {
+        margin: 0;
+        padding: 1rem;
+        width: 100vw;
+        height: 100dvh;
+        max-width: none;
+        max-height: none;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        overflow: hidden;
+    }
+    .su-dialog[open] { display: flex; align-items: center; justify-content: center; }
+    .su-dialog::backdrop {
+        background: radial-gradient(70% 60% at 50% 45%, rgb(30 41 120 / .25), transparent 70%), rgb(2 6 23 / .8);
+        backdrop-filter: blur(6px);
+        animation: su-fade .25s ease both;
+    }
+    .su-dialog.is-closing::backdrop { animation: su-fade .24s ease reverse both; }
+    @keyframes su-fade { from { opacity: 0; } to { opacity: 1; } }
+
+    .su-panel {
+        --ga: 99 102 241;
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+        width: 100%;
+        max-width: 54rem;
+        height: min(90dvh, 40rem);
+        overflow: hidden;
+        border-radius: 1.5rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: #0b1120;
+        box-shadow: 0 40px 100px -20px rgb(0 0 0 / .9), 0 0 0 1px rgb(255 255 255 / .02);
+        opacity: 0;
+        transform: translateY(14px) scale(.97);
+        transition: opacity .3s ease, transform .45s cubic-bezier(.2, .8, .2, 1);
+    }
+    .su-panel.is-open { opacity: 1; transform: none; }
+    .su-panel[data-filter="feature"] { --ga: 59 130 246; }
+    .su-panel[data-filter="fix"]     { --ga: 16 185 129; }
+    .su-panel[data-filter="style"]   { --ga: 168 85 247; }
+
+    @media (min-width: 768px) {
+        .su-panel { grid-template-columns: 16.5rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+    }
+
+    .su-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 30;
+        display: grid;
+        place-items: center;
+        padding: .45rem;
+        border-radius: 9999px;
+        color: rgb(156 163 175);
+        border: 1px solid rgb(255 255 255 / .08);
+        background: rgb(11 17 32 / .7);
+        backdrop-filter: blur(6px);
+        cursor: pointer;
+        transition: color .15s ease, background-color .15s ease, transform .25s ease;
+    }
+    .su-close:hover { color: #fff; background: rgb(255 255 255 / .12); transform: rotate(90deg); }
+    .su-close:focus-visible { outline: 2px solid rgb(147 197 253); outline-offset: 2px; }
+
+    .su-aside {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1.25rem;
+        padding: 1.5rem 1.5rem 1.25rem;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgb(15 23 42) 0%, rgb(11 17 32) 100%);
+        border-bottom: 1px solid rgb(255 255 255 / .08);
+    }
+    @media (min-width: 768px) {
+        .su-aside { padding: 2rem 1.75rem 1.75rem; border-bottom: 0; border-right: 1px solid rgb(255 255 255 / .08); }
+    }
+    .su-glow {
+        position: absolute;
+        top: -5rem;
+        left: -5rem;
+        width: 16rem;
+        height: 16rem;
+        border-radius: 9999px;
+        background: rgb(var(--ga) / .4);
+        filter: blur(70px);
+        pointer-events: none;
+        transition: background-color .6s ease;
+    }
+
+    .su-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .25rem .65rem .25rem .5rem;
+        border-radius: 9999px;
+        font-size: .6875rem;
+        font-weight: 600;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: rgb(199 210 254);
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(255 255 255 / .04);
+    }
+    .su-title {
+        margin-top: 1rem;
+        font-size: 2.25rem;
+        line-height: 1.02;
+        letter-spacing: -0.02em;
+        color: #fff;
+    }
+    @media (min-width: 768px) { .su-title { font-size: 2.6rem; } }
+
+    .su-filters {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: .4rem;
+        overflow-x: auto;
+        padding-bottom: .25rem;
+        scrollbar-width: none;
+    }
+    .su-filters::-webkit-scrollbar { display: none; }
+    @media (min-width: 768px) {
+        .su-filters { margin-top: 1.75rem; flex-direction: column; overflow: visible; padding-bottom: 0; }
+    }
+    .su-filter {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        flex-shrink: 0;
+        padding: .5rem .75rem;
+        border-radius: .75rem;
+        border: 1px solid transparent;
+        font-size: .8125rem;
+        color: rgb(156 163 175);
+        text-align: left;
+        cursor: pointer;
+        transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+    }
+    .su-filter:hover { color: #fff; background: rgb(255 255 255 / .04); }
+    .su-filter:focus-visible { outline: 2px solid rgb(var(--t)); outline-offset: 2px; }
+    .su-filter[aria-pressed="true"] {
+        color: rgb(var(--t));
+        background: rgb(var(--a) / .14);
+        border-color: rgb(var(--a) / .35);
+    }
+    .su-filter-name { flex: 1; white-space: nowrap; }
+    .su-filter-n {
+        font-size: .6875rem;
+        font-variant-numeric: tabular-nums;
+        padding: .05rem .45rem;
+        border-radius: 9999px;
+        background: rgb(255 255 255 / .06);
+    }
+    .su-filter[aria-pressed="true"] .su-filter-n { background: rgb(var(--a) / .22); }
+
+    .su-meta { position: relative; z-index: 10; display: none; flex-direction: column; gap: .15rem; padding-top: 1rem; border-top: 1px solid rgb(255 255 255 / .08); }
+    @media (min-width: 768px) { .su-meta { display: flex; } }
+    .su-meta-label { font-size: .625rem; letter-spacing: .16em; text-transform: uppercase; color: rgb(107 114 128); }
+    .su-meta-version { font-family: ui-monospace, monospace; font-size: .875rem; color: rgb(209 213 219); }
+    .su-meta-date { font-size: .75rem; color: rgb(107 114 128); }
+
+    .su-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    @media (min-width: 768px) { .su-main { padding-top: 3.75rem; } }
+    .su-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1.25rem 1.25rem .5rem; overscroll-behavior: contain; }
+    @media (min-width: 768px) { .su-scroll { padding: 2rem 1.75rem .75rem; } }
+    .su-list { display: flex; flex-direction: column; gap: .9rem; padding-bottom: 1rem; }
+
+    .su-card {
+        --mx: 50%;
+        --my: 0%;
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1.1rem;
+        padding: 1.25rem 1.35rem 1.35rem;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        border: 1px solid rgb(var(--a) / .22);
+        background: linear-gradient(135deg, rgb(var(--a) / .11), rgb(var(--a) / .025) 70%);
+        opacity: 0;
+        transform: translateY(12px);
+        transition: border-color .2s ease;
+    }
+    .su-card[hidden] { display: none; }
+    .su-card.is-in { animation: su-in .5s cubic-bezier(.2, .8, .2, 1) forwards; animation-delay: calc(60ms + var(--i, 0) * 70ms); }
+    @keyframes su-in { to { opacity: 1; transform: none; } }
+    .su-card:hover { border-color: rgb(var(--a) / .55); }
+    .su-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(260px circle at var(--mx) var(--my), rgb(var(--a) / .2), transparent 70%);
+        transition: opacity .25s ease;
+    }
+    .su-card:hover::before { opacity: 1; }
+
+    .su-num {
+        position: absolute;
+        top: 1.05rem;
+        right: 1.25rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: .6875rem;
+        line-height: 1;
+        font-weight: 500;
+        letter-spacing: .12em;
+        font-variant-numeric: tabular-nums;
+        color: rgb(var(--t) / .4);
+        pointer-events: none;
+        transition: color .25s ease;
+    }
+    .su-card:hover .su-num { color: rgb(var(--t) / .8); }
+
+    .su-chip {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 3.2rem;
+        height: 3.2rem;
+        padding: .25rem;
+        border-radius: .9rem;
+        background: rgb(var(--a) / .18);
+        color: rgb(var(--t));
+        box-shadow: inset 0 0 0 1px rgb(var(--a) / .25);
+        transition: background-color .15s ease, color .15s ease, transform .25s cubic-bezier(.2, .8, .2, 1);
+    }
+    .su-card:hover .su-chip { background: rgb(var(--a)); color: #fff; transform: rotate(-6deg) scale(1.05); }
+    .su-card-title {
+        margin-top: .55rem;
+        padding-right: 1.75rem;
+        font-size: 1.5rem;
+        line-height: 1.2;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        color: #fff;
+    }
+    .su-card-desc {
+        margin-top: .5rem;
+        font-size: .9rem;
+        line-height: 1.6;
+        color: rgb(156 163 175);
+    }
+
+    .su-footer {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .9rem 1.25rem 1.1rem;
+        border-top: 1px solid rgb(255 255 255 / .08);
+        background: linear-gradient(0deg, rgb(2 6 23 / .55), transparent);
+    }
+    @media (min-width: 768px) { .su-footer { padding: 1rem 1.75rem 1.4rem; } }
+    .su-status { font-size: .75rem; color: rgb(107 114 128); font-variant-numeric: tabular-nums; }
+    .su-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .7rem 1.4rem;
+        border-radius: .8rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgb(59 130 246);
+        box-shadow: 0 10px 28px -10px rgb(59 130 246 / .8), inset 0 1px 0 rgb(255 255 255 / .2);
+        cursor: pointer;
+        transition: background-color .15s ease, transform .15s ease;
+    }
+    .su-cta:hover { background: rgb(37 99 235); }
+    .su-cta:active { transform: scale(.98); }
+    .su-cta:focus-visible { outline: 2px solid rgb(147 197 253); outline-offset: 3px; }
 
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgb(255 255 255 / .1); border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / .2); }
+
+    @media (max-width: 480px) {
+        .su-card { grid-template-columns: 1fr; gap: .85rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .su-panel, .su-card, .su-chip, .su-close, .su-glow { animation: none !important; transition: none !important; }
+        .su-card { opacity: 1; transform: none; }
+    }
 </style>

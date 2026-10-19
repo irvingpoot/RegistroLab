@@ -1,7 +1,13 @@
 import type { APIRoute } from "astro";
 import { eliminarCita } from "../../../services/citas.service";
+import { requerirSesion } from "../../../lib/api-auth";
 
-export const POST: APIRoute = async ({ request }) => {
+export const prerender = false;
+
+export const POST: APIRoute = async ({ request, locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     let body: { id?: number };
     try {
         body = await request.json();

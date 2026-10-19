@@ -1,0 +1,25 @@
+---
+import DocumentIcon from '../icons/reportes/DocumentIcon.astro';
+import ActivityIcon from '../icons/reportes/ActivityIcon.astro';
+import ChartIcon from '../icons/reportes/ChartIcon.astro';
+import MoonIcon from '../icons/reportes/MoonIcon.astro';
+import CalendarIcon from '../icons/CalendarIcon.astro';
+
+interface Props {
+    nombre: 'medical' | 'activity' | 'chart' | 'document' | 'moon' | 'calendar';
+    class?: string;
+}
+
+const { nombre, class: clase } = Astro.props;
+
+const iconos = {
+    medical: DocumentIcon,
+    document: DocumentIcon,
+    activity: ActivityIcon,
+    chart: ChartIcon,
+    moon: MoonIcon,
+    calendar: CalendarIcon,
+};
+const Icono = iconos[nombre];
+---
+{Icono && <Icono class={clase} />}
