@@ -1,7 +1,13 @@
 import type { APIRoute } from 'astro';
 import { supabase } from '../../../lib/supabase';
+import { requerirSesion } from '../../../lib/api-auth';
 
-export const POST: APIRoute = async ({ request }) => {
+export const prerender = false;
+
+export const POST: APIRoute = async ({ request, locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     const body = await request.json().catch(() => null);
 
     if (!body || !body.titulo || !body.descripcion || !body.url || !body.tipo) {

@@ -1,7 +1,13 @@
 import type { APIRoute } from 'astro';
 import { supabase } from '../../../lib/supabase';
+import { requerirSesion } from '../../../lib/api-auth';
 
-export const PUT: APIRoute = async ({ params, request }) => {
+export const prerender = false;
+
+export const PUT: APIRoute = async ({ params, request, locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     const { id } = params;
     if (!id) {
         return new Response(JSON.stringify({ error: 'ID requerido.' }), {
@@ -46,7 +52,10 @@ export const PUT: APIRoute = async ({ params, request }) => {
     });
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     const { id } = params;
     if (!id) {
         return new Response(JSON.stringify({ error: 'ID requerido.' }), {

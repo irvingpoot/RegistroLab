@@ -2,614 +2,73 @@
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
 import ReturnButton from '../components/ReturnButton.astro';
-import DocumentIcon from '../components/icons/reportes/DocumentIcon.astro';
-import ActivityIcon from '../components/icons/reportes/ActivityIcon.astro';
-import ChartIcon from '../components/icons/reportes/ChartIcon.astro';
-import MoonIcon from '../components/icons/reportes/MoonIcon.astro';
-import CalendarIcon from '../components/icons/CalendarIcon.astro';
-import RightTriangle from '../components/icons/RightTriangle.astro';
-import CrossIcon from '../components/icons/CrossIcon.astro';
-import SearchIcon from '../components/icons/SearchIcon.astro';
-import PatientNotFoundIcon from '../components/icons/PatientNotFoundIcon.astro';
-import DownloadDocument from '../components/icons/reportes/DownloadDocument.astro';
-import ClockIcon from '../components/icons/ClockIcon.astro';
-import ThreeLineIcon from '../components/icons/reportes/ThreeLineIcon.astro';
+import ReportCard from '../components/reportes/ReportCard.astro';
+import PoligrafiaModal from '../components/reportes/poligrafia/PoligrafiaModal.astro';
+import CitasModal from '../components/reportes/citas/CitasModal.astro';
+import ExportarHabitos from '../components/reportes/habitos/ExportarHabitos.astro';
 
 const reportesDisponibles = [
     {
+        id: "reporte-poligrafia",
         titulo: "Reporte de Poligrafía",
-        descripcion: "Genera el reporte clínico en PDF a partir de los datos de poligrafía nocturna del paciente, con resultados, cuestionarios y recomendaciones.",
+        descripcion: "Genera el reporte clínico en Word a partir de los datos de poligrafía nocturna del paciente, con resultados, cuestionarios y recomendaciones.",
         icono: "moon",
         color: "indigo",
         tag: "Clínico",
-        id: "reporte-poligrafia"
+        formato: ".docx",
     },
     {
+        id: "excel-citas-pendientes",
         titulo: "Exportar Citas",
         descripcion: "Exporta citas a Excel (.xlsx): filtra solo las pendientes o descarga el historial completo con estado, síntoma, teléfono, fecha y observaciones.",
         icono: "calendar",
         color: "emerald",
         tag: "Agenda",
-        id: "excel-citas-pendientes"
+        formato: ".xlsx",
     },
     {
+        id: "csv-habitos",
         titulo: "Cama vs Hamaca",
         descripcion: "Exportación en CSV para investigación. Cruce de variables: Lugar de sueño vs Escalas (Epworth, PSQI, Berlin).",
         icono: "chart",
-        color: "rose", 
+        color: "rose",
         tag: "Investigación",
-        id: "csv-habitos"
-    }
-];
-
-const getColors = (color: string) => {
-    const map: Record<string, string> = {
-        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20 group-hover:border-blue-500/50 group-hover:shadow-blue-900/20",
-        emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 group-hover:border-emerald-500/50 group-hover:shadow-emerald-900/20",
-        purple: "bg-purple-500/10 text-purple-400 border-purple-500/20 group-hover:border-purple-500/50 group-hover:shadow-purple-900/20",
-        amber: "bg-amber-500/10 text-amber-400 border-amber-500/20 group-hover:border-amber-500/50 group-hover:shadow-amber-900/20",
-        indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20 group-hover:border-indigo-500/50 group-hover:shadow-indigo-900/20",
-        rose: "bg-rose-500/10 text-rose-400 border-rose-500/20 group-hover:border-rose-500/50 group-hover:shadow-rose-900/20",
-    };
-    return map[color] || map.blue;
-};
+        formato: ".csv",
+    },
+] as const;
 ---
 
 <Layout title="Generador de Reportes | Lab-Somno">
     <Icon />
-	<ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
+
     <div class="min-h-screen p-4 md:p-8">
-        
         <div class="max-w-7xl mx-auto mb-10 relative">
             <div class="absolute -top-10 -left-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
             <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Catalogo de <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">reportes</span></h1>
-            <p class=" pt-5 text-lg text-gray-400 text-center">
+            <p class="pt-5 text-lg text-gray-400 text-center">
                 Seleccione el tipo de documento que desea generar. Puede ajustar los parámetros de salida en el panel lateral.
             </p>
         </div>
 
         <div class="max-w-7xl mx-auto">
-            
-            <div class="space-y-6">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {reportesDisponibles.map((rep) => {
-                        const styles = getColors(rep.color);
-                        return (
-                            <button 
-                                data-titulo={rep.titulo}
-                                data-id={rep.id}
-                                class={`btn-generar group relative p-6 rounded-2xl border text-left transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800/40 cursor-pointer ${styles}`}
-                            >
-                                <div class="flex justify-between items-start mb-4">
-                                    <span class={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-black/20 border border-white/5`}>
-                                        {rep.tag}
-                                    </span>
-                                    
-                                    <div class="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-                                        {rep.icono === 'medical' && <DocumentIcon class="h-5 w-5" />}
-                                        {rep.icono === 'activity' && <ActivityIcon class="h-5 w-5" />}
-                                        {rep.icono === 'chart' && <ChartIcon class="h-5 w-5" />}
-                                        {rep.icono === 'document' && <DocumentIcon class="h-5 w-5" />}
-                                        {rep.icono === 'moon' && <MoonIcon class="h-5 w-5" />}
-                                        {rep.icono === 'calendar' && <CalendarIcon class="h-5 w-5" />}
-                                    </div>
-                                </div>
-
-                                <h3 class="text-lg font-bold text-white mb-2">{rep.titulo}</h3>
-                                <p class="text-sm text-gray-400 leading-relaxed mb-6">{rep.descripcion}</p>
-
-                                <div class="flex items-center gap-2 text-xs font-medium opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <span>Generar archivo</span>
-                                    <RightTriangle class="h-3 w-3 transition-transform group-hover:translate-x-1" />
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {reportesDisponibles.map((reporte) => <ReportCard {...reporte} />)}
             </div>
         </div>
     </div>
+
+    <PoligrafiaModal />
+    <CitasModal />
+    <ExportarHabitos />
 </Layout>
 
-<dialog id="modal-poligrafia" class="fixed inset-0 z-50 bg-transparent p-0 m-0 max-w-none w-full h-full">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
-            
-            <div class="flex items-center justify-between p-6 border-b border-white/10">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                        <MoonIcon class="h-5 w-5 text-indigo-400" />
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Reporte de Poligrafía</h3>
-                        <p id="modal-subtitulo" class="text-xs text-gray-400">Paso 1 de 2 — Seleccionar paciente</p>
-                    </div>
-                </div>
-                <button id="btn-cerrar-modal" class="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5 cursor-pointer">
-                    <CrossIcon class="h-5 w-5" />
-                </button>
-            </div>
-
-            <div id="paso-1" class="p-6 space-y-4">
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                        <SearchIcon class="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                        id="buscador-paciente"
-                        type="text"
-                        placeholder="Buscar paciente por nombre..."
-                        class="w-full bg-slate-800 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none transition-colors"
-                        autocomplete="off"
-                    />
-                </div>
-
-                <div id="resultados-busqueda" class="space-y-1 max-h-64 overflow-y-auto hidden"></div>
-
-                <div id="estado-vacio-busqueda" class="text-center py-8 text-gray-500">
-                    <PatientNotFoundIcon class="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p class="text-sm">Escribe para buscar un paciente</p>
-                </div>
-
-                <div id="sin-resultados" class="text-center py-8 text-gray-500 hidden">
-                    <p class="text-sm">No se encontraron pacientes con ese nombre</p>
-                </div>
-            </div>
-
-            <div id="paso-2" class="p-6 space-y-5 hidden">
-
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/20">
-                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-sm" id="paciente-inicial">?</div>
-                    <div>
-                        <p class="text-sm font-semibold text-white" id="paciente-nombre-seleccionado">—</p>
-                        <p class="text-xs text-gray-400" id="paciente-edad-seleccionada">—</p>
-                    </div>
-                    <button id="btn-cambiar-paciente" class="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer">Cambiar</button>
-                </div>
-
-                <div class="mt-4 mb-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Fase del Estudio</label>
-                    <select id="selector-fase-reporte" class="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors cursor-pointer appearance-none">
-                        <option value="pre">Pre-Tratamiento</option>
-                        <option value="inter">Intermedio</option>
-                        <option value="post">Post-Tratamiento</option>
-                    </select>
-                </div>
-
-                <div>
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recomendaciones a incluir</p>
-                    <div class="space-y-2">
-
-                        <label class="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors group">
-                            <input type="checkbox" value="cpap" checked class="rec-checkbox mt-0.5 h-4 w-4 rounded border-gray-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer" />
-                            <div>
-                                <p class="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">Valoración de CPAP</p>
-                                <p class="text-xs text-gray-500 mt-0.5">Ventilación mecánica no invasiva mediante presión positiva continua.</p>
-                            </div>
-                        </label>
-
-                        <label class="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors group">
-                            <input type="checkbox" value="orl" checked class="rec-checkbox mt-0.5 h-4 w-4 rounded border-gray-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer" />
-                            <div>
-                                <p class="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">Revisión de Otorrinolaringología</p>
-                                <p class="text-xs text-gray-500 mt-0.5">Valoración de oclusiones en vía aérea superior y peso corporal saludable.</p>
-                            </div>
-                        </label>
-
-                        <label class="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors group">
-                            <input type="checkbox" value="posicion" checked class="rec-checkbox mt-0.5 h-4 w-4 rounded border-gray-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer" />
-                            <div>
-                                <p class="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">Posición lateral al dormir</p>
-                                <p class="text-xs text-gray-500 mt-0.5">Evitar posición supina para reducir eventos obstructivos.</p>
-                            </div>
-                        </label>
-
-                        <label class="flex items-start gap-3 p-3 rounded-xl border border-white/5 bg-slate-800/50 hover:bg-slate-800 cursor-pointer transition-colors group">
-                            <input type="checkbox" value="autoinforme" checked class="rec-checkbox mt-0.5 h-4 w-4 rounded border-gray-600 bg-slate-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer" />
-                            <div>
-                                <p class="text-sm font-medium text-white group-hover:text-indigo-300 transition-colors">Higiene de sueño y ciclo circadiano</p>
-                                <p class="text-xs text-gray-500 mt-0.5">Psicoeducación y estrategias para mejorar la calidad del sueño.</p>
-                            </div>
-                        </label>
-
-                    </div>
-                </div>
-
-                <div id="error-generacion" class="hidden p-3 rounded-lg bg-red-900/20 border border-red-500/20 text-red-300 text-sm"></div>
-
-                <button
-                    id="btn-generar-pdf"
-                    class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <DownloadDocument class="h-4 w-4" />
-                    <span id="btn-generar-texto">Generar PDF</span>
-                </button>
-            </div>
-
-        </div>
-    </div>
-    <div id="modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10"></div>
-</dialog>
-
-<dialog id="modal-citas" class="fixed inset-0 z-50 bg-transparent p-0 m-0 max-w-none w-full h-full">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
-
-            <div class="flex items-center justify-between p-6 border-b border-white/10">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                        <CalendarIcon class="h-5 w-5 text-emerald-400" />
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Exportar Citas</h3>
-                        <p class="text-xs text-gray-400">Selecciona qué citas exportar</p>
-                    </div>
-                </div>
-                <button id="btn-cerrar-modal-citas" class="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5 cursor-pointer">
-                    <CrossIcon class="h-5 w-5" />
-                </button>
-            </div>
-
-            <div class="p-6 space-y-3">
-                <p class="text-xs text-gray-400 uppercase tracking-wider font-bold mb-4">Filtro de exportación</p>
-
-                <button id="btn-filtro-pendientes" class="w-full flex items-center gap-4 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all text-left cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed">
-                    <div class="p-2 rounded-lg bg-emerald-500/10 shrink-0">
-                        <ClockIcon class="h-5 w-5 text-emerald-400" />
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-white">Solo pendientes</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Citas con estado <span class="text-emerald-400 font-medium">pendiente</span> ordenadas por fecha</p>
-                    </div>
-                    <DownloadDocument class="h-4 w-4 text-gray-600 group-hover:text-emerald-400 transition-colors ml-auto shrink-0" />
-                </button>
-
-                <button id="btn-filtro-todas" class="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 transition-all text-left cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed">
-                    <div class="p-2 rounded-lg bg-white/5 shrink-0">
-                        <ThreeLineIcon class="h-5 w-5 text-gray-400" />
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-white">Todas las citas</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Historial completo sin importar el estado</p>
-                    </div>
-                    <DownloadDocument class="h-4 w-4 text-gray-600 group-hover:text-gray-300 transition-colors ml-auto shrink-0" />
-                </button>
-
-                <div id="error-citas" class="hidden p-3 rounded-lg bg-red-900/20 border border-red-500/20 text-red-300 text-sm"></div>
-            </div>
-
-        </div>
-    </div>
-    <div id="modal-citas-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10"></div>
-</dialog>
-
-<script>
-    let pacienteSeleccionado: { id: number; nombre: string; edad: number; fase: string } | null = null;
-    let busquedaTimeout: ReturnType<typeof setTimeout> | null = null;
-
-    const modal            = document.getElementById('modal-poligrafia') as HTMLDialogElement;
-    const paso1            = document.getElementById('paso-1')!;
-    const paso2            = document.getElementById('paso-2')!;
-    const subtitulo        = document.getElementById('modal-subtitulo')!;
-    const buscador         = document.getElementById('buscador-paciente') as HTMLInputElement;
-    const resultadosEl     = document.getElementById('resultados-busqueda')!;
-    const estadoVacio      = document.getElementById('estado-vacio-busqueda')!;
-    const sinResultados    = document.getElementById('sin-resultados')!;
-    const btnCerrar        = document.getElementById('btn-cerrar-modal')!;
-    const btnCambiar       = document.getElementById('btn-cambiar-paciente')!;
-    const btnGenerarPDF    = document.getElementById('btn-generar-pdf') as HTMLButtonElement;
-    const btnGenerarTexto  = document.getElementById('btn-generar-texto')!;
-    const errorEl          = document.getElementById('error-generacion')!;
-    const backdrop         = document.getElementById('modal-backdrop')!;
-
-    const abrirModal = () => {
-        irPaso1();
-        modal.showModal();
-        setTimeout(() => buscador.focus(), 100);
-    };
-
-    const cerrarModal = () => {
-        modal.close();
-        buscador.value = '';
-        pacienteSeleccionado = null;
-        mostrarEstadoVacio();
-    };
-
-    btnCerrar.addEventListener('click', cerrarModal);
-    backdrop.addEventListener('click', cerrarModal);
-    modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarModal(); });
-
-    const irPaso1 = () => {
-        paso1.classList.remove('hidden');
-        paso2.classList.add('hidden');
-        subtitulo.textContent = 'Paso 1 de 2 — Seleccionar paciente';
-    };
-
-    const selectorFaseReporte = document.getElementById('selector-fase-reporte') as HTMLSelectElement;
-
-    const irPaso2 = (paciente: { id: number; nombre: string; edad: number; fase?: string }) => {
-        const faseFinal = paciente.fase || 'pre';
-        pacienteSeleccionado = { ...paciente, fase: faseFinal };
-        
-        document.getElementById('paciente-nombre-seleccionado')!.textContent = paciente.nombre;
-        document.getElementById('paciente-edad-seleccionada')!.textContent = `${paciente.edad} años`;
-        document.getElementById('paciente-inicial')!.textContent = paciente.nombre.charAt(0).toUpperCase();
-        
-        if (selectorFaseReporte) {
-            selectorFaseReporte.value = faseFinal;
-        }
-
-        errorEl.classList.add('hidden');
-        paso1.classList.add('hidden');
-        paso2.classList.remove('hidden');
-        subtitulo.textContent = 'Paso 2 de 2 — Configurar reporte';
-    };
-
-    btnCambiar.addEventListener('click', () => {
-        pacienteSeleccionado = null;
-        buscador.value = '';
-        mostrarEstadoVacio();
-        irPaso1();
-        setTimeout(() => buscador.focus(), 100);
-    });
-
-    const mostrarEstadoVacio = () => {
-        resultadosEl.classList.add('hidden');
-        estadoVacio.classList.remove('hidden');
-        sinResultados.classList.add('hidden');
-    };
-
-    const mostrarSinResultados = () => {
-        resultadosEl.classList.add('hidden');
-        estadoVacio.classList.add('hidden');
-        sinResultados.classList.remove('hidden');
-    };
-
-    const mostrarResultados = (pacientes: any[]) => {
-        estadoVacio.classList.add('hidden');
-        sinResultados.classList.add('hidden');
-
-        resultadosEl.innerHTML = pacientes.map(p => `
-            <button
-                data-id="${p.id}"
-                data-nombre="${p.nombre}"
-                data-edad="${p.edad}"
-                class="resultado-paciente w-full flex items-center cursor-pointer gap-3 p-3 rounded-xl text-left hover:bg-slate-700/60 transition-colors border border-transparent hover:border-white/10"
-            >
-                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-gray-300 font-bold text-sm shrink-0">
-                    ${p.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium text-white truncate">${p.nombre}</p>
-                    <p class="text-xs text-gray-400">${p.edad} años</p>
-                </div>
-            </button>
-        `).join('');
-
-        resultadosEl.classList.remove('hidden');
-
-        resultadosEl.querySelectorAll('.resultado-paciente').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id    = parseInt(btn.getAttribute('data-id')!);
-                const nombre = btn.getAttribute('data-nombre')!;
-                const edad   = parseInt(btn.getAttribute('data-edad')!);
-                irPaso2({ id, nombre, edad });
-            });
-        });
-    };
-
-    buscador.addEventListener('input', () => {
-        const query = buscador.value.trim();
-
-        if (busquedaTimeout) clearTimeout(busquedaTimeout);
-
-        if (query.length < 2) {
-            mostrarEstadoVacio();
-            return;
-        }
-
-        busquedaTimeout = setTimeout(async () => {
-            try {
-                const res = await fetch(`/api/buscar-pacientes?q=${encodeURIComponent(query)}`);
-                if (!res.ok) throw new Error();
-                const data = await res.json();
-                if (data.length === 0) mostrarSinResultados();
-                else mostrarResultados(data);
-            } catch {
-                mostrarSinResultados();
-            }
-        }, 300);
-    });
-
-    btnGenerarPDF.addEventListener('click', async () => {
-        if (!pacienteSeleccionado) return;
-
-        const recomendaciones = Array.from(
-            document.querySelectorAll<HTMLInputElement>('.rec-checkbox:checked')
-        ).map(cb => cb.value);
-
-        btnGenerarPDF.disabled = true;
-        btnGenerarTexto.textContent = 'Generando PDF...';
-        errorEl.classList.add('hidden');
-
-        try {
-            const faseElegida = (document.getElementById('selector-fase-reporte') as HTMLSelectElement).value;
-
-            const response = await fetch('/api/generar-reporte-poligrafia', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    paciente_id: pacienteSeleccionado.id,
-                    fase: faseElegida,
-                    recomendaciones,
-                }),
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || 'Error al generar el reporte');
-            }
-
-            const blob = await response.blob();
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href = url;
-            a.download = `reporte_poligrafia_${pacienteSeleccionado.nombre.replace(/\s+/g, '_')}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(url);
-            a.remove();
-
-            cerrarModal();
-        } catch (err: any) {
-            errorEl.textContent = err.message || 'Ocurrió un error inesperado.';
-            errorEl.classList.remove('hidden');
-        } finally {
-            btnGenerarPDF.disabled = false;
-            btnGenerarTexto.textContent = 'Generar PDF';
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const botones = document.querySelectorAll('.btn-generar');
-
-        botones.forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const reporteId = btn.getAttribute('data-id');
-
-                if (reporteId === 'reporte-poligrafia') {
-                    abrirModal();
-                    return;
-                }
-
-                const titulo = btn.getAttribute('data-titulo');
-                const originalHtml = btn.innerHTML;
-
-                (btn as HTMLButtonElement).classList.add('opacity-75', 'cursor-not-allowed');
-                (btn as HTMLButtonElement).setAttribute('disabled', 'true');
-                btn.innerHTML = `
-                    <div class="flex items-center justify-center gap-2 h-full">
-                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span>Generando...</span>
-                    </div>
-                `;
-
-                try {
-                    if (reporteId === 'excel-citas-pendientes') {
-                        abrirModalCitas();
-                        btn.innerHTML = originalHtml;
-                        (btn as HTMLButtonElement).classList.remove('opacity-75', 'cursor-not-allowed');
-                        (btn as HTMLButtonElement).removeAttribute('disabled');
-                        return;
-                    } else if (reporteId === 'csv-habitos') {
-                        const response = await fetch('/api/exportar-habitos');
-                        if (response.ok) {
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `reporte_habitos_${new Date().toISOString().split('T')[0]}.csv`;
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            a.remove();
-                        } else {
-                            throw new Error('Error en el servidor al generar CSV');
-                        }
-                    } else {
-                        await new Promise(r => setTimeout(r, 1500));
-                        alert(`El módulo para "${titulo}" está en construcción.`);
-                    }
-                } catch (error) {
-                    console.error(error);
-                    alert("Hubo un error al generar el reporte.");
-                } finally {
-                    btn.innerHTML = originalHtml;
-                    (btn as HTMLButtonElement).classList.remove('opacity-75', 'cursor-not-allowed');
-                    (btn as HTMLButtonElement).removeAttribute('disabled');
-                }
-            });
-        });
-
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('paciente_id')) {
-            irPaso2({
-                id:     parseInt(params.get('paciente_id') ?? '0'),
-                nombre: params.get('nombre') ?? '',
-                edad:   parseInt(params.get('edad') ?? '0'),
-                fase:   params.get('fase') ?? 'pre'
-            });
-            modal.showModal();
-            window.history.replaceState({}, '', '/reportes');
-        }
-
-    });
-
-    const modalCitas      = document.getElementById('modal-citas') as HTMLDialogElement;
-    const backdropCitas   = document.getElementById('modal-citas-backdrop')!;
-    const btnCerrarCitas  = document.getElementById('btn-cerrar-modal-citas')!;
-    const btnPendientes   = document.getElementById('btn-filtro-pendientes') as HTMLButtonElement;
-    const btnTodas        = document.getElementById('btn-filtro-todas') as HTMLButtonElement;
-    const errorCitasEl    = document.getElementById('error-citas')!;
-
-    const abrirModalCitas = () => {
-        errorCitasEl.classList.add('hidden');
-        btnPendientes.disabled = false;
-        btnTodas.disabled = false;
-        modalCitas.showModal();
-    };
-
-    const cerrarModalCitas = () => modalCitas.close();
-
-    btnCerrarCitas.addEventListener('click', cerrarModalCitas);
-    backdropCitas.addEventListener('click', cerrarModalCitas);
-    modalCitas.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarModalCitas(); });
-
-    const descargarCitas = async (filtro: 'pendiente' | 'todas') => {
-        const btn = filtro === 'pendiente' ? btnPendientes : btnTodas;
-        const otroBtn = filtro === 'pendiente' ? btnTodas : btnPendientes;
-        const textoOriginal = btn.innerHTML;
-
-        btn.disabled = true;
-        otroBtn.disabled = true;
-        btn.innerHTML = `
-            <svg class="animate-spin h-4 w-4 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Generando...
-        `;
-        errorCitasEl.classList.add('hidden');
-
-        try {
-            const response = await fetch(`/api/exportar-citas?filtro=${filtro}`);
-            if (!response.ok) throw new Error('Error en el servidor al generar el Excel');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const fecha = new Date().toISOString().split('T')[0];
-            a.download = filtro === 'pendiente'
-                ? `citas_pendientes_${fecha}.xlsx`
-                : `citas_todas_${fecha}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            cerrarModalCitas();
-        } catch (err: any) {
-            errorCitasEl.textContent = err.message || 'Ocurrió un error inesperado.';
-            errorCitasEl.classList.remove('hidden');
-        } finally {
-            btn.innerHTML = textoOriginal;
-            btn.disabled = false;
-            otroBtn.disabled = false;
-        }
-    };
-
-    btnPendientes.addEventListener('click', () => descargarCitas('pendiente'));
-    btnTodas.addEventListener('click',      () => descargarCitas('todas'));
-
-</script>
+<style is:global>
+    .acc-blue    { --a: 59 130 246;  --t: 147 197 253; }
+    .acc-emerald { --a: 16 185 129;  --t: 110 231 183; }
+    .acc-purple  { --a: 168 85 247;  --t: 216 180 254; }
+    .acc-amber   { --a: 245 158 11;  --t: 252 211 77; }
+    .acc-indigo  { --a: 99 102 241;  --t: 165 180 252; }
+    .acc-rose    { --a: 244 63 94;   --t: 253 164 175; }
+    .acc-gray    { --a: 156 163 175; --t: 209 213 219; }
+</style>

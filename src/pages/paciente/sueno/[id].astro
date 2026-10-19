@@ -1909,14 +1909,14 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
         epworth: document.getElementById('link-epworth'),
         berlin: document.getElementById('link-berlin'),
         psqi: document.getElementById('link-psqi'),
-        posicion_sueno: document.getElementById('link-posicion_sueno'), // NUEVO
+        posicion_sueno: document.getElementById('link-posicion_sueno'),
     };
 
     const rows = {
         epworth: document.getElementById('row-epworth'),
         berlin: document.getElementById('row-berlin'),
         psqi: document.getElementById('row-psqi'),
-        posicion_sueno: document.getElementById('row-posicion_sueno'), // NUEVO
+        posicion_sueno: document.getElementById('row-posicion_sueno'),
     };
     
     window.setFase = (fase) => {
@@ -1934,7 +1934,7 @@ const ultimaConfig = sesionesTMS.length > 0 ? sesionesTMS[0] : {};
 
         const textareaWpp = document.getElementById('texto-plantilla-wpp');
         if (textareaWpp) {
-            textareaWpp.value = `Buen día. Soy ${nombreAutor}, del laboratorio del sueño y neurociencias de la UADY. Estos son los formularios para complementar el estudio de Apnea. Si tiene oportunidad de contestarlo con alguien más, por si hay algún dato que desconoce y alguien más pueda ayudarlo a responder.\n\nAquí le dejo los links:\n\nIndice de calidad de sueño de pitsburgh:\n${urlPsqi}\n\nCuestionario Berlin:\n${urlBerlin}\n\nEscala Epworth de somnolencia:\n${urlEpworth}\n\nPosición de Sueño:\n${urlPosicion}`;
+            textareaWpp.value = `Buen día. Soy ${nombreAutor}, del laboratorio del sueño y neurociencias de la UADY. Estos son los formularios para complementar el estudio de Apnea. Si tiene oportunidad de contestarlo con alguien más, por si hay algún dato que desconoce y alguien más pueda ayudarlo a responder.\n\nAquí le dejo los links:\n\nIndice de calidad de sueño de pitsburgh:\n${urlPsqi}\n\nCuestionario Berlin:\n${urlBerlin}\n\nEscala Epworth de somnolencia:\n${urlEpworth}`;
         }
 
         ['pre', 'inter', 'post'].forEach(f => {

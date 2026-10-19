@@ -1,0 +1,785 @@
+---
+/**
+ * @file estadisticas.astro
+ * @description Estadísticas de citas: ganancia, servicios más usados, demanda y tendencias.
+ *
+ * Datos: una sola llamada RPC (public.estadisticas_citas) vía
+ *        src/services/estadisticas.service.ts. Navegación por mes: ?mes=YYYY-MM
+ * Gráficas: Chart.js 4 (tree-shaken) — `npm i chart.js`
+ */
+
+import Layout from "../layouts/Layout.astro";
+import RightArrow from "../components/icons/RightArrow.astro";
+import CheckIcon from "../components/icons/CheckIcon.astro";
+import AgendaIcon from "../components/icons/dashboard/AgendaIcon.astro";
+import PacientesIcon from "../components/icons/dashboard/PacientesIcon.astro";
+import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
+import { tieneAccesoRuta } from "../lib/permisos";
+import { getEstadisticas, type EstadisticasData } from "../services/estadisticas.service";
+import ReturnButton from "../components/ReturnButton.astro";
+
+const userRole = Astro.locals.userRole;
+if (userRole === "recepcion" || !tieneAccesoRuta(userRole, "/estadisticas")) {
+    return Astro.redirect("/dashboard");
+}
+
+const hoyMX = new Date().toLocaleDateString("en-CA", { timeZone: "America/Merida" });
+const mesActual = hoyMX.slice(0, 7);
+const mesParam = Astro.url.searchParams.get("mes") ?? "";
+const mes = /^\d{4}-(0[1-9]|1[0-2])$/.test(mesParam) && mesParam <= mesActual ? mesParam : mesActual;
+
+const shiftMes = (ym: string, n: number) => {
+    const [y, m] = ym.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
+};
+const nombreMes = (ym: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(`${ym}-01T12:00:00Z`).toLocaleDateString("es-MX", { timeZone: "UTC", ...opts });
+
+const mesLabel = nombreMes(mes, { month: "long", year: "numeric" });
+const mesSolo = nombreMes(mes, { month: "long" });
+const mesPrevNombre = nombreMes(shiftMes(mes, -1), { month: "long" });
+const mesPrev = shiftMes(mes, -1);
+const mesSig = shiftMes(mes, 1);
+const hayMesSig = mesSig <= mesActual;
+const esMesActual = mes === mesActual;
+
+let d: EstadisticasData | null = null;
+try {
+    d = await getEstadisticas(mes);
+} catch (e) {
+    console.error("Error cargando estadísticas:", e);
+}
+
+const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+const mxn2 = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf = new Intl.NumberFormat("es-MX");
+
+const delta = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : null);
+const badge = (v: number | null) => {
+    if (v === null) return null;
+    const r = Math.round(v);
+    if (r === 0) return { txt: "= 0%", cls: "bg-white/5 text-gray-300 border-white/10" };
+    return r > 0
+        ? { txt: `▲ ${r}%`, cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" }
+        : { txt: `▼ ${Math.abs(r)}%`, cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" };
+};
+
+const PALETA = [
+    [168, 85, 247], [59, 130, 246], [16, 185, 129], [245, 158, 11],
+    [236, 72, 153], [6, 182, 212], [244, 63, 94],
+];
+const GRIS = [148, 163, 184];
+const css = (c: number[]) => c.join(" ");
+const cv = (c: number[]) => c.join(",");
+const DOW = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const k = d?.kpis;
+const hayDatos = !!k && k.citas > 0;
+const hayIngresos = !!k && k.ingresos > 0;
+
+const bIngresos = k && d ? badge(delta(k.ingresos, d.prev.ingresos)) : null;
+const bCitas = k && d ? badge(delta(k.citas, d.prev.citas)) : null;
+const vsTexto = esMesActual ? `vs. mismo periodo de ${mesPrevNombre}` : `vs. ${mesPrevNombre}`;
+
+const pctAsistencia = k && k.citas > 0 ? Math.round((k.completadas / k.citas) * 100) : 0;
+const pctCancel = k && k.citas > 0 ? Math.round((k.canceladas / k.citas) * 100) : 0;
+
+const servicios = d?.servicios ?? [];
+const colorServicio = (nombre: string) => {
+    const i = servicios.findIndex((s) => s.nombre === nombre);
+    return PALETA[(i < 0 ? 0 : i) % PALETA.length];
+};
+const serviciosTop = servicios.slice(0, 7);
+const maxServ = Math.max(...serviciosTop.map((s) => s.citas), 1);
+
+const porIngreso = servicios.filter((s) => s.ingresos > 0).sort((a, b) => b.ingresos - a.ingresos);
+const ingTop = porIngreso.slice(0, 5).map((s) => ({ nombre: s.nombre, ingresos: s.ingresos, color: colorServicio(s.nombre) }));
+const ingOtros = porIngreso.slice(5).reduce((acc, s) => acc + s.ingresos, 0);
+if (ingOtros > 0) ingTop.push({ nombre: "Otros", ingresos: ingOtros, color: GRIS });
+const totalIngServ = ingTop.reduce((a, s) => a + s.ingresos, 0);
+
+const diaCorte = esMesActual ? Number(hoyMX.slice(8, 10)) : d?.dias_mes ?? 0;
+let acc = 0;
+const acumulado = (d?.por_dia ?? []).map((x) => {
+    acc += x.ingresos;
+    return x.d <= diaCorte ? acc : null;
+});
+
+const servEstrella = servicios[0] ?? null;
+const mejorDia = (d?.por_dia ?? []).reduce<{ d: number; ingresos: number } | null>(
+    (m, x) => (x.ingresos > (m?.ingresos ?? 0) ? x : m), null);
+
+const hm = new Map<string, number>();
+let maxN = 0, hMin = 8, hMax = 18;
+const dowsVisibles = new Set<number>([1, 2, 3, 4, 5]);
+let pico: { dow: number; h: number; n: number } | null = null;
+for (const c of d?.heatmap ?? []) {
+    hm.set(`${c.dow}-${c.h}`, c.n);
+    maxN = Math.max(maxN, c.n);
+    hMin = Math.min(hMin, c.h);
+    hMax = Math.max(hMax, c.h);
+    dowsVisibles.add(c.dow);
+    if (c.n > (pico?.n ?? 0)) pico = c;
+}
+const filasHm = [...dowsVisibles].sort((a, b) => a - b);
+const horasHm = Array.from({ length: hMax - hMin + 1 }, (_, i) => hMin + i);
+
+const maxRef = Math.max(...(d?.referencias ?? []).map((r) => r.citas), 1);
+const maxAt = Math.max(...(d?.atendidos ?? []).map((r) => r.citas), 1);
+
+const payload = d && k ? {
+    dia: {
+        labels: d.por_dia.map((x) => x.d),
+        ingresos: d.por_dia.map((x) => x.ingresos),
+        acumulado,
+    },
+    estados: { data: [k.completadas, k.pendientes, k.canceladas] },
+    servicios: {
+        labels: serviciosTop.map((s) => s.nombre),
+        citas: serviciosTop.map((s) => s.citas),
+        ingresos: serviciosTop.map((s) => s.ingresos),
+        colors: serviciosTop.map((s) => cv(colorServicio(s.nombre))),
+    },
+    ingServ: {
+        labels: ingTop.map((s) => s.nombre),
+        data: ingTop.map((s) => s.ingresos),
+        colors: ingTop.map((s) => cv(s.color)),
+    },
+    tendencia: {
+        labels: d.tendencia.map((t) => nombreMes(t.mes, { month: "short", year: "2-digit" }).replace(".", "")),
+        ingresos: d.tendencia.map((t) => t.ingresos),
+        citas: d.tendencia.map((t) => t.citas),
+    },
+} : null;
+const payloadJson = payload ? JSON.stringify(payload).replace(/</g, "\\u003c") : "null";
+
+const estadosFila = k ? [
+    { nombre: "Completadas", n: k.completadas, rgb: [16, 185, 129] },
+    { nombre: "Pendientes", n: k.pendientes, rgb: [59, 130, 246] },
+    { nombre: "Canceladas", n: k.canceladas, rgb: [244, 63, 94] },
+] : [];
+---
+
+<Layout title="Estadísticas | Lab-Somno">
+    <ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <main class="max-w-6xl mx-auto pt-8 pb-24 px-6">
+
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-5 border-b border-white/10">
+            <div class="min-w-0">
+                <h1 class="text-5xl md:text-7xl text-white tracking-tight leading-none">Estadísticas</h1>
+                <p class="mt-4 text-lg text-gray-400 max-w-md">Ganancia, servicios y demanda de citas del laboratorio.</p>
+            </div>
+
+            <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
+                <nav aria-label="Cambiar de mes" class="flex items-center gap-1 h-11 rounded-full border border-white/10 bg-slate-900/50 px-1.5">
+                    <a href={`?mes=${mesPrev}`} aria-label="Mes anterior" class="grid place-items-center size-8 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-blue-400">
+                        <RightArrow class="size-4 rotate-180" />
+                    </a>
+                    <span class="min-w-40 px-2 text-center text-sm font-semibold text-white first-letter:uppercase" aria-live="polite">{mesLabel}</span>
+                    {hayMesSig ? (
+                        <a href={`?mes=${mesSig}`} aria-label="Mes siguiente" class="grid place-items-center size-8 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-blue-400">
+                            <RightArrow class="size-4" />
+                        </a>
+                    ) : (
+                        <span aria-hidden="true" class="grid place-items-center size-8 rounded-full text-gray-600 opacity-40"><RightArrow class="size-4" /></span>
+                    )}
+                </nav>
+                {!esMesActual && <a href="/estadisticas" class="text-xs font-semibold text-blue-300 hover:text-blue-200 transition-colors">Ir al mes actual</a>}
+            </div>
+        </header>
+
+        {!d || !k ? (
+            <div class="mt-8 flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-4">
+                <span class="grid place-items-center size-10 shrink-0 rounded-xl bg-rose-500/15 text-rose-300 text-lg" aria-hidden="true">!</span>
+                <div>
+                    <h2 class="text-2xl text-white leading-tight">No se pudieron cargar las estadísticas</h2>
+                    <p class="text-sm text-gray-400">Recarga la página. Si el problema continúa, revisa que la función <code class="text-gray-300">estadisticas_citas</code> exista en Supabase.</p>
+                </div>
+            </div>
+        ) : (<>
+
+        <!-- Ganancia del mes -->
+        <section class="hero acc-emerald mt-8 grid gap-8 p-6 md:p-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] animate-fade-in-up" aria-label="Ganancia del mes">
+            <div class="flex flex-col lg:border-r lg:border-white/10 lg:pr-8">
+                <p class="text-sm font-semibold" style="color: rgb(var(--t))">Ganancia de {mesSolo}</p>
+                <p class="mt-3 text-6xl md:text-7xl leading-none text-white tabular-nums break-words" data-count={k.ingresos} data-fmt="mxn">{mxn.format(k.ingresos)}</p>
+
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    {bIngresos && <span class={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${bIngresos.cls}`}>{bIngresos.txt}</span>}
+                    <span class="text-sm text-gray-400">{bIngresos ? vsTexto : `Sin ingresos en ${mesPrevNombre} para comparar`}</span>
+                </div>
+
+                <dl class="mt-8 grid grid-cols-2 gap-4 border-t border-white/10 pt-5 lg:mt-auto">
+                    <div>
+                        <dt class="text-xs text-gray-400">Citas pendientes</dt>
+                        <dd class="mt-1 text-2xl leading-none text-white tabular-nums">{mxn.format(k.proyectado)}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs text-gray-400">Proyección del mes</dt>
+                        <dd class="mt-1 text-2xl leading-none tabular-nums" style="color: rgb(var(--t))">{mxn.format(k.ingresos + k.proyectado)}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                    <h2 class="text-sm font-semibold text-gray-300">Ingresos por día</h2>
+                    <p class="flex items-center gap-4 text-xs text-gray-400">
+                        <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-sm bg-emerald-500"></span>Del día</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="h-0.5 w-3 rounded bg-emerald-300"></span>Acumulado</span>
+                    </p>
+                </div>
+                <div class="relative mt-3 h-64 md:h-72">
+                    <canvas id="chart-dia" role="img" aria-label={`Ingresos por día de ${mesSolo}, con total acumulado`}></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Insights -->
+        {hayDatos && (
+            <section class="panel mt-6 grid md:grid-cols-3 md:divide-x divide-y md:divide-y-0 divide-white/10" aria-label="Datos destacados">
+                {servEstrella && (
+                    <div class="px-5 py-4 min-w-0">
+                        <p class="text-xs text-gray-400">Servicio más solicitado</p>
+                        <p class="mt-1 text-2xl leading-tight text-white truncate" title={servEstrella.nombre}>{servEstrella.nombre}</p>
+                        <p class="text-sm text-gray-400">{nf.format(servEstrella.citas)} cita{servEstrella.citas === 1 ? "" : "s"} en el mes</p>
+                    </div>
+                )}
+                {mejorDia && (
+                    <div class="px-5 py-4 min-w-0">
+                        <p class="text-xs text-gray-400">Mejor día del mes</p>
+                        <p class="mt-1 text-2xl leading-tight text-white">{mejorDia.d} de {mesSolo}</p>
+                        <p class="text-sm text-gray-400">{mxn.format(mejorDia.ingresos)} en ingresos</p>
+                    </div>
+                )}
+                {pico && (
+                    <div class="px-5 py-4 min-w-0">
+                        <p class="text-xs text-gray-400">Horario con más citas</p>
+                        <p class="mt-1 text-2xl leading-tight text-white">{DOW[pico.dow - 1]} · {pico.h}:00 h</p>
+                        <p class="text-sm text-gray-400">{nf.format(pico.n)} citas en los últimos 12 meses</p>
+                    </div>
+                )}
+            </section>
+        )}
+
+        <!-- KPIs -->
+        <section class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Indicadores del mes">
+            <div class="kpi acc-purple">
+                <div class="flex items-center justify-between">
+                    <span class="kpi-chip"><AgendaIcon class="size-5" /></span>
+                    {bCitas && <span class={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${bCitas.cls}`}>{bCitas.txt}</span>}
+                </div>
+                <p class="mt-5 text-4xl leading-none text-white tabular-nums" data-count={k.citas} data-fmt="int">{nf.format(k.citas)}</p>
+                <p class="mt-2 text-sm text-gray-400">Citas del mes</p>
+                <p class="text-xs text-gray-500">{pctCancel}% canceladas</p>
+            </div>
+
+            <div class="kpi acc-blue">
+                <div class="flex items-center justify-between">
+                    <span class="kpi-chip"><CheckIcon class="size-5" /></span>
+                </div>
+                <p class="mt-5 text-4xl leading-none text-white tabular-nums" data-count={pctAsistencia} data-fmt="pct">{pctAsistencia}%</p>
+                <p class="mt-2 text-sm text-gray-400">Citas completadas</p>
+                <p class="text-xs text-gray-500">{nf.format(k.completadas)} de {nf.format(k.citas)}</p>
+            </div>
+
+            <div class="kpi acc-amber">
+                <div class="flex items-center justify-between">
+                    <span class="kpi-chip"><ServiciosIcon class="size-5" /></span>
+                </div>
+                <p class="mt-5 text-4xl leading-none text-white tabular-nums" data-count={k.ticket} data-fmt="mxn2">{mxn2.format(k.ticket)}</p>
+                <p class="mt-2 text-sm text-gray-400">Ticket promedio</p>
+                <p class="text-xs text-gray-500">Por cita completada</p>
+            </div>
+
+            <div class="kpi acc-pink">
+                <div class="flex items-center justify-between">
+                    <span class="kpi-chip"><PacientesIcon class="size-5" /></span>
+                </div>
+                <p class="mt-5 text-4xl leading-none text-white tabular-nums" data-count={k.pacientes} data-fmt="int">{nf.format(k.pacientes)}</p>
+                <p class="mt-2 text-sm text-gray-400">Pacientes distintos</p>
+                <p class="text-xs text-gray-500">Sin contar canceladas</p>
+            </div>
+        </section>
+
+        {k.sin_precio > 0 && (
+            <p class="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                <span aria-hidden="true">!</span>
+                <span>{k.sin_precio} cita{k.sin_precio === 1 ? "" : "s"} de este mes no tiene{k.sin_precio === 1 ? "" : "n"} precio asignado, así que no suma{k.sin_precio === 1 ? "" : "n"} a la ganancia.</span>
+            </p>
+        )}
+
+        {!hayDatos ? (
+            <div class="panel mt-6 flex flex-col items-center gap-2 px-6 py-12 text-center">
+                <p class="text-2xl text-white">Sin citas en {mesSolo}</p>
+                <p class="text-sm text-gray-400">Cuando haya citas en este mes verás aquí los servicios, horarios y distribución.</p>
+            </div>
+        ) : (<>
+
+        <!-- Servicios + estado -->
+        <div class="mt-6 grid gap-6 lg:grid-cols-3">
+            <section class="panel acc-purple lg:col-span-2" aria-labelledby="t-serv">
+                <h2 id="t-serv" class="panel-title">Servicios más utilizados</h2>
+                <div class="p-5">
+                    <div class="relative" style={`height:${Math.max(13, serviciosTop.length * 3.1)}rem`}>
+                        <canvas id="chart-serv" role="img" aria-label="Citas por servicio en el mes"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" aria-labelledby="t-estado">
+                <h2 id="t-estado" class="panel-title">Estado de las citas</h2>
+                <div class="p-5">
+                    <div class="relative mx-auto h-48 max-w-48">
+                        <canvas id="chart-estado" role="img" aria-label="Distribución de citas por estado"></canvas>
+                        <div class="pointer-events-none absolute inset-0 grid place-items-center">
+                            <div class="text-center">
+                                <p class="text-4xl leading-none text-white tabular-nums">{nf.format(k.citas)}</p>
+                                <p class="mt-1 text-xs text-gray-400">citas</p>
+                            </div>
+                        </div>
+                    </div>
+                    <ul class="mt-5 space-y-2.5">
+                        {estadosFila.map((e) => (
+                            <li class="flex items-center gap-3 text-sm">
+                                <span class="size-2.5 rounded-full" style={`background: rgb(${css(e.rgb)})`}></span>
+                                <span class="flex-1 text-gray-300">{e.nombre}</span>
+                                <span class="tabular-nums text-white">{nf.format(e.n)}</span>
+                                <span class="w-10 text-right tabular-nums text-xs text-gray-500">{k.citas > 0 ? Math.round((e.n / k.citas) * 100) : 0}%</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        </>)}
+
+        <!-- Tendencia + ingresos por servicio -->
+        <div class="mt-6 grid gap-6 lg:grid-cols-3">
+            <section class={`panel acc-emerald ${hayIngresos ? "lg:col-span-2" : "lg:col-span-3"}`} aria-labelledby="t-tend">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-5 pb-3 pt-4">
+                    <h2 id="t-tend" class="text-sm font-semibold text-gray-400">Tendencia de los últimos 12 meses</h2>
+                    <p class="flex items-center gap-4 text-xs text-gray-400">
+                        <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-sm bg-emerald-500"></span>Ingresos</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="h-0.5 w-3 rounded bg-purple-400"></span>Citas</span>
+                    </p>
+                </div>
+                <div class="p-5">
+                    <div class="relative h-64"><canvas id="chart-tend" role="img" aria-label="Ingresos y citas por mes durante los últimos 12 meses"></canvas></div>
+                </div>
+            </section>
+
+            {hayIngresos && (
+                <section class="panel" aria-labelledby="t-ing">
+                    <h2 id="t-ing" class="panel-title">Ingresos por servicio</h2>
+                    <div class="p-5">
+                        <div class="relative mx-auto h-48 max-w-48">
+                            <canvas id="chart-ing" role="img" aria-label="Distribución de ingresos por servicio"></canvas>
+                            <div class="pointer-events-none absolute inset-0 grid place-items-center">
+                                <div class="text-center">
+                                    <p class="text-2xl leading-none text-white tabular-nums">{mxn.format(totalIngServ)}</p>
+                                    <p class="mt-1 text-xs text-gray-400">cobrado</p>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="mt-5 space-y-2.5">
+                            {ingTop.map((s) => (
+                                <li class="flex items-center gap-3 text-sm">
+                                    <span class="size-2.5 shrink-0 rounded-full" style={`background: rgb(${css(s.color)})`}></span>
+                                    <span class="min-w-0 flex-1 truncate text-gray-300" title={s.nombre}>{s.nombre}</span>
+                                    <span class="tabular-nums text-white">{mxn.format(s.ingresos)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+            )}
+        </div>
+
+        <!-- Horarios pico -->
+        {d.heatmap.length > 0 && (
+            <section class="panel acc-purple mt-6" aria-labelledby="t-pico">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-5 pb-3 pt-4">
+                    <h2 id="t-pico" class="text-sm font-semibold text-gray-400">Horarios con más demanda</h2>
+                    <p class="flex items-center gap-2 text-xs text-gray-400">
+                        Últimos 12 meses · menos
+                        <span class="flex gap-0.5" aria-hidden="true">
+                            {[0.15, 0.4, 0.65, 0.9].map((v) => <span class="hm-cell size-3.5 rounded-sm" style={`--v:${v}`}></span>)}
+                        </span>
+                        más
+                    </p>
+                </div>
+                <div class="overflow-x-auto p-5">
+                    <div class="grid min-w-[40rem] gap-1" style={`grid-template-columns: 5rem repeat(${horasHm.length}, minmax(0, 1fr))`}>
+                        <span></span>
+                        {horasHm.map((h) => <span class="pb-1 text-center text-[11px] text-gray-500">{h}h</span>)}
+                        {filasHm.map((dow) => (<>
+                            <span class="self-center pr-2 text-right text-xs text-gray-400">{DOW[dow - 1]}</span>
+                            {horasHm.map((h) => {
+                                const n = hm.get(`${dow}-${h}`) ?? 0;
+                                return (
+                                    <span
+                                        class="hm-cell grid h-9 place-items-center rounded-md text-[11px] text-white/90 tabular-nums"
+                                        data-n={n}
+                                        style={`--v:${maxN > 0 ? n / maxN : 0}`}
+                                        title={`${DOW[dow - 1]} ${h}:00 h · ${n} cita${n === 1 ? "" : "s"}`}
+                                    >{n > 0 ? n : ""}</span>
+                                );
+                            })}
+                        </>))}
+                    </div>
+                </div>
+            </section>
+        )}
+
+        <!-- Referencias y atendidos -->
+        {hayDatos && (d.referencias.length > 0 || d.atendidos.length > 0) && (
+            <div class="mt-6 grid gap-6 md:grid-cols-2 items-start">
+                {d.referencias.length > 0 && (
+                    <section class="panel" aria-labelledby="t-ref">
+                        <h2 id="t-ref" class="panel-title">Referencias</h2>
+                        <ul class="divide-y divide-white/5">
+                            {d.referencias.map((r, i) => (
+                                <li class="px-5 py-3.5" style={`--c:${css(PALETA[i % PALETA.length])}`}>
+                                    <div class="flex items-baseline justify-between gap-3 text-sm">
+                                        <span class="min-w-0 truncate text-gray-200" title={r.nombre}>{r.nombre}</span>
+                                        <span class="shrink-0 tabular-nums text-white">{nf.format(r.citas)}</span>
+                                    </div>
+                                    <div class="bar-track mt-2"><div class="bar-fill" style={`width:${(r.citas / maxRef) * 100}%`}></div></div>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
+                {d.atendidos.length > 0 && (
+                    <section class="panel" aria-labelledby="t-at">
+                        <h2 id="t-at" class="panel-title">Atendidos por</h2>
+                        <ul class="divide-y divide-white/5">
+                            {d.atendidos.map((r, i) => (
+                                <li class="px-5 py-3.5" style={`--c:${css(PALETA[(i + 2) % PALETA.length])}`}>
+                                    <div class="flex items-baseline justify-between gap-3 text-sm">
+                                        <span class="min-w-0 truncate text-gray-200" title={r.nombre}>{r.nombre}</span>
+                                        <span class="shrink-0 text-gray-400"><span class="tabular-nums text-white">{nf.format(r.citas)}</span> citas · {mxn.format(r.ingresos)}</span>
+                                    </div>
+                                    <div class="bar-track mt-2"><div class="bar-fill" style={`width:${(r.citas / maxAt) * 100}%`}></div></div>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+            </div>
+        )}
+
+        <p class="mt-8 max-w-3xl text-xs leading-relaxed text-gray-500">
+            La ganancia suma el precio de las citas completadas; «Citas pendientes» suma las que aún no se atienden.
+            Los rankings y horarios cuentan citas no canceladas. Horario de Mérida (UTC−6).
+        </p>
+
+        </>)}
+    </main>
+
+    <script is:inline type="application/json" id="stats-data" set:html={payloadJson}></script>
+</Layout>
+
+<style>
+    .acc-blue    { --a: 59 130 246;  --t: 147 197 253; }
+    .acc-emerald { --a: 16 185 129;  --t: 110 231 183; }
+    .acc-purple  { --a: 168 85 247;  --t: 216 180 254; }
+    .acc-pink    { --a: 236 72 153;  --t: 249 168 212; }
+    .acc-amber   { --a: 245 158 11;  --t: 252 211 77; }
+
+    .panel {
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .4);
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    .panel-title {
+        padding: 1rem 1.25rem .75rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: #9ca3af;
+        border-bottom: 1px solid rgb(255 255 255 / .1);
+    }
+
+    .hero {
+        border: 1px solid rgb(var(--a) / .28);
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(70% 90% at 0% 0%, rgb(var(--a) / .2), transparent 65%),
+            rgb(var(--a) / .05);
+    }
+
+    .kpi {
+        border: 1px solid rgb(var(--a) / .25);
+        background: rgb(var(--a) / .08);
+        border-radius: 1rem;
+        padding: 1.25rem 1.5rem;
+    }
+    .kpi-chip {
+        display: grid;
+        place-items: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: .75rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+    }
+
+    .hm-cell { background: rgb(var(--a) / calc(.12 + var(--v) * .8)); }
+    .hm-cell[data-n="0"] { background: rgb(255 255 255 / .03); }
+
+    .bar-track {
+        height: .5rem;
+        border-radius: 9999px;
+        background: rgb(255 255 255 / .06);
+        overflow: hidden;
+    }
+    .bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+        background: rgb(var(--c));
+    }
+</style>
+
+<script>
+    import {
+        Chart, BarController, BarElement, LineController, LineElement, PointElement,
+        DoughnutController, ArcElement, CategoryScale, LinearScale, Tooltip, Filler,
+    } from "chart.js";
+
+    Chart.register(
+        BarController, BarElement, LineController, LineElement, PointElement,
+        DoughnutController, ArcElement, CategoryScale, LinearScale, Tooltip, Filler,
+    );
+
+    const raw = document.getElementById("stats-data")?.textContent;
+    const D = raw ? JSON.parse(raw) : null;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ── Formato ─────────────────────────────────────────────────── */
+    const nf = new Intl.NumberFormat("es-MX");
+    const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+    const mxn2 = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const corto = (v: number) => (v >= 1000 ? `$${+(v / 1000).toFixed(1)}k` : `$${v}`);
+
+    /* ── Cifras que suben al cargar (el HTML ya trae el valor final) ─ */
+    const formatos: Record<string, (v: number) => string> = {
+        mxn: (v) => mxn.format(v),
+        mxn2: (v) => mxn2.format(v),
+        pct: (v) => `${Math.round(v)}%`,
+        int: (v) => nf.format(Math.round(v)),
+    };
+    if (!reduce) {
+        document.querySelectorAll<HTMLElement>("[data-count]").forEach((el) => {
+            const to = Number(el.dataset.count);
+            const fmt = formatos[el.dataset.fmt ?? "int"];
+            if (!isFinite(to) || !fmt || to === 0) return;
+            const t0 = performance.now();
+            const dur = 1100;
+            const paso = (t: number) => {
+                const p = Math.min(1, (t - t0) / dur);
+                el.textContent = fmt(to * (1 - Math.pow(1 - p, 3)));
+                if (p < 1) requestAnimationFrame(paso);
+                else el.textContent = fmt(to);
+            };
+            requestAnimationFrame(paso);
+        });
+    }
+
+    if (D) {
+        const GRID = "rgba(255,255,255,.06)";
+        Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = "#9ca3af";
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+        Chart.defaults.set("animation", {
+            duration: reduce ? 0 : 900,
+            easing: "easeOutQuart",
+        });
+
+        Chart.defaults.set("plugins.tooltip", {
+            backgroundColor: "#0f172a",
+            borderColor: "rgba(255,255,255,.12)",
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 12,
+            titleColor: "#fff",
+            bodyColor: "#cbd5e1",
+            boxPadding: 4,
+            titleFont: { weight: "bold" },
+        });
+
+        const rgba = (rgb: string, a: number) => `rgba(${rgb},${a})`;
+        const EMERALD = "16,185,129";
+        const PURPLE = "168,85,247";
+
+        const grad = (ctx: any, rgb: string, horizontal = false) => {
+            const { chart } = ctx;
+            const a = chart.chartArea;
+            if (!a) return rgba(rgb, 0.8);
+            const g = horizontal
+                ? chart.ctx.createLinearGradient(a.left, 0, a.right, 0)
+                : chart.ctx.createLinearGradient(0, a.bottom, 0, a.top);
+            g.addColorStop(0, rgba(rgb, horizontal ? 0.35 : 0.2));
+            g.addColorStop(1, rgba(rgb, 0.95));
+            return g;
+        };
+
+        const ejeY = (extra: any = {}) => ({
+            beginAtZero: true,
+            grid: { color: GRID },
+            border: { display: false },
+            ticks: { callback: (v: any) => corto(Number(v)) },
+            ...extra,
+        });
+        const canvas = (id: string) => document.getElementById(id) as HTMLCanvasElement | null;
+
+        const cDia = canvas("chart-dia");
+        if (cDia) new Chart(cDia, {
+            type: "bar",
+            data: {
+                labels: D.dia.labels,
+                datasets: [
+                    {
+                        type: "bar", label: "Del día", data: D.dia.ingresos, yAxisID: "y", order: 2,
+                        backgroundColor: (ctx: any) => grad(ctx, EMERALD),
+                        borderRadius: 6, borderSkipped: false, maxBarThickness: 18,
+                    },
+                    {
+                        type: "line", label: "Acumulado", data: D.dia.acumulado, yAxisID: "y1", order: 1,
+                        borderColor: "rgb(110,231,183)", borderWidth: 2.5, tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: "#fff",
+                    },
+                ],
+            },
+            options: {
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        filter: (i: any) => i.raw !== null,
+                        callbacks: {
+                            title: (i: any) => `Día ${i[0].label}`,
+                            label: (c: any) => ` ${c.dataset.label}: ${mxn.format(c.parsed.y)}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, maxTicksLimit: 16 } },
+                    y: ejeY(),
+                    y1: ejeY({ position: "right", grid: { display: false } }),
+                },
+            },
+        });
+
+        const cServ = canvas("chart-serv");
+        if (cServ) new Chart(cServ, {
+            type: "bar",
+            data: {
+                labels: D.servicios.labels,
+                datasets: [{
+                    data: D.servicios.citas,
+                    backgroundColor: D.servicios.colors.map((c: string) => rgba(c, 0.85)),
+                    hoverBackgroundColor: D.servicios.colors.map((c: string) => rgba(c, 1)),
+                    borderRadius: 8, borderSkipped: false, maxBarThickness: 26,
+                }],
+            },
+            options: {
+                indexAxis: "y",
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (i: any) => D.servicios.labels[i[0].dataIndex],
+                            label: (c: any) => ` ${c.parsed.x} cita${c.parsed.x === 1 ? "" : "s"}`,
+                            afterLabel: (c: any) => ` Cobrado: ${mxn.format(D.servicios.ingresos[c.dataIndex])}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: GRID }, border: { display: false }, ticks: { precision: 0 } },
+                    y: {
+                        grid: { display: false }, border: { display: false },
+                        ticks: {
+                            color: "#e5e7eb",
+                            callback(v: any) {
+                                const s = String((this as any).getLabelForValue(v));
+                                return s.length > 28 ? s.slice(0, 27) + "…" : s;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        const dona = (id: string, labels: string[], data: number[], colors: string[], fmt: (v: number) => string) => {
+            const el = canvas(id);
+            if (!el) return;
+            new Chart(el, {
+                type: "doughnut",
+                data: {
+                    labels,
+                    datasets: [{
+                        data, backgroundColor: colors.map((c) => rgba(c, 0.9)), borderWidth: 0,
+                        borderRadius: 6, spacing: 3, hoverOffset: 4,
+                    }],
+                },
+                options: {
+                    cutout: "74%",
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (c: any) => ` ${c.label}: ${fmt(c.parsed)}` } },
+                    },
+                },
+            });
+        };
+        dona("chart-estado", ["Completadas", "Pendientes", "Canceladas"], D.estados.data,
+            ["16,185,129", "59,130,246", "244,63,94"], (v) => `${v} cita${v === 1 ? "" : "s"}`);
+        dona("chart-ing", D.ingServ.labels, D.ingServ.data, D.ingServ.colors, (v) => mxn.format(v));
+
+        const cTend = canvas("chart-tend");
+        if (cTend) {
+            const n = D.tendencia.labels.length;
+            new Chart(cTend, {
+                type: "bar",
+                data: {
+                    labels: D.tendencia.labels,
+                    datasets: [
+                        {
+                            type: "bar", label: "Ingresos", data: D.tendencia.ingresos, yAxisID: "y", order: 2,
+                            backgroundColor: D.tendencia.ingresos.map((_: number, i: number) => rgba(EMERALD, i === n - 1 ? 0.95 : 0.35)),
+                            borderRadius: 8, borderSkipped: false, maxBarThickness: 34,
+                        },
+                        {
+                            type: "line", label: "Citas", data: D.tendencia.citas, yAxisID: "y1", order: 1,
+                            borderColor: rgba(PURPLE, 1), backgroundColor: rgba(PURPLE, 1), borderWidth: 2.5, tension: 0.35,
+                            pointRadius: 3.5, pointHoverRadius: 6, pointBorderColor: "#0f172a", pointBorderWidth: 2,
+                        },
+                    ],
+                },
+                options: {
+                    interaction: { mode: "index", intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (c: any) => c.dataset.label === "Ingresos"
+                                    ? ` Ingresos: ${mxn.format(c.parsed.y)}`
+                                    : ` Citas: ${c.parsed.y}`,
+                            },
+                        },
+                    },
+                    scales: {
+                        x: { grid: { display: false }, border: { display: false } },
+                        y: ejeY(),
+                        y1: ejeY({ position: "right", grid: { display: false }, ticks: { precision: 0, callback: (v: any) => v } }),
+                    },
+                },
+            });
+        }
+    }
+</script>

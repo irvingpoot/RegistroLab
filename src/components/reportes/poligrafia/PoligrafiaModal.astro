@@ -1,0 +1,279 @@
+---
+import ReportModal from '../ReportModal.astro';
+import MoonIcon from '../../icons/reportes/MoonIcon.astro';
+import PasoPaciente from './PasoPaciente.astro';
+import PasoConfiguracion from './PasoConfiguracion.astro';
+---
+<ReportModal
+    id="modal-poligrafia"
+    acento="indigo"
+    titulo="Reporte de Poligrafía"
+    subtitulo="Paso 1 de 2 — Seleccionar paciente"
+    ancho="max-w-xl"
+>
+    <MoonIcon slot="icono" class="size-6" />
+
+    <ol class="pm-stepper" aria-hidden="true">
+        <li class="st st1"><span class="st-dot">1</span>Paciente</li>
+        <li class="st-line"></li>
+        <li class="st st2"><span class="st-dot">2</span>Configuración</li>
+    </ol>
+
+    <PasoPaciente />
+    <PasoConfiguracion />
+</ReportModal>
+
+<script>
+    interface Paciente { id: number; nombre: string; edad: number; fase?: string }
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const escapeHtml = (t: string) =>
+        t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+
+    function descargarBlob(blob: Blob, nombre: string) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a); a.click();
+        URL.revokeObjectURL(url); a.remove();
+    }
+
+    /* ── Elementos ── */
+    const modal         = $<HTMLDialogElement>('modal-poligrafia');
+    const subtitulo     = $('modal-poligrafia-subtitulo');
+    const paso1         = $('paso-1');
+    const paso2         = $('paso-2');
+    const buscador      = $<HTMLInputElement>('buscador-paciente');
+    const resultadosEl  = $('resultados-busqueda');
+    const estadoVacio   = $('estado-vacio-busqueda');
+    const sinResultados = $('sin-resultados');
+    const btnCambiar    = $('btn-cambiar-paciente');
+    const selectorFase  = $<HTMLSelectElement>('selector-fase-reporte');
+    const btnGenerar    = $<HTMLButtonElement>('btn-generar-docx');
+    const btnTexto      = $('btn-generar-texto');
+    const errorEl       = $('error-generacion');
+
+    /* ── Estado ── */
+    let pacienteSeleccionado: Paciente | null = null;
+    let busquedaTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    /* ── Pasos ── */
+    function irPaso1() {
+        paso1.classList.remove('hidden');
+        paso2.classList.add('hidden');
+        subtitulo.textContent = 'Paso 1 de 2 — Seleccionar paciente';
+    }
+
+    function irPaso2(paciente: Paciente) {
+        const fase = paciente.fase || 'pre';
+        pacienteSeleccionado = { ...paciente, fase };
+
+        $('paciente-nombre-seleccionado').textContent = paciente.nombre;
+        $('paciente-edad-seleccionada').textContent = `${paciente.edad} años`;
+        $('paciente-inicial').textContent = paciente.nombre.charAt(0).toUpperCase();
+        selectorFase.value = fase;
+
+        errorEl.classList.add('hidden');
+        paso1.classList.add('hidden');
+        paso2.classList.remove('hidden');
+        subtitulo.textContent = 'Paso 2 de 2 — Configurar reporte';
+    }
+
+    function abrir() {
+        irPaso1();
+        modal.showModal();
+        setTimeout(() => buscador.focus(), 100);
+    }
+
+    /* ── Búsqueda ── */
+    function mostrarEstadoVacio() {
+        resultadosEl.classList.add('hidden');
+        estadoVacio.classList.remove('hidden');
+        sinResultados.classList.add('hidden');
+    }
+
+    function mostrarSinResultados() {
+        resultadosEl.classList.add('hidden');
+        estadoVacio.classList.add('hidden');
+        sinResultados.classList.remove('hidden');
+    }
+
+    const plantillaResultado = (p: Paciente) => `
+        <button
+            data-id="${p.id}"
+            data-nombre="${escapeHtml(p.nombre)}"
+            data-edad="${p.edad}"
+            class="resultado-paciente group w-full flex items-center cursor-pointer gap-3 p-3 rounded-xl text-left border border-transparent hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-colors focus-visible:outline-2 focus-visible:outline-indigo-400"
+        >
+            <div class="size-9 rounded-xl bg-indigo-500/15 text-indigo-300 group-hover:bg-indigo-500 group-hover:text-white transition-colors flex items-center justify-center font-semibold text-sm shrink-0">
+                ${escapeHtml(p.nombre.charAt(0).toUpperCase())}
+            </div>
+            <div class="min-w-0">
+                <p class="text-sm font-medium text-white truncate">${escapeHtml(p.nombre)}</p>
+                <p class="text-xs text-gray-400">${p.edad} años</p>
+            </div>
+            <svg class="size-4 ml-auto shrink-0 text-gray-600 group-hover:text-indigo-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" /></svg>
+        </button>`;
+
+    function mostrarResultados(pacientes: Paciente[]) {
+        estadoVacio.classList.add('hidden');
+        sinResultados.classList.add('hidden');
+        resultadosEl.innerHTML = pacientes.map(plantillaResultado).join('');
+        resultadosEl.classList.remove('hidden');
+    }
+
+    async function buscarPacientes(query: string) {
+        try {
+            const res = await fetch(`/api/buscar-pacientes?q=${encodeURIComponent(query)}`);
+            if (!res.ok) throw new Error();
+            const data: Paciente[] = await res.json();
+            if (data.length === 0) mostrarSinResultados();
+            else mostrarResultados(data);
+        } catch {
+            mostrarSinResultados();
+        }
+    }
+
+    /* ── Generación ── */
+    async function generarReporte() {
+        if (!pacienteSeleccionado) return;
+        const { id, nombre } = pacienteSeleccionado;
+
+        const recomendaciones = Array.from(
+            document.querySelectorAll<HTMLInputElement>('.rec-checkbox:checked'),
+        ).map((cb) => cb.value);
+
+        btnGenerar.disabled = true;
+        btnTexto.textContent = 'Generando Word...';
+        errorEl.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/generar-reporte-poligrafia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paciente_id: id, fase: selectorFase.value, recomendaciones }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'Error al generar el reporte');
+            }
+
+            descargarBlob(await response.blob(), `reporte_poligrafia_${nombre.replace(/\s+/g, '_')}.docx`);
+            modal.close();
+        } catch (err: any) {
+            errorEl.textContent = err.message || 'Ocurrió un error inesperado.';
+            errorEl.classList.remove('hidden');
+        } finally {
+            btnGenerar.disabled = false;
+            btnTexto.textContent = 'Generar Word';
+        }
+    }
+
+    modal.addEventListener('close', () => {
+        buscador.value = '';
+        pacienteSeleccionado = null;
+        mostrarEstadoVacio();
+    });
+
+    document.querySelector('[data-id="reporte-poligrafia"]')?.addEventListener('click', abrir);
+
+    buscador.addEventListener('input', () => {
+        const query = buscador.value.trim();
+        if (busquedaTimeout) clearTimeout(busquedaTimeout);
+        if (query.length < 2) return mostrarEstadoVacio();
+        busquedaTimeout = setTimeout(() => buscarPacientes(query), 300);
+    });
+
+    resultadosEl.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.resultado-paciente');
+        if (!btn) return;
+        irPaso2({
+            id: parseInt(btn.dataset.id!, 10),
+            nombre: btn.dataset.nombre!,
+            edad: parseInt(btn.dataset.edad!, 10),
+        });
+    });
+
+    btnCambiar.addEventListener('click', () => {
+        pacienteSeleccionado = null;
+        buscador.value = '';
+        mostrarEstadoVacio();
+        irPaso1();
+        setTimeout(() => buscador.focus(), 100);
+    });
+
+    btnGenerar.addEventListener('click', generarReporte);
+
+    /* ── Enlace directo: /reportes?paciente_id=…&nombre=…&edad=…&fase=… ── */
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('paciente_id')) {
+        irPaso2({
+            id:     parseInt(params.get('paciente_id') ?? '0', 10),
+            nombre: params.get('nombre') ?? '',
+            edad:   parseInt(params.get('edad') ?? '0', 10),
+            fase:   params.get('fase') ?? 'pre',
+        });
+        modal.showModal();
+        window.history.replaceState({}, '', '/reportes');
+    }
+</script>
+
+<!-- is:global: el estado del stepper depende de #paso-2 (componente hijo) vía :has() -->
+<style is:global>
+    .pm-stepper {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .75rem 1.5rem;
+        background: rgb(0 0 0 / .12);
+        border-bottom: 1px solid rgb(255 255 255 / .08);
+    }
+    .st {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        font-size: .8125rem;
+        font-weight: 500;
+        color: #6b7280;
+        transition: color .2s ease;
+    }
+    .st-dot {
+        display: grid;
+        place-items: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 9999px;
+        font-size: .75rem;
+        font-weight: 600;
+        border: 1px solid rgb(255 255 255 / .15);
+        transition: background-color .2s ease, border-color .2s ease, color .2s ease;
+    }
+    .st1 { color: #e5e7eb; }
+    .st1 .st-dot { background: rgb(var(--a)); border-color: rgb(var(--a)); color: #fff; }
+    .st-line {
+        position: relative;
+        flex: 1;
+        height: 2px;
+        border-radius: 2px;
+        background: rgb(255 255 255 / .1);
+        overflow: hidden;
+    }
+    .st-line::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgb(var(--a));
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform .35s ease;
+    }
+    .pm-panel:has(#paso-2:not(.hidden)) .st-line::after { transform: scaleX(1); }
+    .pm-panel:has(#paso-2:not(.hidden)) .st2 { color: #e5e7eb; }
+    .pm-panel:has(#paso-2:not(.hidden)) .st2 .st-dot { background: rgb(var(--a)); border-color: rgb(var(--a)); color: #fff; }
+    .pm-panel:has(#paso-2:not(.hidden)) .st1 .st-dot {
+        font-size: 0;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 10 4 4 8-8'/%3E%3C/svg%3E") center / 62% no-repeat, rgb(var(--a) / .3);
+        border-color: rgb(var(--a) / .55);
+    }
+</style>

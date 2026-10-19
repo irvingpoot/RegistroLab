@@ -1,8 +1,14 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
 import { calcularBerlin, calcularpsqi } from "../../utils/calculos";
+import { requerirSesion } from "../../lib/api-auth";
 
-export const GET: APIRoute = async () => {
+export const prerender = false;
+
+export const GET: APIRoute = async ({ locals }) => {
+    const sinSesion = requerirSesion(locals);
+    if (sinSesion) return sinSesion;
+
     const supabase = createClient(
         import.meta.env.PUBLIC_SUPABASE_URL,
         import.meta.env.SUPABASE_KEY

@@ -1,0 +1,113 @@
+---
+import ReportModal from '../ReportModal.astro';
+import ErrorAlert from '../ErrorAlert.astro';
+import FiltroOption from './FiltroOption.astro';
+import CalendarIcon from '../../icons/CalendarIcon.astro';
+import ClockIcon from '../../icons/ClockIcon.astro';
+import ThreeLineIcon from '../../icons/reportes/ThreeLineIcon.astro';
+---
+<ReportModal
+    id="modal-citas"
+    acento="emerald"
+    titulo="Exportar Citas"
+    subtitulo="Selecciona qué citas exportar"
+    ancho="max-w-lg"
+>
+    <CalendarIcon slot="icono" class="size-6" />
+
+    <div class="space-y-3 p-6">
+        <div class="mb-1 flex items-center justify-between gap-3">
+            <p class="text-sm font-medium text-gray-300">Filtro de exportación</p>
+            <span class="pm-fmt">.xlsx</span>
+        </div>
+
+        <FiltroOption id="btn-filtro-pendientes" acento="emerald" titulo="Solo pendientes">
+            <ClockIcon slot="icono" class="size-6" />
+            Citas con estado <span class="font-medium text-emerald-400">pendiente</span> ordenadas por fecha
+        </FiltroOption>
+
+        <FiltroOption id="btn-filtro-todas" acento="gray" titulo="Todas las citas">
+            <ThreeLineIcon slot="icono" class="size-6" />
+            Historial completo sin importar el estado
+        </FiltroOption>
+
+        <ErrorAlert id="error-citas" />
+
+        <p class="pt-2 text-center text-xs text-gray-500">Incluye estado, síntoma, teléfono, fecha y observaciones.</p>
+    </div>
+</ReportModal>
+
+<script>
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+    const modal         = $<HTMLDialogElement>('modal-citas');
+    const btnPendientes = $<HTMLButtonElement>('btn-filtro-pendientes');
+    const btnTodas      = $<HTMLButtonElement>('btn-filtro-todas');
+    const errorEl       = $('error-citas');
+
+    const SPINNER = `
+        <svg class="animate-spin h-4 w-4 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>`;
+
+    function descargarBlob(blob: Blob, nombre: string) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre;
+        document.body.appendChild(a); a.click();
+        URL.revokeObjectURL(url); a.remove();
+    }
+
+    function abrir() {
+        errorEl.classList.add('hidden');
+        btnPendientes.disabled = false;
+        btnTodas.disabled = false;
+        modal.showModal();
+    }
+
+    async function descargar(filtro: 'pendiente' | 'todas') {
+        const btn     = filtro === 'pendiente' ? btnPendientes : btnTodas;
+        const otroBtn = filtro === 'pendiente' ? btnTodas : btnPendientes;
+        const textoOriginal = btn.innerHTML;
+
+        btn.disabled = true;
+        otroBtn.disabled = true;
+        btn.innerHTML = `${SPINNER} Generando...`;
+        errorEl.classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/exportar-citas?filtro=${filtro}`);
+            if (!response.ok) throw new Error('Error en el servidor al generar el Excel');
+
+            const fecha = new Date().toISOString().split('T')[0];
+            const sufijo = filtro === 'pendiente' ? 'pendientes' : 'todas';
+            descargarBlob(await response.blob(), `citas_${sufijo}_${fecha}.xlsx`);
+            modal.close();
+        } catch (err: any) {
+            errorEl.textContent = err.message || 'Ocurrió un error inesperado.';
+            errorEl.classList.remove('hidden');
+        } finally {
+            btn.innerHTML = textoOriginal;
+            btn.disabled = false;
+            otroBtn.disabled = false;
+        }
+    }
+
+    document.querySelector('[data-id="excel-citas-pendientes"]')?.addEventListener('click', abrir);
+    btnPendientes.addEventListener('click', () => descargar('pendiente'));
+    btnTodas.addEventListener('click', () => descargar('todas'));
+</script>
+
+<style>
+    .pm-fmt {
+        padding: .15rem .55rem;
+        border-radius: .5rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: .75rem;
+        font-weight: 500;
+        color: rgb(var(--t));
+        background: rgb(var(--a) / .12);
+        border: 1px solid rgb(var(--a) / .25);
+    }
+</style>

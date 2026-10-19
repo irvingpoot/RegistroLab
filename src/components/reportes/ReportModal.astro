@@ -1,0 +1,153 @@
+---
+/**
+ * Carcasa compartida por todos los modales de reportes: <dialog>, fondo,
+ * cabecera (icono, título, subtítulo, botón cerrar).
+ *
+ * Id del subtítulo: {id}-subtitulo.  Cierra con la X, clic en el fondo o Escape;
+ * cada reporte limpia su estado escuchando el evento nativo "close" del <dialog>.
+ * Requiere las clases .acc-* (paleta definida en pages/reportes.astro).
+ * Slots: "icono" (dentro del chip de la cabecera) y el slot por defecto (cuerpo).
+ */
+import CrossIcon from '../icons/CrossIcon.astro';
+import TraceIcon from '../icons/reportes/TraceIcon.astro';
+
+interface Props {
+    id: string;
+    acento: string;
+    titulo: string;
+    subtitulo: string;
+    ancho?: string;
+}
+
+const { id, acento, titulo, subtitulo, ancho = 'max-w-lg' } = Astro.props;
+---
+<dialog id={id} data-reporte-modal class="fixed inset-0 z-50 m-0 h-full max-h-none w-full max-w-none overflow-y-auto bg-transparent p-0">
+    <div class="pointer-events-none flex min-h-full items-center justify-center p-4">
+        <div class={`pm-panel acc-${acento} pointer-events-auto w-full ${ancho}`}>
+
+            <div class="pm-head">
+                <div class="flex items-center gap-4">
+                    <span class="pm-chip"><slot name="icono" /></span>
+                    <div>
+                        <h3 class="text-xl font-semibold leading-tight tracking-tight text-white">{titulo}</h3>
+                        <p id={`${id}-subtitulo`} class="mt-0.5 text-sm text-gray-400">{subtitulo}</p>
+                    </div>
+                </div>
+                <TraceIcon class="pm-trace" />
+                <button data-cerrar type="button" aria-label="Cerrar" class="pm-close">
+                    <CrossIcon class="size-5" />
+                </button>
+            </div>
+
+            <slot />
+        </div>
+    </div>
+    <div data-backdrop class="fixed inset-0 -z-10 bg-[#020617]/70 backdrop-blur-sm"></div>
+</dialog>
+
+<script>
+    document.querySelectorAll<HTMLDialogElement>('dialog[data-reporte-modal]').forEach((dialog) => {
+        const cerrar = () => dialog.close();
+        dialog.querySelector('[data-cerrar]')?.addEventListener('click', cerrar);
+        dialog.querySelector('[data-backdrop]')?.addEventListener('click', cerrar);
+    });
+</script>
+
+<style is:global>
+    .pm-panel {
+        background: #0f172a;
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: 1.25rem;
+        box-shadow: 0 40px 80px -20px rgb(0 0 0 / .7);
+        overflow: hidden;
+    }
+    dialog[open] .pm-panel { animation: pm-in .25s ease-out both; }
+    @keyframes pm-in {
+        from { opacity: 0; transform: scale(.96) translateY(8px); }
+        to   { opacity: 1; transform: none; }
+    }
+
+    .pm-head {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: rgb(var(--a) / .07);
+        border-bottom: 1px solid rgb(255 255 255 / .1);
+    }
+    .pm-head::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(20rem 10rem at 0% 0%, rgb(var(--a) / .24), transparent 70%);
+        pointer-events: none;
+    }
+    .pm-head > * { position: relative; }
+    .pm-trace {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 16rem;
+        height: 3.5rem;
+        color: rgb(var(--t));
+        opacity: .28;
+        pointer-events: none;
+    }
+    .pm-head .pm-chip {
+        width: 3rem;
+        height: 3rem;
+        border-radius: .875rem;
+        background: rgb(var(--a) / .2);
+        box-shadow: inset 0 0 0 1px rgb(var(--a) / .35), 0 10px 24px -10px rgb(var(--a) / .7);
+    }
+
+    .pm-chip {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: .75rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .pm-chip-lg { width: 3rem; height: 3rem; border-radius: .875rem; }
+
+    .pm-close {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 9999px;
+        color: #6b7280;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .pm-close:hover { background: rgb(255 255 255 / .06); color: #fff; }
+    .pm-close:focus-visible { outline: 2px solid rgb(var(--t)); }
+
+    .pm-input {
+        width: 100%;
+        padding: .8rem 1rem;
+        font-size: .9375rem;
+        color: #fff;
+        background: rgb(2 6 23 / .5);
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: .875rem;
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .pm-input.pm-input--icon { padding-left: 2.9rem; }
+    .pm-input.pm-input--chevron { padding-right: 2.75rem; }
+    .pm-input::placeholder { color: #6b7280; }
+    .pm-input:focus { border-color: rgb(var(--a)); box-shadow: 0 0 0 3px rgb(var(--a) / .2); }
+
+    @media (prefers-reduced-motion: reduce) {
+        dialog[open] .pm-panel { animation: none; }
+    }
+</style>

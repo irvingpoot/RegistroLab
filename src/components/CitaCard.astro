@@ -17,6 +17,9 @@ interface Props {
         motivo: string | null;
         estado: 'pendiente' | 'completada' | 'cancelada' | null;
         atendido_por: string | null;
+        servicio_nombre?: string | null;
+        precio_etiqueta?: string | null;
+        precio_monto?: number | string | null;
     };
 }
 
@@ -28,7 +31,26 @@ const generarLinkWhatsapp = () => {
     const nombrePaciente = cita.nombre || "Paciente";
     const fechaTexto = new Date(cita.fecha_hora).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
     const horaTexto = cita.fecha_hora ? new Date(cita.fecha_hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Merida' }) : '';
-    const mensaje = `Hola ${nombrePaciente}, le escribimos de RegistroLab para confirmar su cita del día *${fechaTexto}* a las *${horaTexto}*. ¿Podría confirmar su asistencia?`;
+    const mensaje = `Hola ${nombrePaciente}, le escribimos del Laboratorio del Sueño y Neurociencias para confirmar su cita del día *${fechaTexto}* a las *${horaTexto}*. ¿Podría confirmar su asistencia?. 
+Igualmente le recordamos que si gusta realizar el pago por transferencia, puede hacerlo antes de su cita con los siguientes datos:
+PAGO POR TRANSFERENCIA
+
+Banco: BBVA
+Nombre: FACULTAD DE PSICOLOGÍA
+Número de cuenta: 0123786005
+Cuenta Clave: 012910001237860051
+
+Favor de enviar el comprobante del depósito o transferencia al correo:
+
+clinica.difusion@correo.uady.mx
+
+1. Con el concepto del nombre del paciente, y en el correo escribir.
+2. Nombre del dueño de la cuenta
+3. Laboratorio de sueño
+4. Tipo de tratamiento o procedimiento le realizaron 
+5. Número de celular
+
+De requerir *FACTURA* favor de enviarlo con copia al correo: contabilidad.cfdi.fpsi@correo.uady.mx con sus datos fiscales y constancia fiscal actualizada, inmediatamente después de realizar el depósito o transferencia.`;
     return `https://wa.me/52${numeroLimpio}?text=${encodeURIComponent(mensaje)}`;
 };
 
@@ -46,6 +68,13 @@ const motivoColors = {
 const colorClase = motivoColors[cita.motivo as keyof typeof motivoColors] || motivoColors.default;
 const esPendiente = cita.estado === 'pendiente' || !cita.estado;
 const motivoTexto = cita.motivo ? cita.motivo.replace('_', ' ') : "Sin motivo";
+
+const precioMonto = cita.precio_monto != null ? Number(cita.precio_monto) : null;
+const precioTexto = precioMonto === null || Number.isNaN(precioMonto)
+    ? null
+    : precioMonto === 0
+        ? "Sin costo"
+        : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(precioMonto);
 ---
 
 <div class="cita-card-container relative group bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 p-6 rounded-2xl transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(30,58,138,0.3)]">
@@ -84,6 +113,21 @@ const motivoTexto = cita.motivo ? cita.motivo.replace('_', ' ') : "Sin motivo";
             <div class="pt-2 pb-1">
                 <span class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Observaciones:</span>
                 <p class="text-sm text-gray-300 italic leading-relaxed text-pretty bg-gray-800/30 p-2 rounded-lg border border-white/5">"{cita.observaciones}"</p>
+            </div>
+        )}
+
+        {cita.servicio_nombre && (
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <span class="block text-[10px] uppercase text-gray-500 font-bold">Servicio</span>
+                    <span class="text-sm font-medium text-gray-200 text-wrap break-words">{cita.servicio_nombre}</span>
+                </div>
+                {precioTexto && (
+                    <div class="text-right shrink-0">
+                        {cita.precio_etiqueta && <span class="block text-xs text-gray-500">Precio: {cita.precio_etiqueta}</span>}
+                        <span class="text-sm font-mono font-semibold text-emerald-300 whitespace-nowrap">{precioTexto}</span>
+                    </div>
+                )}
             </div>
         )}
 

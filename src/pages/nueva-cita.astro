@@ -65,6 +65,8 @@ if (Astro.request.method === "POST") {
             observaciones:   data.get("observaciones")  as string || null,
             atendidoPor:     data.get("atendido_por")   as string,
             registradoPorId: nombreRegistrador as string,
+            servicioId:      data.get("servicio_id")    as string || null,
+            precioId:        data.get("precio_id")      as string || null,
         });
 
         registroExitoso = true;
@@ -96,7 +98,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                 </div>
                 <h2 class="text-2xl font-bold text-white mt-4 text-center">¡Agendada!</h2>
                 <p class="text-gray-400 mt-2 text-center">La cita se guardó correctamente.</p>
-                <script>
+                <script is:inline>
                     setTimeout(() => { window.location.replace("/citas"); }, 2000);
                 </script>
             </div>
@@ -116,7 +118,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
             </h1>
         </div>
 
-        <form method="POST">
+        <form method="POST" id="form-cita" data-hay-error={hayError ? "1" : undefined}>
             <div class="flex flex-col items-center justify-center">
                 
                 <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white/50 text-center text-gray-200 w-fit mx-auto px-10">Datos del Paciente</h2>
@@ -187,6 +189,32 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                             </label>
                         </div>
                     </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 md:gap-7">
+                        <div class="flex grow flex-col">
+                            <label for="servicio_id" class="text-lg font-medium text-gray-300">Servicio <span id="servicio-obligatorio" class="text-red-500 hidden">*</span>:</label>
+                            <div class="relative">
+                                <select id="servicio_id" name="servicio_id" class="w-full mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                                    <option value="" disabled selected>Cargando servicios…</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-3 pt-1 pointer-events-none text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex grow flex-col md:w-1/3">
+                            <label for="precio_id" class="text-lg font-medium text-gray-300">Precio:</label>
+                            <div class="relative">
+                                <select id="precio_id" name="precio_id" disabled class="w-full mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
+                                    <option value="" disabled selected>Elige primero un servicio</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-3 pt-1 pointer-events-none text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p id="servicio-aviso" role="status" class="hidden -mt-3 text-sm text-amber-400"></p>
 
                     <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
@@ -384,5 +412,21 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                 }
             });
         }
+    });
+</script>
+
+<script>
+    import { iniciarSelectorServicio } from "../lib/selector-servicio";
+
+    const form = document.getElementById("form-cita");
+
+    iniciarSelectorServicio({
+        servicio: document.getElementById("servicio_id") as HTMLSelectElement,
+        precio: document.getElementById("precio_id") as HTMLSelectElement,
+        aviso: document.getElementById("servicio-aviso"),
+        asterisco: document.getElementById("servicio-obligatorio"),
+        obligatorio: true,
+        textoVacio: "Selecciona un servicio",
+        forzarRecarga: form?.dataset.hayError === "1",
     });
 </script>

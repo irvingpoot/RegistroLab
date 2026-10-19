@@ -1,0 +1,77 @@
+---
+import SearchIcon from '../../icons/SearchIcon.astro';
+import PatientNotFoundIcon from '../../icons/PatientNotFoundIcon.astro';
+---
+<div id="paso-1" class="space-y-5 p-6">
+    <div class="pm-search relative">
+        <span class="pm-search-icon">
+            <SearchIcon class="size-4" />
+        </span>
+        <input
+            id="buscador-paciente"
+            type="text"
+            placeholder="Buscar paciente por nombre..."
+            class="pm-input pm-input--icon"
+            autocomplete="off"
+        />
+    </div>
+
+    <div id="resultados-busqueda" class="max-h-64 space-y-1 overflow-y-auto hidden"></div>
+
+    <div id="estado-vacio-busqueda" class="py-8 text-center">
+        <span class="pm-empty-icon">
+            <PatientNotFoundIcon class="size-7" />
+        </span>
+        <p class="mt-8 text-sm font-medium text-gray-300">Escribe para buscar un paciente</p>
+        <p class="mt-1 text-xs text-gray-500">Basta con las primeras 2 letras del nombre.</p>
+    </div>
+
+    <div id="sin-resultados" class="py-8 text-center hidden">
+        <p class="text-sm font-medium text-gray-300">No se encontraron pacientes con ese nombre</p>
+        <p class="mt-1 text-xs text-gray-500">Revisa la ortografía o prueba con otro nombre.</p>
+    </div>
+</div>
+
+<style>
+    .pm-search-icon {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 1rem;
+        display: flex;
+        align-items: center;
+        color: #9ca3af;
+        pointer-events: none;
+        transition: color .15s ease;
+    }
+    .pm-search:focus-within .pm-search-icon { color: rgb(var(--t)); }
+
+    .pm-empty-icon {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto;
+        border-radius: 1.25rem;
+        background: rgb(var(--a) / .14);
+        color: rgb(var(--t));
+    }
+    .pm-empty-icon::before,
+    .pm-empty-icon::after {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+        border: 1px solid rgb(var(--a) / .25);
+    }
+    .pm-empty-icon::before { inset: -.7rem; border-radius: 1.8rem; }
+    .pm-empty-icon::after  { inset: -1.5rem; border-radius: 2.4rem; border-color: rgb(var(--a) / .12); }
+    @media (prefers-reduced-motion: no-preference) {
+        .pm-empty-icon::before { animation: pm-ring 3s ease-in-out infinite alternate; }
+        .pm-empty-icon::after  { animation: pm-ring 3s .6s ease-in-out infinite alternate; }
+    }
+    @keyframes pm-ring {
+        from { transform: scale(.97); opacity: .7; }
+        to   { transform: scale(1.04); opacity: 1; }
+    }
+</style>

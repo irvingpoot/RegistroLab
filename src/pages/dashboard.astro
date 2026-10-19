@@ -33,24 +33,20 @@ import RightTriangle from "../components/icons/RightTriangle.astro";
 import ClockIcon from "../components/icons/ClockIcon.astro";
 import TaskIcon from "../components/icons/dashboard/TaskIcon.astro";
 import ManualIcon from "../components/icons/dashboard/ManualIcon.astro";
+import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
 import ReportIcon from "../components/icons/dashboard/ReportIcon.astro";
 import UserIcon from "../components/icons/dashboard/UserIcon.astro";
 import FeedbackIcon from "../components/icons/dashboard/FeedbackIcon.astro";
 import CheckSimpleIcon from "../components/icons/CheckSimpleIcon.astro";
+import EstadisticasIcon from "../components/icons/dashboard/EstadisticasIcon.astro";
 
 const esAdmin = puedeGestionarUsuarios(Astro.locals.userRole);
 
 const userRole = Astro.locals.userRole;
 const restringida = (ruta: string) => !tieneAccesoRuta(userRole, ruta);
 
-const user          = await Astro.locals.currentUser();
-const nombreUsuario = user?.firstName || user?.username || "Usuario";
-const nombreCompleto = user
-    ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || ""
-    : "";
-    
-const horarioVisible = user?.publicMetadata?.horarioVisible === true;
-
+const construirNombreCompleto = (u: Awaited<ReturnType<typeof Astro.locals.currentUser>>) =>
+    u ? `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || "" : "";
 
 if (Astro.request.method === "POST") {
     try {
@@ -63,7 +59,8 @@ if (Astro.request.method === "POST") {
 
         if (action === "completar_tarea_sidebar") {
             const idTarea = formData.get("id_tarea") as string;
-            await completarTarea(idTarea, nombreCompleto as string);
+            const usuarioPost = await Astro.locals.currentUser();
+            await completarTarea(idTarea, construirNombreCompleto(usuarioPost));
         }
     } catch (e) {
         console.error("Error marcando notificaciones:", e);
@@ -71,14 +68,23 @@ if (Astro.request.method === "POST") {
     return Astro.redirect(Astro.url.href);
 }
 
-const [agenda, notificaciones, usuariosRecientes, tareasUsuario] = await Promise.all([
+const userPromise = Astro.locals.currentUser();
+
+const [user, agenda, notificaciones, usuariosRecientes, tareasUsuario] = await Promise.all([
+    userPromise,
     getCitasHoy(),
     getNotificaciones(),
     getUsuariosRecientes(Astro),
-    getTareasDeUsuario(nombreCompleto as string),
+    userPromise.then((u) => getTareasDeUsuario(construirNombreCompleto(u))),
 ]);
 
-const { totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaNombre } = agenda;
+const nombreUsuario  = user?.firstName || user?.username || "Usuario";
+const horarioVisible = user?.publicMetadata?.horarioVisible === true;
+
+const { citasHoy, totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaNombre } = agenda;
+const citasCompletadas = citasHoy.filter(c => c.estado === "completada").length;
+const citasCanceladas  = citasHoy.filter(c => c.estado === "cancelada").length;
+const primeraPendienteId = citasHoy.find(c => c.estado === "pendiente")?.id;
 const hayNotificaciones = notificaciones.length > 0;
 
 const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
@@ -230,28 +236,32 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
 
                         <p class="mt-1 text-2xl md:text-[1.75rem] leading-tight text-white">
                             {estadoAgenda === 'completado'
-                                ? `¡Excelente trabajo! Has atendido a tus ${totalCitasHoy} pacientes.`
+                                ? (citasCanceladas === 0
+                                    ? `¡Excelente trabajo! Has atendido a tus ${totalCitasHoy} pacientes.`
+                                    : `Agenda finalizada: ${citasCompletadas} atendidos y ${citasCanceladas} cancelados.`)
                                 : cantidadPendientes === 1
                                     ? `Te queda 1 paciente esperando atención.`
                                     : `Te quedan ${cantidadPendientes} pacientes por atender hoy.`
                             }
                         </p>
 
-                        {(() => {
-                            const n = Math.min(totalCitasHoy, 40);
-                            const atendidas = Math.max(0, totalCitasHoy - cantidadPendientes);
-                            const hechas = Math.round((atendidas / totalCitasHoy) * n);
-                            return (
-                                <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                    <div class="flex flex-wrap items-center gap-1" role="img" aria-label={`${atendidas} de ${totalCitasHoy} citas atendidas`}>
-                                        {Array.from({ length: n }, (_, i) => (
-                                            <span class={`tick ${i < hechas ? 'is-done' : i === hechas ? 'is-next' : ''}`}></span>
-                                        ))}
-                                    </div>
-                                    <p class="text-xs text-gray-400 whitespace-nowrap">{atendidas} de {totalCitasHoy} atendidos</p>
-                                </div>
-                            );
-                        })()}
+                        <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            <div class="flex flex-wrap items-center gap-1" role="img" aria-label={`${citasCompletadas} completadas, ${citasCanceladas} canceladas y ${cantidadPendientes} pendientes de ${totalCitasHoy} citas`}>
+                                {citasHoy.map((c) => {
+                                    const hora = new Date(c.fecha_hora).toLocaleTimeString("es-MX", {
+                                        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Merida",
+                                    });
+                                    const clase =
+                                        c.estado === "completada" ? "is-completada" :
+                                        c.estado === "cancelada"  ? "is-cancelada"  :
+                                        c.id === primeraPendienteId ? "is-next" : "";
+                                    return <span class={`tick ${clase}`} title={`${hora} · ${c.nombre}`}></span>;
+                                })}
+                            </div>
+                            <p class="text-xs text-gray-400 whitespace-nowrap">
+                                {citasCompletadas} de {totalCitasHoy} atendidos{citasCanceladas > 0 && ` · ${citasCanceladas} cancelada${citasCanceladas === 1 ? '' : 's'}`}
+                            </p>
+                        </div>
                     </div>
 
                     <div class="md:border-l md:border-white/10 md:pl-8">
@@ -298,20 +308,33 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         </div>
                     </div>
 
-                    <a href="/nueva-cita" class="rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-center text-sm font-medium text-gray-200 hover:bg-gray-600 transition-colors">
-                        Agendar Cita
+                    <a href="/citas" class="rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-center text-sm font-medium text-gray-200 hover:bg-gray-600 transition-colors">
+                        Ver Agenda
                     </a>
                 </div>
             )}
         </section>
 
-        <div class="mt-6 grid gap-6 lg:grid-cols-5">
+        <div class="mt-6 grid gap-6 lg:grid-cols-3">
+
+            <a href="/citas" class="mod-feature acc-purple">
+                <span class="mod-chip mod-chip-lg"><AgendaIcon class="size-6" /></span>
+                <span class="mt-auto block pt-12">
+                    <span class="block text-4xl leading-none text-white mb-3">Agenda</span>
+                    <span class="block max-w-xs text-gray-400 leading-relaxed mb-5">
+                        Visualiza el calendario y las citas pendientes del laboratorio.
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-sm font-semibold" style="color: rgb(var(--t))">
+                        Ver agenda <span class="mod-go inline-flex"><RightArrow class="size-5" /></span>
+                    </span>
+                </span>
+            </a>
 
             <a
                 href={restringida("/lista") ? undefined : "/lista"}
                 aria-disabled={restringida("/lista") ? "true" : undefined}
                 tabindex={restringida("/lista") ? -1 : undefined}
-                class={`mod-feature acc-blue lg:col-span-2 ${restringida("/lista") ? "is-locked" : ""}`}
+                class={`mod-feature acc-blue ${restringida("/lista") ? "is-locked" : ""}`}
             >
                 {restringida("/lista") && (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>)}
                 <span class="mod-chip mod-chip-lg"><PacientesIcon class="size-6" /></span>
@@ -326,31 +349,23 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 </span>
             </a>
 
-            <section aria-labelledby="g-citas" class="panel lg:col-span-3">
+            <section aria-labelledby="g-citas" class="panel flex flex-col">
                 <h2 id="g-citas" class="panel-title">Pacientes y citas</h2>
-                <div class="divide-y divide-white/5">
+                <div class="flex flex-1 flex-col divide-y divide-white/5">
                     <button
                         type="button"
                         onclick={restringida("/lista") ? undefined : "document.getElementById('modal-tipo-paciente').showModal()"}
                         disabled={restringida("/lista")}
-                        class={`mod-row acc-emerald cursor-pointer ${restringida("/lista") ? "is-locked" : ""}`}
+                        class={`mod-row acc-emerald flex-1 cursor-pointer ${restringida("/lista") ? "is-locked" : ""}`}
                     >
                         <span class="mod-chip"><AddPatientIcon class="size-5" /></span>
                         <span class="min-w-0 flex-1">
                             <span class="mod-title block font-semibold text-white transition-colors">Nuevo Paciente</span>
                             <span class="block text-sm text-gray-400 leading-snug">Registrar ingreso</span>
                         </span>
-                        {restringida("/lista") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
+                        {restringida("/lista") ? (<span class="mod-lock"><LockIcon class="size-3" /> Restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
                     </button>
-                    <a href="/citas" class="mod-row acc-purple">
-                        <span class="mod-chip"><AgendaIcon class="size-5" /></span>
-                        <span class="min-w-0 flex-1">
-                            <span class="mod-title block font-semibold text-white transition-colors">Agenda</span>
-                            <span class="block text-sm text-gray-400 leading-snug">Visualizar calendario y citas pendientes</span>
-                        </span>
-                        <RightTriangle class="mod-go size-4" />
-                    </a>
-                    <a href="/nueva-cita" class="mod-row acc-pink">
+                    <a href="/nueva-cita" class="mod-row acc-pink flex-1">
                         <span class="mod-chip"><ClockIcon class="size-5" /></span>
                         <span class="min-w-0 flex-1">
                             <span class="mod-title block font-semibold text-white transition-colors">Agendar Cita</span>
@@ -368,17 +383,17 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                 <h2 id="g-lab" class="panel-title">Laboratorio</h2>
                 <div class="divide-y divide-white/5">
                     <a
-                        href={restringida("/pendientes/lista-pendientes") ? undefined : "/pendientes/lista-pendientes"}
-                        aria-disabled={restringida("/pendientes/lista-pendientes") ? "true" : undefined}
-                        tabindex={restringida("/pendientes/lista-pendientes") ? -1 : undefined}
-                        class={`mod-row acc-lime ${restringida("/pendientes/lista-pendientes") ? "is-locked" : ""}`}
+                        href={restringida("/reportes") ? undefined : "/reportes"}
+                        aria-disabled={restringida("/reportes") ? "true" : undefined}
+                        tabindex={restringida("/reportes") ? -1 : undefined}
+                        class={`mod-row acc-rose ${restringida("/reportes") ? "is-locked" : ""}`}
                     >
-                        <span class="mod-chip"><TaskIcon class="size-5" /></span>
+                        <span class="mod-chip"><ReportIcon class="size-5" /></span>
                         <span class="min-w-0 flex-1">
-                            <span class="mod-title block font-semibold text-white transition-colors">Tareas pendientes</span>
-                            <span class="block text-sm text-gray-400 leading-snug">Gestionar las tareas pendientes por hacer</span>
+                            <span class="mod-title block font-semibold text-white transition-colors">Reportes</span>
+                            <span class="block text-sm text-gray-400 leading-snug">Generación de reportes del laboratorio</span>
                         </span>
-                        {restringida("/pendientes/lista-pendientes") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
+                        {restringida("/reportes") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
                     </a>
                     <a
                         href={restringida("/manuales") ? undefined : "/manuales"}
@@ -394,17 +409,30 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         {restringida("/manuales") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
                     </a>
                     <a
-                        href={restringida("/reportes") ? undefined : "/reportes"}
-                        aria-disabled={restringida("/reportes") ? "true" : undefined}
-                        tabindex={restringida("/reportes") ? -1 : undefined}
-                        class={`mod-row acc-rose ${restringida("/reportes") ? "is-locked" : ""}`}
+                        href={restringida("/servicios") ? undefined : "/servicios"}
+                        aria-disabled={restringida("/servicios") ? "true" : undefined}
+                        tabindex={restringida("/servicios") ? -1 : undefined}
+                        class={`mod-row acc-amber ${restringida("/servicios") ? "is-locked" : ""}`}
                     >
-                        <span class="mod-chip"><ReportIcon class="size-5" /></span>
+                        <span class="mod-chip"><ServiciosIcon class="size-5" /></span>
                         <span class="min-w-0 flex-1">
-                            <span class="mod-title block font-semibold text-white transition-colors">Reportes</span>
-                            <span class="block text-sm text-gray-400 leading-snug">Generación de reportes del laboratorio</span>
+                            <span class="mod-title block font-semibold text-white transition-colors">Servicios</span>
+                            <span class="block text-sm text-gray-400 leading-snug">Registrar los servicios del laboratorio y sus precios</span>
                         </span>
-                        {restringida("/reportes") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
+                        {restringida("/servicios") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
+                    </a>
+                    <a
+                        href={restringida("/pendientes/lista-pendientes") ? undefined : "/pendientes/lista-pendientes"}
+                        aria-disabled={restringida("/pendientes/lista-pendientes") ? "true" : undefined}
+                        tabindex={restringida("/pendientes/lista-pendientes") ? -1 : undefined}
+                        class={`mod-row acc-lime ${restringida("/pendientes/lista-pendientes") ? "is-locked" : ""}`}
+                    >
+                        <span class="mod-chip"><TaskIcon class="size-5" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="mod-title block font-semibold text-white transition-colors">Tareas pendientes</span>
+                            <span class="block text-sm text-gray-400 leading-snug">Gestionar las tareas pendientes por hacer</span>
+                        </span>
+                        {restringida("/pendientes/lista-pendientes") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
                     </a>
                 </div>
             </section>
@@ -433,6 +461,20 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                             <RightTriangle class="mod-go size-4" />
                         </a>
                     )}
+                    
+                    <a
+                        href={restringida("/estadisticas") ? undefined : "/estadisticas"}
+                        aria-disabled={restringida("/estadisticas") ? "true" : undefined}
+                        tabindex={restringida("/estadisticas") ? -1 : undefined}
+                        class={`mod-row acc-emerald ${restringida("/estadisticas") ? "is-locked" : ""}`}
+                    >
+                        <span class="mod-chip"><EstadisticasIcon class="size-5" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="mod-title block font-semibold text-white transition-colors">Estadísticas</span>
+                            <span class="block text-sm text-gray-400 leading-snug">Ganancia, servicios y demanda de citas</span>
+                        </span>
+                        {restringida("/estadisticas") ? (<span class="mod-lock"><LockIcon class="size-3" /> Acceso restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
+                    </a>
 
                     <a
                         href={restringida("/feedback") ? undefined : "/feedback"}
@@ -557,7 +599,8 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
         border-radius: 9999px;
         background: rgb(255 255 255 / .12);
     }
-    .tick.is-done { background: rgb(var(--a)); }
+    .tick.is-completada { background: rgb(16 185 129); }
+    .tick.is-cancelada  { background: rgb(239 68 68); }
     .tick.is-next { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(var(--t)); }
 
     .panel {
