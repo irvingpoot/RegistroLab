@@ -28,6 +28,7 @@ import CheckIcon from "../components/icons/CheckIcon.astro";
 import LockIcon from "../components/icons/dashboard/LockIcon.astro";
 import PacientesIcon from "../components/icons/dashboard/PacientesIcon.astro";
 import AddPatientIcon from "../components/icons/dashboard/AddPatientIcon.astro";
+import WaitlistIcon from "../components/icons/dashboard/WaitlistIcon.astro";
 import AgendaIcon from "../components/icons/dashboard/AgendaIcon.astro";
 import RightTriangle from "../components/icons/RightTriangle.astro";
 import ClockIcon from "../components/icons/ClockIcon.astro";
@@ -372,6 +373,19 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                             <span class="block text-sm text-gray-400 leading-snug">Crear nueva cita</span>
                         </span>
                         <RightTriangle class="mod-go size-4" />
+                    </a>
+                    <a
+                        href={restringida("/waitlist") ? undefined : "/waitlist"}
+                        aria-disabled={restringida("/waitlist") ? "true" : undefined}
+                        tabindex={restringida("/waitlist") ? -1 : undefined}
+                        class={`mod-row acc-amber flex-1 ${restringida("/waitlist") ? "is-locked" : ""}`}
+                    >
+                        <span class="mod-chip"><WaitlistIcon class="size-5" /></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="mod-title block font-semibold text-white transition-colors">Lista de espera</span>
+                            <span class="block text-sm text-gray-400 leading-snug">Pacientes esperando una cita</span>
+                        </span>
+                        {restringida("/waitlist") ? (<span class="mod-lock"><LockIcon class="size-3" /> Restringido</span>) : (<RightTriangle class="mod-go size-4" />)}
                     </a>
                 </div>
             </section>

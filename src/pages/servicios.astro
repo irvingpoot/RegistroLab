@@ -44,7 +44,9 @@ const datosJson = JSON.stringify(servicios).replace(/</g, "\\u003c");
 
         <header class="mt-6 flex flex-col gap-6 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between">
             <div class="min-w-0">
-                <h1 class="text-5xl md:text-7xl text-white tracking-tight leading-none">Servicios</h1>
+                <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">
+                    Lista de <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">servicios</span>
+                </h1>
                 <p class="mt-4 text-lg text-gray-400 max-w-md">Catálogo de servicios y precios del laboratorio.</p>
             </div>
 
@@ -156,7 +158,6 @@ const datosJson = JSON.stringify(servicios).replace(/</g, "\\u003c");
         </section>
     </main>
 
-    <!-- Crear / editar -->
     <dialog
         id="dlg-servicio"
         class="m-auto w-[calc(100%-2rem)] max-w-xl rounded-2xl border border-white/10 bg-[#0f172a] p-0 text-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]"
@@ -215,7 +216,6 @@ const datosJson = JSON.stringify(servicios).replace(/</g, "\\u003c");
         </form>
     </dialog>
 
-    <!-- Confirmar eliminación -->
     <dialog
         id="dlg-eliminar"
         class="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-white/10 bg-[#0f172a] p-0 text-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]"
@@ -240,7 +240,6 @@ const datosJson = JSON.stringify(servicios).replace(/</g, "\\u003c");
         </div>
     </dialog>
 
-    <!-- Fila de precio (se clona desde el script) -->
     <template id="tpl-precio">
         <div class="fila-precio grid grid-cols-[1fr_7.5rem_auto] items-center gap-2">
             <input data-campo="etiqueta" type="text" maxlength="40" autocomplete="off" placeholder="Etiqueta, ej. Estándar" aria-label="Etiqueta del precio"

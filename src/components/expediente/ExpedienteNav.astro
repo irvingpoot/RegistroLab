@@ -1,0 +1,93 @@
+---
+/**
+ * @component ExpedienteNav
+ * @description Nav sticky del expediente con scroll-spy. Renderiza el "sentinel" que
+ * dispara el modo flotante y la barra de enlaces. Colocar como primer hijo del grid de secciones.
+ *
+ * PROPS:
+ * @prop {{id:string,label:string}[]} links - Enlaces; cada `id` debe ser el de un <section id>.
+ * @prop {string} [rootMargin] - rootMargin del observer de secciones (default "-40% 0px -60% 0px").
+ */
+
+interface Props {
+    links: { id: string; label: string }[];
+    rootMargin?: string;
+}
+
+const { links, rootMargin = "-40% 0px -60% 0px" } = Astro.props;
+---
+
+<div class="relative w-full max-w-6xl mx-auto">
+    <div id="nav-sentinel" class="absolute -top-12 left-0 w-full h-px pointer-events-none opacity-0"></div>
+</div>
+<nav
+    id="dynamic-nav"
+    data-root-margin={rootMargin}
+    class="sticky top-6 z-50 mb-12 flex items-center justify-between gap-1 overflow-hidden
+        transition-all duration-500 cubic-bezier(0.25, 0.8, 0.25, 1) mx-auto
+
+        w-full max-w-6xl rounded-2xl bg-gray-900/0 border border-transparent p-0 backdrop-blur-none shadow-none
+
+        data-[state='floating']:max-w-[650px]
+        data-[state='floating']:bg-[#0f172a]/80
+        data-[state='floating']:backdrop-blur-xl
+        data-[state='floating']:border-white/10
+        data-[state='floating']:rounded-full
+        data-[state='floating']:p-1.5
+        data-[state='floating']:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)]"
+>
+    <div class="w-full flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth">
+        {links.map((link, i) => (
+            <a href={`#${link.id}`} class={i === 0 ? "nav-link active" : "nav-link"}>{link.label}</a>
+        ))}
+    </div>
+</nav>
+
+<style>
+    @reference "../../styles/global.css";
+
+    #dynamic-nav {
+        @apply w-full max-w-6xl mx-auto;
+        @apply mt-1 mb-1 p-1.5;
+        @apply bg-gray-900/40 border border-white/5 backdrop-blur-md;
+        @apply rounded-2xl;
+        @apply shadow-none;
+
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #dynamic-nav[data-state="floating"] {
+        @apply max-w-[680px] mt-2;
+
+        @apply bg-[#0f172a]/90 border-white/10;
+        @apply rounded-full;
+        @apply shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)];
+    }
+
+    .nav-link {
+        @apply px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-gray-400;
+        @apply border border-transparent whitespace-nowrap text-center flex-1;
+
+        @apply rounded-xl;
+
+        transition: all 0.3s ease-out;
+    }
+
+    .nav-link:hover {
+        @apply text-white bg-white/5 border-white/5;
+    }
+
+    .nav-link.active {
+        @apply bg-blue-600 text-white;
+        @apply border-blue-500/30;
+        @apply shadow-[0_0_15px_rgba(37,99,235,0.4)];
+    }
+
+    #dynamic-nav[data-state="floating"] .nav-link {
+        @apply rounded-full;
+    }
+</style>
+
+<script>
+    import { initNavScrollSpy } from "../../utils/client/nav-scrollspy";
+    initNavScrollSpy();
+</script>

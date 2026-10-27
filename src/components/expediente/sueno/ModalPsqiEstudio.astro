@@ -1,0 +1,48 @@
+---
+/**
+ * @component ModalPsqiEstudio
+ * @description Captura de las horas reales de sueño del estudio para recalcular el PSQI
+ * (`#modal-psqi-estudio`, envía `action=update_psqi_study`). Lo abre/llena utils/client/evaluacion-remota.ts.
+ */
+import ModalDialog from "../ModalDialog.astro";
+---
+
+<ModalDialog
+    id="modal-psqi-estudio"
+    bare
+    class="m-auto bg-gray-900 border border-purple-500 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full max-w-sm text-center"
+>
+    <div class="mb-4 text-purple-400 flex justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+        </svg>
+    </div>
+    <h3 class="text-xl font-bold text-white mb-2">Datos del Estudio de Sueño</h3>
+    <p class="text-gray-400 text-xs mb-6 px-2">
+        Ingresa las horas reales de sueño obtenidas en el estudio clínico. <br>
+        <span class="text-purple-300">Esto recalculará la eficiencia y el puntaje total.</span>
+    </p>
+
+    <form method="POST" class="flex flex-col gap-4">
+        <input type="hidden" name="action" value="update_psqi_study">
+        <input type="hidden" name="fase" id="input-fase-estudio">
+
+        <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700">
+            <label class="text-xs text-gray-500 uppercase font-bold block mb-2">Horas Dormidas (Reales)</label>
+            <div class="flex items-center justify-center gap-2">
+                <input type="number" step="0.1" name="horas" id="input-horas-estudio" placeholder="Ej. 5.5" class="bg-gray-900 border border-purple-500/50 rounded-lg p-2 text-white text-center text-xl font-mono w-24 focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                <span class="text-gray-400 font-bold">Hrs</span>
+            </div>
+        </div>
+
+        <div class="flex gap-3 justify-center mt-2">
+            <button type="button" data-cerrar-modal class="flex-1 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:text-white cursor-pointer hover:bg-gray-800 transition-colors">
+                Cancelar
+            </button>
+            <button type="submit" class="flex-1 py-2.5 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 cursor-pointer shadow-lg shadow-purple-900/20">
+                Guardar
+            </button>
+        </div>
+    </form>
+
+</ModalDialog>

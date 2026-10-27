@@ -33,7 +33,8 @@ const isProtectedRoute = createRouteMatcher([
     '/paciente(.*)',
     '/editar-paciente(.*)',
     '/editar-cita(.*)',
-    '/pendientes(.*)'
+    '/pendientes(.*)',
+    '/waitlist'
 ]);
 
 export const onRequest = clerkMiddleware((auth, context) => {

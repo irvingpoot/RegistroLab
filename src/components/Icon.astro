@@ -14,5 +14,10 @@ import { UserButton } from "@clerk/astro/components";
 ---
 
 <div class="absolute top-10 right-10">
-    <UserButton showName />
+    <div class="md:block hidden">
+        <UserButton showName />
+    </div>
+    <div class="md:hidden">
+        <UserButton />
+    </div>
 </div>

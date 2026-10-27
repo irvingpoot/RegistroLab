@@ -1,0 +1,58 @@
+---
+/**
+ * @component SeccionHistoriaClinica
+ * @description Historia clínica del paciente de sueño: antropométricos, consumo de sustancias,
+ * motivo de consulta y diagnósticos previos.
+ */
+import InfoCard from "../../InfoCard.astro";
+import BotonExpandirTexto from "../BotonExpandirTexto.astro";
+import ModalTextoExpandido from "../ModalTextoExpandido.astro";
+import { calcularIMC } from "../../../utils/formatters";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="clinica" class="expediente-seccion">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <InfoCard title="Antropométricos">
+            <div class="grid grid-cols-2 gap-6">
+                <div><span class="label">Peso</span><p class="value">{paciente.peso ? `${paciente.peso} kg` : "—"}</p></div>
+                <div><span class="label">Altura</span><p class="value">{paciente.altura ? `${paciente.altura} m` : "—"}</p></div>
+                <div><span class="label">Lateralidad</span><p class="value capitalize">{paciente.lateralidad || "—"}</p></div>
+                <div><span class="label">IMC</span><p class="value text-blue-300">{calcularIMC(paciente.peso, paciente.altura)}</p></div>
+            </div>
+        </InfoCard>
+
+        <InfoCard title="Consumo de Sustancias">
+            <ul class="space-y-3">
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Tabaco</span><span class="text-white font-medium">{paciente.fuma === 'si' ? `${paciente.cigarros_semana} / semana` : 'No'}</span></li>
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Alcohol</span><span class="text-white font-medium">{paciente.alcohol === 'si' ? `${paciente.cervezas_semana} / semana` : 'No'}</span></li>
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Café</span><span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span></li>
+                <li class="flex justify-between pb-1"><span class="text-gray-400">Té</span><span class="text-white font-medium">{paciente.te === 'si' ? `${paciente.tazas_te_semana} tazas/sem` : 'No'}</span></li>
+            </ul>
+        </InfoCard>
+
+        <InfoCard title="Motivo de Consulta">
+            <div class="relative bg-gray-800/50 p-6 rounded-xl border border-gray-700/50">
+                {paciente.motivo && <BotonExpandirTexto objetivo="texto-motivo" titulo="Motivo de Consulta" />}
+                <p id="texto-motivo" class="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap pr-10">
+                    {paciente.motivo}
+                </p>
+            </div>
+        </InfoCard>
+
+        <InfoCard title="Diagnósticos Previos">
+            <span class="label mb-2 block">Antecedentes Familiares y Personales</span>
+            <div class="relative bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]">
+                {paciente.antecedentes && <BotonExpandirTexto objetivo="texto-antecedentes" titulo="Diagnósticos Previos" />}
+                <p id="texto-antecedentes" class="text-gray-300 italic leading-relaxed text-sm pr-10">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p>
+            </div>
+        </InfoCard>
+    </div>
+</section>
+
+<ModalTextoExpandido />

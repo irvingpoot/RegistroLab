@@ -1,0 +1,49 @@
+/**
+ * Estilos compartidos de los expedientes (sueño / ánimo).
+ * Importar desde la página:  import "../../../styles/expediente.css";
+ *
+ * Antes vivían en el <style> scoped de [id].astro; los componentes hijos no los
+ * heredaban, por eso ahora son globales. Los estilos del nav flotante se quedan
+ * dentro de ExpedienteNav.astro.
+ */
+@reference "./global.css";
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.expediente-seccion { scroll-margin-top: 30vh; }
+
+.label {
+    @apply block text-gray-500 text-xs uppercase tracking-wider font-bold mb-1;
+}
+
+.value {
+    @apply text-lg text-white font-medium;
+}
+
+.score-input {
+    @apply bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none text-center;
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+dialog[open] {
+    animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.texto-lectura {
+    font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 1.25rem;
+    line-height: 1.85;
+    letter-spacing: 0.01em;
+    max-width: 68ch;
+    margin-inline: auto;
+    text-wrap: pretty;
+}

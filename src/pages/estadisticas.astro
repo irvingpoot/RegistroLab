@@ -198,7 +198,6 @@ const estadosFila = k ? [
             </div>
         ) : (<>
 
-        <!-- Ganancia del mes -->
         <section class="hero acc-emerald mt-8 grid gap-8 p-6 md:p-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] animate-fade-in-up" aria-label="Ganancia del mes">
             <div class="flex flex-col lg:border-r lg:border-white/10 lg:pr-8">
                 <p class="text-sm font-semibold" style="color: rgb(var(--t))">Ganancia de {mesSolo}</p>
@@ -235,7 +234,6 @@ const estadosFila = k ? [
             </div>
         </section>
 
-        <!-- Insights -->
         {hayDatos && (
             <section class="panel mt-6 grid md:grid-cols-3 md:divide-x divide-y md:divide-y-0 divide-white/10" aria-label="Datos destacados">
                 {servEstrella && (
@@ -262,7 +260,6 @@ const estadosFila = k ? [
             </section>
         )}
 
-        <!-- KPIs -->
         <section class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Indicadores del mes">
             <div class="kpi acc-purple">
                 <div class="flex items-center justify-between">
@@ -316,7 +313,6 @@ const estadosFila = k ? [
             </div>
         ) : (<>
 
-        <!-- Servicios + estado -->
         <div class="mt-6 grid gap-6 lg:grid-cols-3">
             <section class="panel acc-purple lg:col-span-2" aria-labelledby="t-serv">
                 <h2 id="t-serv" class="panel-title">Servicios más utilizados</h2>
@@ -355,7 +351,6 @@ const estadosFila = k ? [
 
         </>)}
 
-        <!-- Tendencia + ingresos por servicio -->
         <div class="mt-6 grid gap-6 lg:grid-cols-3">
             <section class={`panel acc-emerald ${hayIngresos ? "lg:col-span-2" : "lg:col-span-3"}`} aria-labelledby="t-tend">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-5 pb-3 pt-4">
@@ -397,7 +392,6 @@ const estadosFila = k ? [
             )}
         </div>
 
-        <!-- Horarios pico -->
         {d.heatmap.length > 0 && (
             <section class="panel acc-purple mt-6" aria-labelledby="t-pico">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-5 pb-3 pt-4">
@@ -433,7 +427,6 @@ const estadosFila = k ? [
             </section>
         )}
 
-        <!-- Referencias y atendidos -->
         {hayDatos && (d.referencias.length > 0 || d.atendidos.length > 0) && (
             <div class="mt-6 grid gap-6 md:grid-cols-2 items-start">
                 {d.referencias.length > 0 && (
@@ -559,13 +552,11 @@ const estadosFila = k ? [
     const D = raw ? JSON.parse(raw) : null;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    /* ── Formato ─────────────────────────────────────────────────── */
     const nf = new Intl.NumberFormat("es-MX");
     const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
     const mxn2 = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const corto = (v: number) => (v >= 1000 ? `$${+(v / 1000).toFixed(1)}k` : `$${v}`);
 
-    /* ── Cifras que suben al cargar (el HTML ya trae el valor final) ─ */
     const formatos: Record<string, (v: number) => string> = {
         mxn: (v) => mxn.format(v),
         mxn2: (v) => mxn2.format(v),

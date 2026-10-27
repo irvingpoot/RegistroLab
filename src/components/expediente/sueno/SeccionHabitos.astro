@@ -1,0 +1,70 @@
+---
+/**
+ * @component SeccionHabitos
+ * @description Hábitos y patrones de sueño: horarios, lugar de sueño, despertares, somnolencia,
+ * siestas y ejercicio.
+ */
+import InfoCard from "../../InfoCard.astro";
+import { formatTime, isEmptyTime } from "../../../utils/formatters";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+
+const horarios = [
+    { label: "Se acuesta", color: "text-blue-300", valor: paciente.hora_acostarse },
+    { label: "Se duerme", color: "text-indigo-300", valor: paciente.hora_dormir },
+    { label: "Se despierta", color: "text-emerald-300", valor: paciente.hora_despertar },
+    { label: "Se levanta", color: "text-teal-300", valor: paciente.hora_levantarse },
+];
+---
+
+<section id="habitos" class="expediente-seccion">
+    <InfoCard title="Hábitos y Patrones de Sueño">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 border-b border-gray-700/50 pb-8">
+            {horarios.map((h) => (
+                <div class="bg-gray-800/30 p-3 rounded-lg text-center border border-gray-700/30 flex flex-col justify-center">
+                    <span class={`label block ${h.color} text-[10px] mb-1`}>{h.label}</span>
+                    <p class={`text-xl font-mono font-bold ${isEmptyTime(h.valor) ? "text-gray-600 italic" : "text-white"}`}>{formatTime(h.valor)}</p>
+                </div>
+            ))}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+            <div>
+                <span class="label mb-0">Lugar habitual de sueño</span>
+                <p class="text-lg text-white font-medium capitalize">{paciente.donde_duerme || "—"}</p>
+            </div>
+
+            <div>
+                <span class="label">Despertares nocturnos</span>
+                <p class="value capitalize text-gray-200">
+                    {paciente.despierta_noche === 'si' ? `Sí (${paciente.que_despierta || 'Causa no esp.'})` : 'No'}
+                </p>
+            </div>
+
+            <div>
+                <span class="label">Somnolencia diurna</span>
+                <p class="value capitalize text-gray-200">
+                    {paciente.somnolencia || "No"}
+                </p>
+            </div>
+
+            <div>
+                <span class="label">Siestas</span>
+                <p class="value capitalize text-gray-200">
+                    {paciente.siesta === 'si' ? `Sí (${paciente.dias_siesta} días/sem, ${paciente.tiempo_siesta})` : 'No'}
+                </p>
+            </div>
+
+            <div>
+                <span class="label">Ejercicio físico</span>
+                <p class="value capitalize text-gray-200">
+                    {paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio} hrs/sem)` : 'No'}
+                </p>
+            </div>
+        </div>
+    </InfoCard>
+</section>

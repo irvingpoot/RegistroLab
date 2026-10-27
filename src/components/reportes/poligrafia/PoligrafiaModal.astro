@@ -38,7 +38,6 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
         URL.revokeObjectURL(url); a.remove();
     }
 
-    /* ── Elementos ── */
     const modal         = $<HTMLDialogElement>('modal-poligrafia');
     const subtitulo     = $('modal-poligrafia-subtitulo');
     const paso1         = $('paso-1');
@@ -53,11 +52,9 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
     const btnTexto      = $('btn-generar-texto');
     const errorEl       = $('error-generacion');
 
-    /* ── Estado ── */
     let pacienteSeleccionado: Paciente | null = null;
     let busquedaTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    /* ── Pasos ── */
     function irPaso1() {
         paso1.classList.remove('hidden');
         paso2.classList.add('hidden');
@@ -85,7 +82,6 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
         setTimeout(() => buscador.focus(), 100);
     }
 
-    /* ── Búsqueda ── */
     function mostrarEstadoVacio() {
         resultadosEl.classList.add('hidden');
         estadoVacio.classList.remove('hidden');
@@ -134,7 +130,6 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
         }
     }
 
-    /* ── Generación ── */
     async function generarReporte() {
         if (!pacienteSeleccionado) return;
         const { id, nombre } = pacienteSeleccionado;
@@ -205,7 +200,6 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
 
     btnGenerar.addEventListener('click', generarReporte);
 
-    /* ── Enlace directo: /reportes?paciente_id=…&nombre=…&edad=…&fase=… ── */
     const params = new URLSearchParams(window.location.search);
     if (params.has('paciente_id')) {
         irPaso2({
@@ -219,7 +213,6 @@ import PasoConfiguracion from './PasoConfiguracion.astro';
     }
 </script>
 
-<!-- is:global: el estado del stepper depende de #paso-2 (componente hijo) vía :has() -->
 <style is:global>
     .pm-stepper {
         display: flex;

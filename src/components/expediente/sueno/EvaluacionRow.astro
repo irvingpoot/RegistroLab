@@ -1,0 +1,76 @@
+---
+/**
+ * @component EvaluacionRow
+ * @description Fila de un cuestionario remoto: enlace copiable (si el paciente aún no contesta)
+ * o botón "Ver Respuestas" (si ya contestó). PSQI suma "Ingresar resultado de estudio".
+ * El JS (utils/client/evaluacion-remota.ts) alterna `.container-link` / `.container-btn` por fase.
+ *
+ * PROPS:
+ * @prop {string} cuestionario - epworth | berlin | psqi | posicion_sueno.
+ * @prop {string} url          - Enlace inicial (fase Pre).
+ * @prop {boolean} [respondido] - Si ya hay respuesta en la fase inicial.
+ */
+interface Props {
+    cuestionario: "epworth" | "berlin" | "psqi" | "posicion_sueno";
+    url: string;
+    respondido?: boolean;
+}
+
+const { cuestionario, url, respondido = false } = Astro.props;
+
+const ESTILOS = {
+    epworth: {
+        etiqueta: "Epworth",
+        borde: "hover:border-blue-500/50",
+        chip: "bg-blue-900/20 text-blue-400",
+        ver: "bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-100 border-blue-500/30",
+    },
+    berlin: {
+        etiqueta: "Berlin",
+        borde: "hover:border-emerald-500/50",
+        chip: "bg-emerald-900/20 text-emerald-400",
+        ver: "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 border-emerald-500/30",
+    },
+    psqi: {
+        etiqueta: "psqi",
+        borde: "hover:border-purple-500/50",
+        chip: "bg-purple-900/20 text-purple-400",
+        ver: "bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-purple-100 border-purple-500/30",
+    },
+    posicion_sueno: {
+        etiqueta: "Posición",
+        borde: "hover:border-indigo-500/50",
+        chip: "bg-indigo-900/20 text-indigo-400",
+        ver: "bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-indigo-100 border-indigo-500/30",
+    },
+} as const;
+
+const estilo = ESTILOS[cuestionario];
+const conEstudio = cuestionario === "psqi";
+---
+
+<div class={`bg-black/40 p-2 pr-3 rounded-lg border border-gray-700/50 group ${estilo.borde} transition-colors`} id={`row-${cuestionario}`}>
+    <div class="flex items-center gap-2">
+        <div class={`${estilo.chip} px-3 py-2 rounded font-bold text-xs uppercase tracking-wider min-w-[100px] text-center`}>{estilo.etiqueta}</div>
+
+        <div class:list={["container-link flex items-center gap-2 w-full", { hidden: respondido }]}>
+            <input type="text" readonly id={`link-${cuestionario}`} value={url} class="bg-transparent border-none text-gray-500 text-xs w-full focus:ring-0 font-mono truncate" />
+            <button type="button" data-eval-copiar={`link-${cuestionario}`} class="text-gray-400 hover:text-white p-2 rounded-md hover:bg-gray-700 transition-colors" title="Copiar enlace">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+            </button>
+        </div>
+
+        <div class:list={["container-btn w-full", { hidden: !respondido, "flex gap-5": conEstudio }]}>
+            <button type="button" data-eval-ver={cuestionario} class:list={[estilo.ver, "text-xs font-bold py-2 rounded border flex items-center justify-center gap-2 transition-all", conEstudio ? "flex-1 px-2" : "w-full px-4"]}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                Ver Respuestas del Paciente
+            </button>
+            {conEstudio && (
+                <button type="button" data-eval-estudio class="flex-1 bg-purple-700 hover:bg-purple-500 text-white text-xs font-bold py-2 px-2 rounded border border-purple-500 flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20" title="Ingresar dato real de horas dormidas">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    Ingresar resultado de estudio
+                </button>
+            )}
+        </div>
+    </div>
+</div>

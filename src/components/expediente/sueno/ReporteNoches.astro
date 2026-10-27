@@ -1,0 +1,35 @@
+---
+/**
+ * @component ReporteNoches
+ * @description Estructura del reporte por fase: pestañas Pre / Inter / Post, tabla de noches y
+ * contenedor de promedios. SOLO markup: las noches vienen del <script id="noches-data"> que
+ * pinta SeccionReporteResultados, y las filas/promedios los renderiza utils/client/reporte-noches.ts.
+ */
+---
+
+<div id="reporte-container">
+    <div class="flex gap-2 p-1 bg-gray-800 rounded-lg w-fit mb-6">
+        <button type="button" class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all bg-indigo-600 text-white shadow" data-noche-tab data-fase="pre">Pre-Tratamiento</button>
+        <button type="button" class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white" data-noche-tab data-fase="inter">Intermedio</button>
+        <button type="button" class="tab-btn-noche px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-400 hover:text-white" data-noche-tab data-fase="post">Post-Tratamiento</button>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-gray-800 mb-4">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-800/60">
+                <tr class="text-xs text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 py-3 text-left font-bold">Noche</th>
+                    <th class="px-4 py-3 text-left font-bold">Fecha</th>
+                    <th class="px-4 py-3 text-center font-bold text-indigo-400">IAH</th>
+                    <th class="px-4 py-3 text-center font-bold text-emerald-400">Sat. Prom.</th>
+                    <th class="px-4 py-3 text-center font-bold text-rose-400">Pulso</th>
+                    <th class="px-4 py-3 text-center font-bold">Dur. Reg.</th>
+                    <th class="px-4 py-3 text-center font-bold w-20">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-noches" class="divide-y divide-gray-800/50"></tbody>
+        </table>
+    </div>
+
+    <div id="promedios-container"></div>
+</div>

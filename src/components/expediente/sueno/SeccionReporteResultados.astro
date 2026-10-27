@@ -1,0 +1,81 @@
+---
+/**
+ * @component SeccionReporteResultados
+ * @description Reporte de resultados de poligrafía: tabla por fase, promedios, alta/edición/detalle/
+ * borrado de noches y acceso a "Generar Reporte". Incluye sus modales y el formulario de borrado.
+ * Toda la interacción vive en utils/client/reporte-noches.ts (sin funciones globales).
+ *
+ * PROPS:
+ * @prop {object} paciente      - { id, nombre }.
+ * @prop {number|string} edad   - Edad a mostrar/enviar al generador de reportes.
+ * @prop {object[]} noches      - Noches ordenadas de la más antigua a la más reciente.
+ */
+import InfoCard from "../../InfoCard.astro";
+import ReporteNoches from "./ReporteNoches.astro";
+import ModalNoche from "./ModalNoche.astro";
+import ModalDetalleNoche from "./ModalDetalleNoche.astro";
+import type { NocheSueno } from "../../../services/expediente-sueno.service";
+
+interface Props {
+    paciente: { id: number; nombre: string };
+    edad: number | string;
+    noches: NocheSueno[];
+}
+
+const { paciente, edad, noches } = Astro.props;
+const totalNoches = noches.length;
+
+const nochesJson = JSON.stringify(noches).replace(/</g, "\\u003c");
+---
+
+<script is:inline type="application/json" id="noches-data" set:html={nochesJson} />
+
+<section id="reporte-resultados" class="expediente-seccion mb-10 animate-fade-in-up delay-100">
+    <InfoCard title="Reporte de Resultados">
+        <div class="flex items-center justify-between mb-6">
+            <p class="text-sm text-gray-400">
+                Resultados del estudio de poligrafía del sueño.
+                {totalNoches > 0 && <span class="ml-2 text-blue-400 font-bold">{totalNoches} {totalNoches === 1 ? 'noche registrada' : 'noches registradas'}</span>}
+            </p>
+            <div class="flex items-center gap-2">
+                {totalNoches > 0 && (
+                    <button type="button" data-generar-reporte data-paciente-id={paciente.id} data-nombre={paciente.nombre} data-edad={String(edad)} class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        Generar Reporte
+                    </button>
+                )}
+                <button type="button" data-noche-nueva class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                    Agregar Noche
+                </button>
+            </div>
+        </div>
+
+        {totalNoches > 0 ? (
+            <ReporteNoches />
+        ) : (
+            <div class="flex flex-col items-center justify-center py-10 text-center border-2 border-dashed border-gray-800 rounded-2xl">
+                <div class="w-14 h-14 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                </div>
+                <p class="text-gray-400 font-medium">Sin noches registradas</p>
+                <p class="text-sm text-gray-600 mb-4">Aún no hay datos de poligrafía o estudio simplificado.</p>
+                <button type="button" data-noche-nueva class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700">
+                    Registrar primera noche
+                </button>
+            </div>
+        )}
+    </InfoCard>
+</section>
+
+<ModalNoche />
+<ModalDetalleNoche />
+
+<form method="POST" id="form-eliminar-noche" class="hidden">
+    <input type="hidden" name="action" value="eliminar_noche" />
+    <input type="hidden" name="id_noche" id="id-eliminar-noche" value="" />
+</form>
+
+<script>
+    import "../../../utils/client/reporte-noches";
+</script>
