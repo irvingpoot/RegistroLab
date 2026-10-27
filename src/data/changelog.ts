@@ -23,12 +23,17 @@ export const changes: Changes[] = [
     },
     {
         title: "Guía de entrevista",
-        description: "Se agregó una guía que muestra sugerencias de preguntas para diferentes tipos de entrevista.",
+        description: "Se agregó una guía que muestra sugerencias de preguntas para diferentes tipos de entrevista. Pendiente de llenar.",
+        type: "feature"
+    },
+    {
+        title: "Texto expandible",
+        description: "Ahora es posible expandir el texto escrito en las secciones de motivo y antecendentes del expediente de pacientes.",
         type: "feature"
     },
     {
         title: "Optimizaciones de rendimiento",
-        description: "Se implementaron optimizaciones para mejorar el rendimiento del expediente de paciente.",
-        type: "feature"
+        description: "Se realizaron optimizaciones para mejorar el rendimiento del expediente de paciente.",
+        type: "fix"
     },
 ];

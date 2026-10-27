@@ -27,27 +27,8 @@ export interface CategoriaEntrevista {
 
 export const categoriasEntrevista: CategoriaEntrevista[] = [
     {
-        titulo: "Entrevista inicial",
-        descripcion: "Ejemplo: contexto general del paciente.",
-        preguntas: [
-            "¿Cuál es el motivo principal de la consulta?",
-            "¿Desde cuándo presenta el problema?",
-            "¿Qué ha intentado antes para resolverlo?",
-        ],
-    },
-    {
-        titulo: "Historia del sueño",
-        preguntas: [
-            "¿A qué hora suele acostarse y levantarse entre semana y en fin de semana?",
-            "¿Cuánto tarda en quedarse dormido?",
-            "¿Cuántas veces despierta durante la noche?",
-        ],
-    },
-    {
-        titulo: "Hábitos y entorno",
-        preguntas: [
-            "¿Usa pantallas antes de dormir?",
-            "¿Cómo describiría su habitación (ruido, luz, temperatura)?",
-        ],
-    },
+        titulo: "Listado en proceso",
+        descripcion: "Pronto estará completada esta función.",
+        preguntas: []
+    }
 ];
