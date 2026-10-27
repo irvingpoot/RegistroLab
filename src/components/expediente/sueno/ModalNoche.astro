@@ -1,0 +1,159 @@
+---
+/**
+ * @component ModalNoche
+ * @description Modal para registrar o editar una noche de poligrafía (`#modal-noche`).
+ * Lo llena y abre utils/client/reporte-noches.ts. Envía `registrar_reporte` o `editar_noche`.
+ * Los inputs usan `id="f-<campo>"` (ver data/campos-noche.ts).
+ */
+import ModalDialog from "../ModalDialog.astro";
+---
+
+<ModalDialog
+    id="modal-noche"
+    bare
+    class="bg-gray-900 border border-gray-700 rounded-3xl p-0 shadow-2xl backdrop:backdrop-blur-xl w-full max-w-2xl text-left m-auto outline-none"
+>
+    <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
+        <h3 id="titulo-modal-noche" class="text-xl font-bold text-white">Registrar Noche</h3>
+        <button type="button" data-cerrar-modal class="text-gray-500 hover:text-white transition-colors cursor-pointer text-2xl leading-none">&times;</button>
+    </div>
+
+    <form method="POST" id="form-noche" class="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+        <input type="hidden" name="action" id="action-noche" value="registrar_reporte" />
+        <input type="hidden" name="id_noche" id="id-noche-hidden" value="" />
+
+        <div class="mb-6">
+            <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Fase del Estudio</label>
+            <select name="fase" id="f-fase" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" required>
+                <option value="pre">Pre-Tratamiento</option>
+                <option value="inter">Intermedio</option>
+                <option value="post">Post-Tratamiento</option>
+            </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-400 uppercase">Duración Registro</label>
+                <div class="flex gap-2">
+                    <div class="relative w-full">
+                        <input type="number" name="dur_reg_h" id="dur_reg_h" placeholder="0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">hr</span>
+                    </div>
+                    <div class="relative w-full">
+                        <input type="number" name="dur_reg_m" id="dur_reg_m" placeholder="0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-400 uppercase">Duración Evaluación</label>
+                <div class="flex gap-2">
+                    <div class="relative w-full">
+                        <input type="number" name="dur_eval_h" id="dur_eval_h" placeholder="0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">hr</span>
+                    </div>
+                    <div class="relative w-full">
+                        <input type="number" name="dur_eval_m" id="dur_eval_m" placeholder="0" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6 mb-8">
+            <h4 class="text-sm font-bold text-white border-b border-gray-800 pb-2">Índices Respiratorios</h4>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs text-indigo-400 font-bold ml-1">IAH (Total)</label>
+                    <input type="number" step="0.1" name="iah" id="f-iah" class="w-full bg-indigo-900/20 border border-indigo-500/50 rounded-lg p-2.5 text-white focus:border-indigo-400 outline-none font-bold" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-gray-400 ml-1">Índice Apneas</label>
+                    <input type="number" step="0.1" name="indice_apneas" id="f-indice_apneas" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-gray-400 ml-1">Índice Hipopneas</label>
+                    <input type="number" step="0.1" name="indice_hipopnea" id="f-indice_hipopnea" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-5 gap-3 bg-gray-800/30 p-3 rounded-xl border border-gray-800">
+                <div class="space-y-1 text-center">
+                    <label class="text-[10px] text-gray-500">IAI</label>
+                    <input type="number" step="0.1" name="iai" id="f-iai" class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                </div>
+                <div class="space-y-1 text-center">
+                    <label class="text-[10px] text-gray-500">IAO</label>
+                    <input type="number" step="0.1" name="iao" id="f-iao" class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                </div>
+                <div class="space-y-1 text-center">
+                    <label class="text-[10px] text-gray-500">IAC</label>
+                    <input type="number" step="0.1" name="iac" id="f-iac" class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                </div>
+                <div class="space-y-1 text-center">
+                    <label class="text-[10px] text-gray-500">IAM</label>
+                    <input type="number" step="0.1" name="iam" id="f-iam" class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                </div>
+                <div class="space-y-1 text-center">
+                    <label class="text-[10px] text-gray-500">IDO</label>
+                    <input type="number" step="0.1" name="ido" id="f-ido" class="w-full bg-gray-800 border border-gray-700 rounded text-center text-sm text-white p-1" />
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <h4 class="text-sm font-bold text-white border-b border-gray-800 pb-2">Oximetría y Eventos</h4>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs text-emerald-400 font-bold ml-1">Sat. Promedio</label>
+                    <div class="relative">
+                        <input type="number" name="saturacion_promedio" id="f-saturacion_promedio" class="w-full bg-emerald-900/10 border border-emerald-500/30 rounded-lg p-2.5 text-white focus:border-emerald-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-emerald-500 text-sm">%</span>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-rose-400 font-bold ml-1">Pulso Promedio</label>
+                    <div class="relative">
+                        <input type="number" name="pulso_promedio" id="f-pulso_promedio" class="w-full bg-rose-900/10 border border-rose-500/30 rounded-lg p-2.5 text-white focus:border-rose-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-rose-500 text-sm">bpm</span>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs text-gray-400 ml-1">Ronquidos</label>
+                    <div class="relative">
+                        <input type="number" name="ronquidos" id="f-ronquidos" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                        <span class="absolute right-3 top-2.5 text-gray-500 text-xs">evt</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-2">
+                <div class="col-span-2 text-xs font-bold text-gray-500 uppercase">Desaturación &lt; 90%</div>
+                <div class="relative">
+                    <input type="number" name="sat_90_min" id="f-sat_90_min" placeholder="Minutos" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                </div>
+                <div class="relative">
+                    <input type="number" step="0.1" name="sat_90_porc" id="f-sat_90_porc" placeholder="Porcentaje" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+                </div>
+                <div class="col-span-2 text-xs font-bold text-gray-500 uppercase mt-2">Desaturación &lt; 85%</div>
+                <div class="relative">
+                    <input type="number" name="sat_85_min" id="f-sat_85_min" placeholder="Minutos" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    <span class="absolute right-3 top-2.5 text-gray-500 text-sm">min</span>
+                </div>
+                <div class="relative">
+                    <input type="number" step="0.1" name="sat_85_porc" id="f-sat_85_porc" placeholder="Porcentaje" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white focus:border-indigo-500 outline-none" />
+                    <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-6 mt-6 border-t border-gray-800 flex justify-end gap-3">
+            <button type="button" type="button" data-cerrar-modal class="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer font-medium">Cancelar</button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 transition-all cursor-pointer font-bold">Guardar</button>
+        </div>
+    </form>
+
+</ModalDialog>

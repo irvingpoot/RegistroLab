@@ -9,6 +9,9 @@
  * como UTC-6 (Mérida) al agregarle el offset manual antes de guardar en UTC.
  * 3. Auditoría Automática: Captura el nombre del usuario en sesión (`Astro.locals`)
  * para llenar el campo `registrado_por` sin intervención manual.
+ * 4. Lista de espera: si llega desde /waitlist (query `nombre`, `telefono`, `sintoma`
+ * y `espera`), el formulario viene prellenado y, al guardar la cita, el paciente
+ * se elimina de la lista de espera (los demás turnos suben solos).
  * * UI:
  * - Implementa un modal de éxito a pantalla completa con animación SVG.
  *
@@ -22,6 +25,7 @@ import { clerkClient } from "@clerk/astro/server";
 import { crearCita, getDiasBloqueadosDesdeHoy } from "../services/citas.service";
 import DownTriangle from "../components/icons/DownTriangle.astro";
 import AlertIcon from "../components/icons/citas/AlertIcon.astro";
+import { eliminarDeEspera } from "../services/lista-espera.service";
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user
@@ -30,6 +34,13 @@ const nombreRegistrador = user
 
 const fechaParam  = Astro.url.searchParams.get("fecha");
 const fechaDefault = fechaParam ? `${fechaParam}T09:00` : "";
+
+const esperaId = Astro.url.searchParams.get("espera") ?? "";
+const prefill = {
+    nombre:   Astro.url.searchParams.get("nombre")   ?? "",
+    telefono: Astro.url.searchParams.get("telefono") ?? "",
+    sintoma:  Astro.url.searchParams.get("sintoma")  ?? "",
+};
 
 let listaPsicologos: string[] = [];
 try {
@@ -69,6 +80,15 @@ if (Astro.request.method === "POST") {
             precioId:        data.get("precio_id")      as string || null,
         });
 
+        const esperaIdPost = (data.get("espera_id") as string) || "";
+        if (esperaIdPost) {
+            try {
+                await eliminarDeEspera(esperaIdPost);
+            } catch (err) {
+                console.error("No se pudo quitar al paciente de la lista de espera:", err);
+            }
+        }
+
         registroExitoso = true;
 
     } catch (e) {
@@ -83,7 +103,10 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
 
 <Layout title="Agendar Nueva Cita | Lab-Somno">
     <Icon />
-    <ReturnButton href="/citas" text="Volver a la Agenda" />
+    <ReturnButton
+        href={esperaId ? "/waitlist" : "/citas"}
+        text={esperaId ? "Volver a la Lista de espera" : "Volver a la Agenda"}
+    />
 
     {registroExitoso && (
         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300 px-4">
@@ -119,6 +142,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
         </div>
 
         <form method="POST" id="form-cita" data-hay-error={hayError ? "1" : undefined}>
+            {esperaId && <input type="hidden" name="espera_id" value={esperaId} />}
             <div class="flex flex-col items-center justify-center">
                 
                 <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white/50 text-center text-gray-200 w-fit mx-auto px-10">Datos del Paciente</h2>
@@ -127,11 +151,11 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                     <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                         <div class="flex grow flex-col">
                             <label for="nombre" class="text-lg font-medium text-gray-300">Nombre completo <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="nombre" name="nombre" required class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
+                            <input type="text" id="nombre" name="nombre" required value={prefill.nombre} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
                         </div>
                         <div class="flex grow flex-col md:w-1/3">
                             <label for="telefono" class="text-lg font-medium text-gray-300">Teléfono:</label>
-                            <input type="tel" id="telefono" name="telefono" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
+                            <input type="tel" id="telefono" name="telefono" value={prefill.telefono} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all">
                         </div>
                     </div>
                     
@@ -159,7 +183,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                         </div>
                         <div class="flex grow flex-col">
                             <label for="sintoma" class="text-lg font-medium text-gray-300">Motivo de consulta:</label>
-                            <input type="text" id="sintoma" name="sintoma" class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
+                            <input type="text" id="sintoma" name="sintoma" value={prefill.sintoma} class="mt-1 p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all">
                         </div>
                     </div>
                 </div>

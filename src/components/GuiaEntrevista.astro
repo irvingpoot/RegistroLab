@@ -1,0 +1,185 @@
+---
+/**
+ * @file GuiaEntrevista.astro
+ * @description Panel lateral (aside) con preguntas guía agrupadas por tipo de entrevista.
+ *
+ * - Oculto por defecto; se abre con una pestaña fija en el borde de la pantalla.
+ * - Se cierra con el botón "X", al hacer clic fuera del panel o con la tecla Esc.
+ * - Las categorías y preguntas se editan en `src/data/guiaEntrevista.ts`.
+ *
+ * USO:
+ *   <GuiaEntrevista />                      // lado derecho (por defecto)
+ *   <GuiaEntrevista lado="izquierda" />
+ */
+import { categoriasEntrevista, type CategoriaEntrevista } from "../data/guiaEntrevista";
+
+interface Props {
+    lado?: "izquierda" | "derecha";
+    titulo?: string;
+    categorias?: CategoriaEntrevista[];
+}
+
+const {
+    lado = "derecha",
+    titulo = "Guía de entrevista",
+    categorias = categoriasEntrevista,
+} = Astro.props;
+
+const esIzquierda = lado === "izquierda";
+
+const clasesTab = esIzquierda
+    ? "left-0 rounded-r-xl border-l-0"
+    : "right-0 rounded-l-xl border-r-0";
+
+const clasesPanel = esIzquierda
+    ? "left-0 border-r rounded-r-2xl"
+    : "right-0 border-l rounded-l-2xl";
+---
+
+<div data-guia-root data-lado={lado} class="print:hidden">
+    <button
+        type="button"
+        data-guia-abrir
+        aria-controls="guia-entrevista-panel"
+        aria-expanded="false"
+        class={`guia-tab fixed top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 px-2 py-4 border border-gray-700 bg-gray-900/90 backdrop-blur text-gray-300 hover:text-blue-400 hover:border-blue-500/60 hover:bg-gray-800 transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${clasesTab}`}
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+        </svg>
+        <span class="text-sm font-medium [writing-mode:vertical-rl]">{titulo}</span>
+    </button>
+
+    <aside
+        id="guia-entrevista-panel"
+        data-guia-panel
+        data-open="false"
+        aria-label={titulo}
+        class={`guia-panel fixed top-0 h-dvh z-40 w-[min(22rem,90vw)] flex flex-col bg-gray-900 border-gray-700 shadow-2xl ${clasesPanel}`}
+    >
+        <header class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
+            <h2 class="text-xl font-semibold text-gray-200 pb-1 border-b border-white">{titulo}</h2>
+            <button
+                type="button"
+                data-guia-cerrar
+                aria-label="Cerrar guía de entrevista"
+                class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto px-5 pb-8 space-y-3">
+            {categorias.length === 0 && (
+                <p class="text-sm text-gray-500 italic">Aún no hay categorías configuradas.</p>
+            )}
+
+            {categorias.map((categoria) => (
+                <details name="guia-entrevista" class="guia-categoria border border-gray-700/50 rounded-xl bg-gray-800/20 overflow-hidden">
+                    <summary class="flex items-center justify-between gap-3 p-4 cursor-pointer select-none text-lg font-medium text-gray-300 hover:text-blue-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                        <span>{categoria.titulo}</span>
+                        <span class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs text-blue-300 bg-blue-900/20 border border-blue-500/30 rounded-full px-2 py-0.5">
+                                {categoria.preguntas.length}
+                            </span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-4 h-4 text-gray-500" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </span>
+                    </summary>
+
+                    <div class="guia-contenido px-4 pb-4">
+                        {categoria.descripcion && (
+                            <p class="text-sm text-blue-300 mb-3">{categoria.descripcion}</p>
+                        )}
+                        <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-400 text-sm text-gray-300">
+                            {categoria.preguntas.map((pregunta) => (
+                                <li class="pl-1 leading-snug">{pregunta}</li>
+                            ))}
+                        </ol>
+                    </div>
+                </details>
+            ))}
+        </div>
+    </aside>
+</div>
+
+<style>
+    .guia-panel {
+        visibility: hidden;
+        transition: transform 0.3s ease, visibility 0s linear 0.3s;
+    }
+    [data-lado="derecha"] .guia-panel[data-open="false"] { transform: translateX(100%); }
+    [data-lado="izquierda"] .guia-panel[data-open="false"] { transform: translateX(-100%); }
+
+    .guia-panel[data-open="true"] {
+        visibility: visible;
+        transform: translateX(0);
+        transition: transform 0.3s ease, visibility 0s;
+    }
+
+    [data-guia-root][data-abierto="true"] .guia-tab {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* Acordeón */
+    .guia-categoria summary { list-style: none; }
+    .guia-categoria summary::-webkit-details-marker { display: none; }
+    .guia-chevron { transition: transform 0.2s ease; }
+    .guia-categoria[open] .guia-chevron { transform: rotate(180deg); }
+    .guia-categoria[open] { border-color: rgba(59, 130, 246, 0.4); }
+    .guia-categoria[open] .guia-contenido { animation: guiaFadeInDown 0.25s ease-out; }
+
+    @keyframes guiaFadeInDown {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .guia-panel, .guia-panel[data-open="true"] { transition: none; }
+        .guia-categoria[open] .guia-contenido { animation: none; }
+    }
+</style>
+
+<script>
+    const root = document.querySelector<HTMLElement>("[data-guia-root]");
+
+    if (root) {
+        const panel = root.querySelector<HTMLElement>("[data-guia-panel]")!;
+        const btnAbrir = root.querySelector<HTMLButtonElement>("[data-guia-abrir]")!;
+        const btnCerrar = root.querySelector<HTMLButtonElement>("[data-guia-cerrar]")!;
+
+        const estaAbierto = () => panel.dataset.open === "true";
+
+        const abrir = () => {
+            panel.dataset.open = "true";
+            root.dataset.abierto = "true";
+            btnAbrir.setAttribute("aria-expanded", "true");
+            btnCerrar.focus({ preventScroll: true });
+        };
+
+        const cerrar = (devolverFoco = true) => {
+            panel.dataset.open = "false";
+            root.dataset.abierto = "false";
+            btnAbrir.setAttribute("aria-expanded", "false");
+            if (devolverFoco) btnAbrir.focus({ preventScroll: true });
+        };
+
+        btnAbrir.addEventListener("click", abrir);
+        btnCerrar.addEventListener("click", () => cerrar());
+
+        document.addEventListener("pointerdown", (e) => {
+            if (!estaAbierto()) return;
+            const destino = e.target as Node;
+            if (panel.contains(destino) || btnAbrir.contains(destino)) return;
+            cerrar(false);
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && estaAbierto()) cerrar();
+        });
+    }
+</script>

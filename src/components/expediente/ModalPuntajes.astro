@@ -1,0 +1,83 @@
+---
+/**
+ * @component ModalPuntajes
+ * @description Modal "Actualizar Puntajes" (`#modal-puntajes`): inputs Pre/Inter/Post por escala y
+ * puntajes extra dinámicos. Envía `action=update_scores`. Se abre con `data-abrir-modal="modal-puntajes"`.
+ *
+ * PROPS:
+ * @prop {object} paciente   - Registro con columnas `<escala>_pre|inter|post`.
+ * @prop {string[]} escalas  - Claves de escala.
+ * @prop {object[]} [extras] - `pacientes_puntajes_extra`.
+ * @prop {Record<string,string>} [etiquetas] - Nombres personalizados por escala.
+ */
+import ModalDialog from "./ModalDialog.astro";
+import PuntajeExtraRow from "./PuntajeExtraRow.astro";
+import { columnaPuntaje, nombreEscala } from "../../data/escalas-sueno";
+
+interface Props {
+    paciente: Record<string, any>;
+    escalas: readonly string[];
+    extras?: any[] | null;
+    etiquetas?: Record<string, string>;
+}
+
+const { paciente, escalas, extras, etiquetas } = Astro.props;
+---
+
+<ModalDialog id="modal-puntajes" title="Actualizar Puntajes (Pre / Inter / Post)" size="4xl">
+    <form method="POST" class="space-y-6">
+        <input type="hidden" name="action" value="update_scores" />
+
+        <div class="overflow-x-auto max-h-[60vh] overflow-y-auto pr-2">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 bg-gray-900 z-10">
+                    <tr class="text-gray-400 text-xs uppercase border-b border-gray-700">
+                        <th class="py-2">Prueba</th>
+                        <th class="py-2 text-center w-24 text-blue-400">Pre</th>
+                        <th class="py-2 text-center w-24 text-purple-400">Inter</th>
+                        <th class="py-2 text-center w-24 text-emerald-400">Post</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {escalas.map((escala) => (
+                        <tr>
+                            <td class="py-3 font-medium text-gray-300 capitalize text-sm">{etiquetas?.[escala] ?? nombreEscala(escala)}</td>
+                            <td class="p-2"><input type="number" name={columnaPuntaje(escala, "pre")} value={paciente[columnaPuntaje(escala, "pre")]} class="score-input w-full" /></td>
+                            <td class="p-2"><input type="number" name={columnaPuntaje(escala, "inter")} value={paciente[columnaPuntaje(escala, "inter")]} class="score-input w-full" /></td>
+                            <td class="p-2"><input type="number" name={columnaPuntaje(escala, "post")} value={paciente[columnaPuntaje(escala, "post")]} class="score-input w-full" /></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+
+            <div class="mt-6 pt-4 border-t border-gray-700" data-extras>
+                <h4 class="text-sm font-bold text-white mb-3">Puntajes Extra</h4>
+                <div data-extras-contenedor class="space-y-2">
+                    {extras && extras.map((extra) => (
+                        <PuntajeExtraRow
+                            nombre={extra.nombre_prueba}
+                            pre={extra.puntaje_pre}
+                            inter={extra.puntaje_inter}
+                            post={extra.puntaje_post}
+                        />
+                    ))}
+                </div>
+                <template data-extra-plantilla>
+                    <PuntajeExtraRow />
+                </template>
+                <button type="button" data-extra-agregar class="mt-3 text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300 cursor-pointer">
+                    <span class="text-lg leading-none">+</span> Agregar prueba extra
+                </button>
+            </div>
+        </div>
+
+        <div class="pt-4 flex gap-3 justify-end border-t border-gray-700/50">
+            <button type="button" data-cerrar-modal class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:text-white cursor-pointer">Cancelar</button>
+            <button type="submit" class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-500 cursor-pointer">Guardar Cambios</button>
+        </div>
+    </form>
+</ModalDialog>
+
+<script>
+    import "../../utils/client/puntajes-extras";
+</script>

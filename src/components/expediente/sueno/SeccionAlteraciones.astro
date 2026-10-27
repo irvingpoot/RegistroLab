@@ -1,0 +1,44 @@
+---
+/**
+ * @component SeccionAlteraciones
+ * @description Diagnósticos preliminares (alteraciones del sueño) del paciente.
+ */
+import InfoCard from "../../InfoCard.astro";
+
+interface Props {
+    alteraciones?: string[] | string | null;
+}
+
+const { alteraciones } = Astro.props;
+const hayAlteraciones = Array.isArray(alteraciones) ? alteraciones.length > 0 : !!alteraciones;
+---
+
+<section id="alteraciones" class="expediente-seccion">
+    <InfoCard title="Alteraciones del Sueño">
+        <div class="flex flex-col gap-3 p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="p-2 bg-red-500/10 rounded-lg text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                </div>
+                <span class="label mb-0">Diagnósticos Preliminares</span>
+            </div>
+
+            <div class="pl-2">
+                {hayAlteraciones ? (
+                    <div class="flex flex-wrap gap-2">
+                        {Array.isArray(alteraciones)
+                            ? alteraciones.map((alt) => (
+                                <span class="px-3 py-1 bg-red-900/20 border border-red-500/30 text-red-200 rounded-full text-sm font-medium capitalize shadow-sm">
+                                    {alt.replace(/_/g, " ")}
+                                </span>
+                            ))
+                            : <span class="text-white capitalize">{alteraciones}</span>
+                        }
+                    </div>
+                ) : (
+                    <p class="text-gray-500 italic">Ninguno seleccionado</p>
+                )}
+            </div>
+        </div>
+    </InfoCard>
+</section>

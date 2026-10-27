@@ -1,0 +1,23 @@
+---
+/**
+ * @component PuntajeExtraRow
+ * @description Fila de "Puntaje Extra" (nombre + Pre/Inter/Post + quitar). Se usa para las filas
+ * existentes y dentro del <template> que el JS clona al pulsar "Agregar prueba extra".
+ */
+interface Props {
+    nombre?: string | null;
+    pre?: number | null;
+    inter?: number | null;
+    post?: number | null;
+}
+
+const { nombre, pre, inter, post } = Astro.props;
+---
+
+<div class="grid grid-cols-12 gap-2 items-center extra-row bg-gray-800/30 p-2 rounded">
+    <div class="col-span-3"><input type="text" name="extra_prueba_nombre" value={nombre ?? ""} placeholder="Nombre" class="bg-transparent border-b border-gray-600 text-white w-full text-sm focus:outline-none focus:border-blue-500" /></div>
+    <div class="col-span-3"><input type="number" name="extra_prueba_pre" value={pre} placeholder="Pre" class="score-input w-full" /></div>
+    <div class="col-span-3"><input type="number" name="extra_prueba_inter" value={inter} placeholder="Inter" class="score-input w-full" /></div>
+    <div class="col-span-2"><input type="number" name="extra_prueba_post" value={post} placeholder="Post" class="score-input w-full" /></div>
+    <div class="col-span-1 text-center"><button type="button" data-extra-quitar class="text-red-400 hover:text-red-300 cursor-pointer">✕</button></div>
+</div>

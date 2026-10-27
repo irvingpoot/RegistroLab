@@ -1,0 +1,24 @@
+---
+/**
+ * @component ModalDetalleNoche
+ * @description Detalle de una noche (`#modal-detalle-noche`). El contenido lo inyecta
+ * utils/client/reporte-noches.ts en `#contenido-detalle-noche`.
+ */
+import ModalDialog from "../ModalDialog.astro";
+---
+
+<ModalDialog
+    id="modal-detalle-noche"
+    bare
+    class="bg-gray-900 border border-gray-700 rounded-3xl p-0 shadow-2xl backdrop:backdrop-blur-xl w-full max-w-2xl text-left m-auto outline-none"
+>
+    <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
+        <div>
+            <h3 id="titulo-detalle-noche" class="text-xl font-bold text-white">Noche 1</h3>
+            <p id="fecha-detalle-noche" class="text-xs text-gray-500 mt-0.5"></p>
+        </div>
+        <button type="button" data-cerrar-modal class="text-gray-500 hover:text-white transition-colors cursor-pointer text-2xl leading-none">&times;</button>
+    </div>
+    <div id="contenido-detalle-noche" class="p-6 space-y-6 overflow-y-auto max-h-[80vh] custom-scrollbar"></div>
+
+</ModalDialog>

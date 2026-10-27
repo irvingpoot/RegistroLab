@@ -1,0 +1,65 @@
+---
+/**
+ * @component TmsHistorial
+ * @description "Historial de Aplicaciones" de TMS: tarjeta por sesión (más reciente primero).
+ *
+ * PROPS:
+ * @prop {object[]} sesiones - `tms_sesiones` ordenadas de la más reciente a la más antigua.
+ */
+import { formatDate } from "../../utils/formatters";
+
+interface Props {
+    sesiones: any[];
+}
+
+const { sesiones } = Astro.props;
+---
+
+<div>
+    <h4 class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Historial de Aplicaciones</h4>
+    <div class="space-y-3">
+        {sesiones.length > 0 ? sesiones.map((sesion, index) => (
+            <div class="bg-slate-800/40 border border-white/5 rounded-xl p-4 hover:bg-slate-800/60 transition-colors group">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3 pb-3 border-b border-white/5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs">
+                            #{sesiones.length - index}
+                        </div>
+                        <div>
+                            <p class="text-white font-bold text-sm">{formatDate(sesion.fecha_aplicacion)}</p>
+                            <p class="text-xs text-blue-300">{sesion.protocolo || "Protocolo Estándar"}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 text-xs font-mono text-gray-400">
+                        {!!sesion.umbral_motor && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">MT</span><span class="text-white">{sesion.umbral_motor}%</span></div>}
+                        {!!sesion.intensidad_tratamiento && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Intensidad</span><span class="text-white">{sesion.intensidad_tratamiento}%</span></div>}
+
+                        {sesion.frecuencia && (
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] text-gray-500">Hz</span>
+                                {sesion.frecuencia_derecha ? (
+                                    <div class="flex flex-col text-[10px] leading-tight">
+                                        <span class="text-emerald-400">L: {sesion.frecuencia}</span>
+                                        <span class="text-blue-400">R: {sesion.frecuencia_derecha}</span>
+                                    </div>
+                                ) : (
+                                    <span class="text-emerald-400">{sesion.frecuencia}</span>
+                                )}
+                            </div>
+                        )}
+
+                        {!!sesion.total_pulsos && <div class="flex flex-col items-center"><span class="text-[10px] text-gray-500">Pulsos</span><span class="text-sky-400">{sesion.total_pulsos}</span></div>}
+                    </div>
+                </div>
+                <div class="flex gap-2 items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                    <p class="text-gray-300 text-sm leading-relaxed">{sesion.observaciones || "Sin observaciones registradas."}</p>
+                </div>
+            </div>
+        )) : (
+            <div class="py-12 text-center text-gray-500 border border-dashed border-gray-800 rounded-xl bg-slate-900/30">
+                <p>No hay sesiones registradas en el historial.</p>
+            </div>
+        )}
+    </div>
+</div>

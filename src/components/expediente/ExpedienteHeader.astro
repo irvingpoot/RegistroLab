@@ -1,0 +1,57 @@
+---
+/**
+ * @component ExpedienteHeader
+ * @description Cabecera del expediente: etiqueta del tipo, nombre, ID, fecha de registro,
+ * enlace para editar y quién lo registró.
+ *
+ * PROPS:
+ * @prop {string} etiqueta     - Texto superior (ej. "Expediente Transtorno de sueño").
+ * @prop {"sueno"|"animo"} [tono] - Paleta de la cabecera (default "sueno").
+ * @prop {object} paciente     - { id, nombre, created_at, registrado_por }.
+ * @prop {string} editarHref   - Ruta de edición del expediente.
+ */
+import { formatDate } from "../../utils/formatters";
+
+interface Props {
+    etiqueta: string;
+    tono?: "sueno" | "animo";
+    paciente: {
+        id: number;
+        nombre: string;
+        created_at: string;
+        registrado_por?: string | null;
+    };
+    editarHref: string;
+}
+
+const { etiqueta, tono = "sueno", paciente, editarHref } = Astro.props;
+
+const TONOS = {
+    sueno: { etiqueta: "text-blue-400", borde: "border-white/10" },
+    animo: { etiqueta: "text-purple-400", borde: "border-blue-500/30" },
+} as const;
+const estilo = TONOS[tono];
+---
+
+<div class={`border-b-2 ${estilo.borde} pb-6 flex flex-col md:flex-row justify-between items-end gap-4`}>
+    <div>
+        <p class={`${estilo.etiqueta} text-sm font-bold uppercase tracking-widest mb-2`}>{etiqueta}</p>
+        <h1 class="text-4xl md:text-5xl font-extrabold capitalize text-white">{paciente.nombre}</h1>
+        <div class="flex gap-4 mt-2 text-gray-400 text-sm items-center">
+            <span>ID: #{paciente.id}</span>
+            <span>•</span>
+            <span>Registrado: {formatDate(paciente.created_at)}</span>
+            <span>•</span>
+            <a href={editarHref} class="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                Editar Expediente Completo
+            </a>
+        </div>
+    </div>
+    <div class="text-right">
+        <span class="block text-gray-500 text-xs uppercase tracking-wider mb-1">Registrado por</span>
+        <span class="bg-gray-800 px-3 py-1 rounded-full text-sm text-gray-300 border border-gray-700">
+            {paciente.registrado_por || "Sistema"}
+        </span>
+    </div>
+</div>

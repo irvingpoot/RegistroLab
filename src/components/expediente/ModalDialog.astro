@@ -1,0 +1,58 @@
+---
+/**
+ * @component ModalDialog
+ * @description <dialog> base de los expedientes. Se abre con `data-abrir-modal="<id>"`
+ * y se cierra con `data-cerrar-modal` (ver utils/client/modales.ts).
+ *
+ * PROPS:
+ * @prop {string} id        - id del <dialog> (único en la página).
+ * @prop {string} [title]   - Título del encabezado estándar (con botón ✕).
+ * @prop {string} [titleId] - id del <h3> del título (si el JS necesita cambiarlo).
+ * @prop {string} [size]    - Ancho máximo: sm | md | lg | xl | 2xl | 4xl | 5xl (default lg).
+ * @prop {boolean} [bare]   - Solo renderiza el <dialog> con `class`; sin encabezado ni estilos base.
+ * @prop {string} [class]   - Clases del <dialog> (obligatorio si `bare`; se suma si no).
+ */
+
+interface Props {
+    id: string;
+    title?: string;
+    titleId?: string;
+    size?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "5xl";
+    bare?: boolean;
+    class?: string;
+}
+
+const { id, title, titleId, size = "lg", bare = false, class: className = "" } = Astro.props;
+
+const ANCHOS = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+    "2xl": "max-w-2xl",
+    "4xl": "max-w-4xl",
+    "5xl": "max-w-5xl",
+} as const;
+
+const claseBase =
+    "m-auto bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl backdrop:backdrop-blur-sm w-full text-left";
+const claseDialog = bare ? className : `${claseBase} ${ANCHOS[size]} ${className}`.trim();
+---
+
+<dialog id={id} class={claseDialog}>
+    {
+        !bare && title !== undefined && (
+            <div class="flex justify-between items-center mb-6">
+                <h3 id={titleId} class="text-xl font-bold text-white">{title}</h3>
+                <button type="button" data-cerrar-modal class="text-gray-500 hover:text-white cursor-pointer">
+                    ✕
+                </button>
+            </div>
+        )
+    }
+    <slot />
+</dialog>
+
+<script>
+    import "../../utils/client/modales";
+</script>

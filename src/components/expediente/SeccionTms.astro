@@ -1,0 +1,89 @@
+---
+/**
+ * @component SeccionTms
+ * @description Sección "Protocolo TMS": estado del seguimiento, habilitar, subir/ver consentimiento
+ * y botón para abrir la bitácora (`#modal-tms`, ver ModalTms.astro).
+ *
+ * PROPS:
+ * @prop {boolean} habilitado          - `paciente.tms_habilitado`.
+ * @prop {number}  totalSesiones       - Sesiones registradas.
+ * @prop {string|null} urlConsentimiento - URL firmada del PDF de consentimiento (o null).
+ */
+import InfoCard from "../InfoCard.astro";
+
+interface Props {
+    habilitado: boolean;
+    totalSesiones: number;
+    urlConsentimiento?: string | null;
+}
+
+const { habilitado, totalSesiones, urlConsentimiento } = Astro.props;
+---
+
+<section id="tms" class="expediente-seccion">
+    <InfoCard title="Protocolo TMS">
+        <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <p class="text-gray-400 text-lg max-w-xl">
+                    {habilitado
+                        ? `Seguimiento activo. Se han registrado ${totalSesiones} sesiones hasta el momento.`
+                        : "Este paciente aún no tiene habilitado el seguimiento para Estimulación Magnética Transcraneal."}
+                </p>
+            </div>
+
+            <div class="flex flex-col items-end gap-3">
+                {!habilitado ? (
+                    <form method="POST">
+                        <input type="hidden" name="action" value="habilitar_tms" />
+                        <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105">
+                            Habilitar Seguimiento
+                        </button>
+                    </form>
+                ) : (
+                    <div class="flex flex-wrap justify-end gap-3">
+                        {urlConsentimiento ? (
+                            <a href={urlConsentimiento} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-medium rounded-xl transition-colors group">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Consentimiento Firmado</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            </a>
+                        ) : (
+                            <form method="POST" enctype="multipart/form-data" class="relative">
+                                <input type="hidden" name="action" value="subir_consentimiento_tms" />
+
+                                <input
+                                    type="file"
+                                    name="archivo_pdf"
+                                    id="file-consentimiento"
+                                    accept="application/pdf"
+                                    class="hidden"
+                                    data-autosubmit
+                                />
+
+                                <label for="file-consentimiento" class="cursor-pointer flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-dashed border-gray-600 hover:border-blue-400 text-gray-300 hover:text-white font-medium rounded-xl transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    <span>Subir Consentimiento</span>
+                                </label>
+                            </form>
+                        )}
+
+                        <button type="button" data-abrir-modal="modal-tms" class="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-900/20 transition-all cursor-pointer">
+                            <span>Ver Sesiones</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    </InfoCard>
+</section>
+
+<script>
+    import "../../utils/client/tms-form";
+</script>

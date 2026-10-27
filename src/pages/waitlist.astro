@@ -1,0 +1,634 @@
+---
+/**
+ * @file waitlist.astro
+ * @description Lista de espera de pacientes (ruta: /waitlist).
+ *
+ * FUNCIONAMIENTO:
+ * 1. Alta / edición / baja: formularios POST a esta misma página (patrón PRG igual
+ *    que el dashboard). Alta y edición usan un <dialog>; la baja pasa por
+ *    `window.confirmarAccion` (ConfirmModal).
+ * 2. Turnos: el campo `posicion` lo mantiene la base de datos (ver
+ *    supabase/lista-espera.sql). Al agregar queda al final; al eliminar o atender,
+ *    los demás suben solos.
+ * 3. Reordenar: arrastrar desde el asa (escritorio) o con las flechas. El orden se
+ *    actualiza al instante en pantalla y se guarda con UNA sola llamada
+ *    (`action=reordenar` → RPC `reordenar_lista_espera`).
+ * 4. Registro por formulario: el modal "Agregar paciente" tiene dos pestañas (manual y
+ *    QR/enlace). El enlace apunta a /espera (página pública, ver
+ *    espera.astro). Esos registros entran al final y se marcan con la
+ *    etiqueta "Formulario" (campo `origen`).
+ * 5. Agendar: enlaza a /nueva-cita con nombre, teléfono y motivo ya llenados. Al
+ *    guardar la cita, nueva-cita elimina al paciente de esta lista (parámetro `espera`).
+ *
+ * La lógica de acceso a datos vive en: src/services/lista-espera.service.ts
+ */
+
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
+import ConfirmModal from "../components/ConfirmModal.astro";
+import RightArrow from "../components/icons/RightArrow.astro";
+import CheckIcon from "../components/icons/CheckIcon.astro";
+import QRCode from "qrcode";
+import {
+    getListaEspera,
+    agregarAEspera,
+    editarEnEspera,
+    eliminarDeEspera,
+    reordenarEspera,
+    type PacienteEspera,
+} from "../services/lista-espera.service";
+
+const MENSAJES_ERROR: Record<string, string> = {
+    validacion: "Completa nombre, número y motivo de consulta.",
+    guardar: "No se pudo guardar. Inténtalo de nuevo.",
+    eliminar: "No se pudo eliminar al paciente. Inténtalo de nuevo.",
+    carga: "No se pudo cargar la lista de espera. Recarga la página.",
+};
+
+const texto = (v: FormDataEntryValue | null, max: number) => String(v ?? "").trim().slice(0, max);
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action");
+
+    if (action === "reordenar") {
+        try {
+            const ids = JSON.parse(String(formData.get("ids") ?? "[]"));
+            if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) {
+                throw new Error("Formato de ids inválido");
+            }
+            await reordenarEspera(ids);
+            return Response.json({ ok: true });
+        } catch (e) {
+            console.error("Error reordenando lista de espera:", e);
+            return Response.json({ ok: false }, { status: 500 });
+        }
+    }
+
+    let codigoError = "";
+    try {
+        const datos = {
+            nombre: texto(formData.get("nombre"), 120),
+            telefono: texto(formData.get("telefono"), 30),
+            motivo: texto(formData.get("motivo"), 300),
+        };
+        const id = texto(formData.get("id"), 64);
+
+        if (action === "agregar") {
+            if (!datos.nombre || !datos.telefono || !datos.motivo) codigoError = "validacion";
+            else await agregarAEspera(datos);
+        } else if (action === "editar") {
+            if (!id || !datos.nombre || !datos.telefono || !datos.motivo) codigoError = "validacion";
+            else await editarEnEspera(id, datos);
+        } else if (action === "eliminar") {
+            if (id) await eliminarDeEspera(id);
+        }
+    } catch (e) {
+        console.error("Error en lista de espera:", e);
+        codigoError = action === "eliminar" ? "eliminar" : "guardar";
+    }
+
+    return Astro.redirect(codigoError ? `${Astro.url.pathname}?error=${codigoError}` : Astro.url.pathname, 303);
+}
+
+let pacientes: PacienteEspera[] = [];
+let codigoErrorVisible = Astro.url.searchParams.get("error") ?? "";
+try {
+    pacientes = await getListaEspera();
+} catch (e) {
+    console.error(e);
+    codigoErrorVisible = "carga";
+}
+const mensajeError = MENSAJES_ERROR[codigoErrorVisible] ?? "";
+
+const total = pacientes.length;
+
+const urlFormulario = new URL("/espera", Astro.site ?? Astro.url.origin).href;
+let qrSvg = "";
+try {
+    qrSvg = await QRCode.toString(urlFormulario, {
+        type: "svg",
+        margin: 1,
+        errorCorrectionLevel: "M",
+        color: { dark: "#0b0f19", light: "#ffffff" },
+    });
+} catch (e) {
+    console.error("No se pudo generar el QR:", e);
+}
+
+const hrefAgendar = (p: PacienteEspera) =>
+    `/nueva-cita?${new URLSearchParams({
+        nombre: p.nombre,
+        telefono: p.telefono,
+        sintoma: p.motivo,
+        espera: p.id,
+    })}`;
+
+const COLUMNAS_LG =
+    "lg:grid-cols-[1.25rem_1.5rem_2.75rem_minmax(0,1.2fr)_minmax(0,.9fr)_minmax(0,1.6fr)_12.5rem]";
+
+const BTN_ICONO =
+    "grid place-items-center size-9 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-400 disabled:opacity-30 disabled:pointer-events-none";
+const BTN_ICONO_PELIGRO =
+    "grid place-items-center size-9 rounded-lg text-gray-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-red-400";
+const CAMPO =
+    "mt-1 w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all";
+---
+
+<Layout title="Lista de espera | Lab-Somno">
+    <ReturnButton href="/dashboard" text="Volver al Dashboard" />
+
+    <div
+        id="toast-error"
+        role="alert"
+        class:list={[
+            "fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50 text-center w-11/12 md:w-auto",
+            !mensajeError && "hidden",
+        ]}
+    >
+        {mensajeError}
+    </div>
+
+    <main class="max-w-5xl mx-auto pt-6 md:pt-10 pb-28 px-4 md:px-6">
+        <div class="max-w-7xl mx-auto mb-5">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">
+                Lista de <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">espera</span>
+            </h1>
+            <p class=" pt-5 text-md text-gray-400 text-center">
+                Aquí puedes ver y administrar a los pacientes que esperan por una cita. Agrega, edita, elimina o reordena los turnos según sea necesario.
+            </p>
+        </div>
+        <header class="flex flex-col md:flex-row items-center justify-between gap-5 pb-5 border-b border-white/10">
+            <div class="min-w-0">
+                <p class="text-lg text-blue-500">
+                    {total === 0
+                        ? "Nadie esperando por ahora."
+                        : total === 1
+                            ? "1 paciente esperando."
+                            : `${total} pacientes esperando.`}
+                </p>
+            </div>
+            <button
+                type="button"
+                data-abrir-agregar
+                class="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+            >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                Agregar paciente
+            </button>
+        </header>
+
+        {total > 1 && (
+            <p class="mt-4 text-sm text-gray-400">
+                <span class="hidden lg:inline">Arrastra el asa o usa las flechas para cambiar el turno.</span>
+                <span class="lg:hidden">Usa las flechas para cambiar el turno.</span>
+                <span id="estado-orden" role="status" aria-live="polite" class="ml-2 text-xs text-gray-500"></span>
+            </p>
+        )}
+
+        {total === 0 ? (
+            <section class="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-6 py-14 text-center">
+                <span class="grid place-items-center size-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <CheckIcon class="size-6" />
+                </span>
+                <h2 class="text-2xl text-white leading-tight">La lista está vacía</h2>
+                <p class="max-w-sm text-sm text-gray-400">
+                    Cuando no haya espacio en la agenda, agrega aquí al paciente para no perderle el rastro.
+                </p>
+                <button
+                    type="button"
+                    data-abrir-agregar
+                    class="mt-2 rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-gray-600 transition-colors cursor-pointer"
+                >
+                    Agregar paciente
+                </button>
+            </section>
+        ) : (
+            <section aria-label="Pacientes en espera" class="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40">
+
+                <div class={`hidden lg:grid ${COLUMNAS_LG} items-center gap-x-4 px-5 py-3 border-b border-white/10 text-sm font-semibold text-gray-400`}>
+                    <span></span>
+                    <span></span>
+                    <span>Turno</span>
+                    <span>Paciente</span>
+                    <span>Número</span>
+                    <span>Motivo de consulta</span>
+                    <span></span>
+                </div>
+
+                <ol id="lista-espera" class="divide-y divide-white/5">
+                    {pacientes.map((p) => (
+                        <li
+                            class={`espera-item grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)] ${COLUMNAS_LG} items-center gap-x-3 lg:gap-x-4 gap-y-3 px-3 lg:px-5 py-4 transition-colors hover:bg-white/[0.03]`}
+                            data-id={p.id}
+                            data-nombre={p.nombre}
+                            data-telefono={p.telefono}
+                            data-motivo={p.motivo}
+                        >
+                            <span
+                                class="handle hidden lg:grid place-items-center text-gray-600 hover:text-gray-300 transition-colors touch-none"
+                                draggable="true"
+                                title="Arrastrar para reordenar"
+                                aria-hidden="true"
+                            >
+                                <svg class="size-5" viewBox="0 0 20 20" fill="currentColor"><circle cx="7" cy="5" r="1.4"/><circle cx="13" cy="5" r="1.4"/><circle cx="7" cy="10" r="1.4"/><circle cx="13" cy="10" r="1.4"/><circle cx="7" cy="15" r="1.4"/><circle cx="13" cy="15" r="1.4"/></svg>
+                            </span>
+
+                            <div class="flex flex-col items-center">
+                                <button type="button" data-accion="subir" aria-label={`Subir turno de ${p.nombre}`} class="grid place-items-center w-6 h-5 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-25 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-blue-400">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg>
+                                </button>
+                                <button type="button" data-accion="bajar" aria-label={`Bajar turno de ${p.nombre}`} class="grid place-items-center w-6 h-5 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-25 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-blue-400">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                                </button>
+                            </div>
+
+                            <span class="turno grid place-items-center mx-3 py-1 rounded-md bg-blue-500/15 text-blue-300 text-lg leading-none" title="Turno">{p.posicion}</span>
+
+                            <div class="min-w-0 lg:contents">
+                                <div class="flex flex-col min-w-0 items-start">
+                                    <p class="truncate font-semibold capitalize text-white">{p.nombre}</p>
+                                    {p.origen === "formulario" && (
+                                        <span
+                                            class="shrink-0 rounded-md bg-blue-950 px-1.5 py-0.5 text-[11px] text-white"
+                                            title="Este paciente se registró solo desde el formulario"
+                                        >
+                                            Formulario
+                                        </span>
+                                    )}
+                                </div>
+                                <a
+                                    href={`https://wa.me/${p.telefono.replace(/\D/g, "")}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="block w-fit text-sm text-gray-300 tabular-nums hover:text-green-300 transition-colors"
+                                >
+                                    {p.telefono}
+                                </a>
+                                <p class="text-sm text-gray-400 leading-snug line-clamp-2" title={p.motivo}>{p.motivo}</p>
+                            </div>
+
+                            <div class="col-span-3 lg:col-span-1 flex items-center justify-end gap-1">
+                                <button type="button" data-accion="editar" aria-label={`Editar a ${p.nombre}`} title="Editar" class={BTN_ICONO}>
+                                    <svg class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                </button>
+                                <button type="button" data-accion="eliminar" aria-label={`Eliminar a ${p.nombre}`} title="Eliminar" class={BTN_ICONO_PELIGRO}>
+                                    <svg class="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg>
+                                </button>
+                                <a
+                                    href={hrefAgendar(p)}
+                                    title="Agendar cita. Al guardarla, el paciente sale de la lista."
+                                    class="group ml-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3.5 py-2 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                                >
+                                    Agendar
+                                    <RightArrow class="size-4 group-hover:translate-x-0.5 transition-transform" />
+                                </a>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            </section>
+        )}
+    </main>
+
+    <dialog
+        id="modal-espera"
+        aria-labelledby="modal-espera-titulo"
+        class="m-auto w-[calc(100%-2rem)] max-w-md p-0 bg-[#0b0f19] text-white border border-white/10 rounded-2xl shadow-2xl outline-none backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+    >
+        <div class="p-6">
+            <div class="flex items-start justify-between gap-4 mb-5">
+                <div>
+                    <h2 id="modal-espera-titulo" class="text-2xl leading-none text-white">Agregar paciente</h2>
+                    <p id="modal-espera-sub" class="mt-1.5 text-xs text-gray-400"></p>
+                </div>
+                <button type="button" data-cerrar-modal aria-label="Cerrar" class="grid place-items-center size-8 -mr-2 -mt-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+                </button>
+            </div>
+
+            <div id="tabs-agregar" role="tablist" aria-label="Forma de agregar" class="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-white/5 p-1 text-sm">
+                <button type="button" role="tab" data-tab="manual" aria-selected="true" aria-controls="form-espera" class="rounded-md py-2 font-medium text-gray-400 hover:text-white aria-selected:bg-blue-600 aria-selected:text-white transition-colors cursor-pointer">
+                    Manual
+                </button>
+                <button type="button" role="tab" data-tab="qr" aria-selected="false" aria-controls="panel-qr" class="rounded-md py-2 font-medium text-gray-400 hover:text-white aria-selected:bg-blue-600 aria-selected:text-white transition-colors cursor-pointer">
+                    Por formulario
+                </button>
+            </div>
+
+            <form method="POST" id="form-espera" role="tabpanel">
+                <input type="hidden" name="action" id="espera-action" value="agregar" />
+                <input type="hidden" name="id" id="espera-id" value="" />
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="espera-nombre" class="text-sm font-medium text-gray-300">Nombre completo <span class="text-red-500">*</span></label>
+                        <input type="text" id="espera-nombre" name="nombre" required maxlength="120" autocomplete="off" class={CAMPO} />
+                    </div>
+                    <div>
+                        <label for="espera-telefono" class="text-sm font-medium text-gray-300">Número de teléfono <span class="text-red-500">*</span></label>
+                        <input type="tel" id="espera-telefono" name="telefono" required maxlength="30" inputmode="tel" autocomplete="off" class={CAMPO} />
+                    </div>
+                    <div>
+                        <label for="espera-motivo" class="text-sm font-medium text-gray-300">Motivo de consulta <span class="text-red-500">*</span></label>
+                        <textarea id="espera-motivo" name="motivo" required maxlength="300" rows="3" class={`${CAMPO} resize-y`}></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" data-cerrar-modal class="px-4 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30 text-sm cursor-pointer transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="espera-guardar" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                        Agregar a la lista
+                    </button>
+                </div>
+            </form>
+
+            <div id="panel-qr" role="tabpanel" class="hidden">
+                {qrSvg && (
+                    <div class="mx-auto size-56 rounded-xl bg-white p-2 [&>svg]:size-full" role="img" aria-label="Código QR del formulario de registro" set:html={qrSvg} />
+                )}
+
+                <p class="mt-4 text-center text-sm text-gray-400">
+                    El paciente escanea el código o abre el enlace y se registra solo.
+                </p>
+
+                <div class="mt-4 flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900/50 p-1.5 pl-3">
+                    <input
+                        type="text" id="enlace-formulario" readonly value={urlFormulario}
+                        aria-label="Enlace del formulario"
+                        class="min-w-0 flex-1 bg-transparent text-sm text-gray-300 outline-none truncate"
+                    />
+                    <button type="button" id="btn-copiar" class="shrink-0 rounded-md bg-white/10 hover:bg-white/15 px-3 py-1.5 text-sm font-medium text-white transition-colors cursor-pointer">
+                        Copiar
+                    </button>
+                </div>
+
+                <p class="mt-3 text-center text-xs text-gray-500">
+                    Los registros llegan al final de la lista con la etiqueta «Formulario».
+                </p>
+            </div>
+        </div>
+    </dialog>
+
+    <form method="POST" id="form-eliminar" class="hidden">
+        <input type="hidden" name="action" value="eliminar" />
+        <input type="hidden" name="id" id="eliminar-id" value="" />
+    </form>
+
+    <ConfirmModal />
+</Layout>
+
+<style>
+    .espera-item:first-child .turno {
+        background: rgb(59 130 246);
+        color: #fff;
+    }
+    .espera-item.is-dragging {
+        opacity: 0.35;
+        background: rgb(59 130 246 / 0.12);
+    }
+    .handle { cursor: grab; }
+    .handle:active { cursor: grabbing; }
+</style>
+
+<script>
+    const dialog = document.getElementById("modal-espera") as HTMLDialogElement;
+    const form = document.getElementById("form-espera") as HTMLFormElement;
+    const inAction = document.getElementById("espera-action") as HTMLInputElement;
+    const inId = document.getElementById("espera-id") as HTMLInputElement;
+    const inNombre = document.getElementById("espera-nombre") as HTMLInputElement;
+    const inTelefono = document.getElementById("espera-telefono") as HTMLInputElement;
+    const inMotivo = document.getElementById("espera-motivo") as HTMLTextAreaElement;
+    const btnGuardar = document.getElementById("espera-guardar") as HTMLButtonElement;
+    const titulo = document.getElementById("modal-espera-titulo")!;
+    const subtitulo = document.getElementById("modal-espera-sub")!;
+    const tabs = document.getElementById("tabs-agregar")!;
+    const panelQr = document.getElementById("panel-qr")!;
+    const botonesTab = Array.from(tabs.querySelectorAll<HTMLButtonElement>("[data-tab]"));
+
+    function seleccionarTab(tab: "manual" | "qr") {
+        botonesTab.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+        form.classList.toggle("hidden", tab !== "manual");
+        panelQr.classList.toggle("hidden", tab !== "qr");
+        if (tab === "manual") {
+            titulo.textContent = "Agregar paciente";
+            subtitulo.textContent = "Entrará al final de la lista de espera.";
+        } else {
+            titulo.textContent = "Registro por formulario";
+            subtitulo.textContent = "Compártelo para que el paciente se registre desde su teléfono.";
+        }
+    }
+
+    botonesTab.forEach((b) =>
+        b.addEventListener("click", () => {
+            seleccionarTab(b.dataset.tab as "manual" | "qr");
+            if (b.dataset.tab === "manual") inNombre.focus();
+        }),
+    );
+
+    function abrirModal(modo: "agregar" | "editar", datos?: { id: string; nombre: string; telefono: string; motivo: string }) {
+        form.reset();
+        btnGuardar.disabled = false;
+        inAction.value = modo;
+        inId.value = datos?.id ?? "";
+        inNombre.value = datos?.nombre ?? "";
+        inTelefono.value = datos?.telefono ?? "";
+        inMotivo.value = datos?.motivo ?? "";
+
+        if (modo === "editar") {
+            tabs.classList.add("hidden");
+            panelQr.classList.add("hidden");
+            form.classList.remove("hidden");
+            titulo.textContent = "Editar paciente";
+            subtitulo.textContent = "Cambia sus datos. El turno no se modifica.";
+            btnGuardar.textContent = "Guardar cambios";
+        } else {
+            tabs.classList.remove("hidden");
+            seleccionarTab("manual");
+            btnGuardar.textContent = "Agregar a la lista";
+        }
+        dialog.showModal();
+        inNombre.focus();
+    }
+
+    document.querySelectorAll("[data-abrir-agregar]").forEach((b) => b.addEventListener("click", () => abrirModal("agregar")));
+    dialog.querySelectorAll("[data-cerrar-modal]").forEach((b) => b.addEventListener("click", () => dialog.close()));
+    dialog.addEventListener("click", (e) => {
+        if (e.target === dialog) dialog.close();
+    });
+    form.addEventListener("submit", () => {
+        btnGuardar.disabled = true;
+    });
+
+    const inEnlace = document.getElementById("enlace-formulario") as HTMLInputElement;
+    const btnCopiar = document.getElementById("btn-copiar") as HTMLButtonElement;
+    btnCopiar.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(inEnlace.value);
+        } catch {
+            inEnlace.select();
+            document.execCommand("copy");
+        }
+        btnCopiar.textContent = "Copiado";
+        setTimeout(() => (btnCopiar.textContent = "Copiar"), 2000);
+    });
+    inEnlace.addEventListener("focus", () => inEnlace.select());
+
+    const toast = document.getElementById("toast-error")!;
+    let toastTimer: ReturnType<typeof setTimeout>;
+    function mostrarError(msg: string) {
+        toast.textContent = msg;
+        toast.classList.remove("hidden");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.add("hidden"), 5000);
+    }
+    if (!toast.classList.contains("hidden")) {
+        toastTimer = setTimeout(() => toast.classList.add("hidden"), 5000);
+    }
+
+    const lista = document.getElementById("lista-espera") as HTMLOListElement | null;
+    const estado = document.getElementById("estado-orden");
+
+    if (lista) {
+        const itemsDeLista = () => Array.from(lista.querySelectorAll<HTMLLIElement>(":scope > li[data-id]"));
+        const idsEnOrden = () => itemsDeLista().map((li) => li.dataset.id!);
+
+        function renumerar() {
+            const items = itemsDeLista();
+            items.forEach((li, i) => {
+                li.querySelector(".turno")!.textContent = String(i + 1);
+                li.querySelector<HTMLButtonElement>('[data-accion="subir"]')!.disabled = i === 0;
+                li.querySelector<HTMLButtonElement>('[data-accion="bajar"]')!.disabled = i === items.length - 1;
+            });
+        }
+        renumerar();
+
+        let ordenGuardado = idsEnOrden();
+        let temporizador: ReturnType<typeof setTimeout>;
+        let guardando = false;
+        let pendiente = false;
+
+        const setEstado = (t: string) => { if (estado) estado.textContent = t; };
+
+        function programarGuardado() {
+            clearTimeout(temporizador);
+            setEstado("");
+            temporizador = setTimeout(guardarOrden, 500);
+        }
+
+        async function guardarOrden() {
+            if (guardando) { pendiente = true; return; }
+            const nuevo = idsEnOrden();
+            if (nuevo.join() === ordenGuardado.join()) return;
+
+            guardando = true;
+            setEstado("Guardando…");
+            try {
+                const fd = new FormData();
+                fd.set("action", "reordenar");
+                fd.set("ids", JSON.stringify(nuevo));
+                const res = await fetch(window.location.pathname, { method: "POST", body: fd });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                ordenGuardado = nuevo;
+                setEstado("Orden guardado");
+            } catch {
+                ordenGuardado.forEach((id) => {
+                    const li = lista!.querySelector(`li[data-id="${id}"]`);
+                    if (li) lista!.appendChild(li);
+                });
+                renumerar();
+                setEstado("");
+                mostrarError("No se pudo guardar el nuevo orden. Se restauró el anterior.");
+            } finally {
+                guardando = false;
+                if (pendiente) { pendiente = false; guardarOrden(); }
+            }
+        }
+
+        lista.addEventListener("click", async (e) => {
+            const boton = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-accion]");
+            if (!boton) return;
+            const li = boton.closest<HTMLLIElement>("li[data-id]")!;
+            const accion = boton.dataset.accion;
+
+            if (accion === "subir" || accion === "bajar") {
+                const vecino = accion === "subir" ? li.previousElementSibling : li.nextElementSibling;
+                if (!vecino) return;
+                if (accion === "subir") lista.insertBefore(li, vecino);
+                else lista.insertBefore(vecino, li);
+                renumerar();
+                const mismo = li.querySelector<HTMLButtonElement>(`[data-accion="${accion}"]`)!;
+                (mismo.disabled ? li.querySelector<HTMLButtonElement>(`[data-accion="${accion === "subir" ? "bajar" : "subir"}"]`)! : mismo).focus();
+                programarGuardado();
+            }
+
+            if (accion === "editar") {
+                abrirModal("editar", {
+                    id: li.dataset.id!,
+                    nombre: li.dataset.nombre ?? "",
+                    telefono: li.dataset.telefono ?? "",
+                    motivo: li.dataset.motivo ?? "",
+                });
+            }
+
+            if (accion === "eliminar") {
+                const ok = await window.confirmarAccion(
+                    `¿Eliminar a ${li.dataset.nombre} de la lista de espera? Los demás turnos subirán una posición.`,
+                    { textoConfirmar: "Eliminar" },
+                );
+                if (!ok) return;
+                (document.getElementById("eliminar-id") as HTMLInputElement).value = li.dataset.id!;
+                (document.getElementById("form-eliminar") as HTMLFormElement).requestSubmit();
+            }
+        });
+
+        let arrastrado: HTMLLIElement | null = null;
+
+        function itemDespuesDe(y: number): Element | null {
+            let mejor: { offset: number; el: Element | null } = { offset: Number.NEGATIVE_INFINITY, el: null };
+            for (const li of itemsDeLista()) {
+                if (li === arrastrado) continue;
+                const caja = li.getBoundingClientRect();
+                const offset = y - (caja.top + caja.height / 2);
+                if (offset < 0 && offset > mejor.offset) mejor = { offset, el: li };
+            }
+            return mejor.el;
+        }
+
+        lista.addEventListener("dragstart", (e) => {
+            const asa = (e.target as HTMLElement).closest(".handle");
+            if (!asa) return;
+            arrastrado = asa.closest("li");
+            if (!arrastrado || !e.dataTransfer) return;
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", arrastrado.dataset.id ?? "");
+            e.dataTransfer.setDragImage(arrastrado, 24, 24);
+            requestAnimationFrame(() => arrastrado?.classList.add("is-dragging"));
+        });
+
+        lista.addEventListener("dragover", (e) => {
+            if (!arrastrado) return;
+            e.preventDefault();
+            const despues = itemDespuesDe(e.clientY);
+            if (despues === null) {
+                if (lista.lastElementChild !== arrastrado) lista.appendChild(arrastrado);
+            } else if (despues !== arrastrado.nextElementSibling) {
+                lista.insertBefore(arrastrado, despues);
+            }
+            renumerar();
+        });
+
+        lista.addEventListener("drop", (e) => e.preventDefault());
+
+        lista.addEventListener("dragend", () => {
+            if (!arrastrado) return;
+            arrastrado.classList.remove("is-dragging");
+            arrastrado = null;
+            renumerar();
+            programarGuardado();
+        });
+    }
+</script>
