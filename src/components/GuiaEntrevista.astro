@@ -76,32 +76,61 @@ const clasesPanel = esIzquierda
                 <p class="text-sm text-gray-500 italic">Aún no hay categorías configuradas.</p>
             )}
 
-            {categorias.map((categoria) => (
-                <details name="guia-entrevista" class="guia-categoria border border-gray-700/50 rounded-xl bg-gray-800/20 overflow-hidden">
-                    <summary class="flex items-center justify-between gap-3 p-4 cursor-pointer select-none text-lg font-medium text-gray-300 hover:text-blue-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
-                        <span>{categoria.titulo}</span>
-                        <span class="flex items-center gap-2 shrink-0">
-                            <span class="text-xs text-blue-300 bg-blue-900/20 border border-blue-500/30 rounded-full px-2 py-0.5">
-                                {categoria.preguntas.length}
-                            </span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-4 h-4 text-gray-500" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </span>
-                    </summary>
+            {categorias.map((categoria) => {
+                const totalPreguntas = (categoria.preguntas?.length ?? 0) + 
+                    (categoria.subcategorias?.reduce((acc, sub) => acc + (sub.preguntas?.length ?? 0), 0) || 0);
 
-                    <div class="guia-contenido px-4 pb-4">
-                        {categoria.descripcion && (
-                            <p class="text-sm text-blue-300 mb-3">{categoria.descripcion}</p>
-                        )}
-                        <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-400 text-sm text-gray-300">
-                            {categoria.preguntas.map((pregunta) => (
-                                <li class="pl-1 leading-snug">{pregunta}</li>
+                return (
+                    <details name="guia-entrevista" class="guia-categoria border border-gray-700/50 rounded-xl bg-gray-800/20 overflow-hidden">
+                        <summary class="flex items-center justify-between gap-3 p-4 cursor-pointer select-none text-lg font-medium text-gray-300 hover:text-blue-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                            <span>{categoria.titulo}</span>
+                            <span class="flex items-center gap-2 shrink-0">
+                                <span class="text-xs text-blue-300 bg-blue-900/20 border border-blue-500/30 rounded-full px-2 py-0.5">
+                                    {totalPreguntas}
+                                </span>
+                                <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-4 h-4 text-gray-500" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </span>
+                        </summary>
+
+                        <div class="guia-contenido px-4 pb-4 space-y-4">
+                            {categoria.descripcion && (
+                                <p class="text-sm text-blue-300 mb-1">{categoria.descripcion}</p>
+                            )}
+                            
+                            {categoria.preguntas && categoria.preguntas.length > 0 && (
+                                <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-400 text-sm text-gray-300">
+                                    {categoria.preguntas.map((pregunta) => (
+                                        <li class="pl-1 leading-snug">{pregunta}</li>
+                                    ))}
+                                </ol>
+                            )}
+
+                            {categoria.subcategorias && categoria.subcategorias.map((subcategoria) => (
+                                <div class="border-l-2 border-gray-700 pl-4 mt-3 space-y-2">
+                                    <h4 class="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                                        <span>{subcategoria.titulo}</span>
+                                        <span class="text-xs font-normal text-gray-500">
+                                            ({subcategoria.preguntas?.length ?? 0})
+                                        </span>
+                                    </h4>
+                                    {subcategoria.descripcion && (
+                                        <p class="text-xs text-gray-400">{subcategoria.descripcion}</p>
+                                    )}
+                                    {subcategoria.preguntas && (
+                                        <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-500/70 text-sm text-gray-300">
+                                            {subcategoria.preguntas.map((pregunta) => (
+                                                <li class="pl-1 leading-snug">{pregunta}</li>
+                                            ))}
+                                        </ol>
+                                    )}
+                                </div>
                             ))}
-                        </ol>
-                    </div>
-                </details>
-            ))}
+                        </div>
+                    </details>
+                );
+            })}
         </div>
     </aside>
 </div>

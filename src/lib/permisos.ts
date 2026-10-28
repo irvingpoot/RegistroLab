@@ -17,6 +17,8 @@ const RUTAS_RECEPCION: string[] = [
     "/multiples-citas",
     "/editar-cita",
     "/gestor",
+    "/estadisticas",
+    "/waitlist"
 ];
 
 export function tieneAccesoRuta(rol: Rol | undefined, pathname: string): boolean {
