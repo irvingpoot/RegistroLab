@@ -14,14 +14,8 @@ import CheckIcon from "../components/icons/CheckIcon.astro";
 import AgendaIcon from "../components/icons/dashboard/AgendaIcon.astro";
 import PacientesIcon from "../components/icons/dashboard/PacientesIcon.astro";
 import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
-import { tieneAccesoRuta } from "../lib/permisos";
 import { getEstadisticas, type EstadisticasData } from "../services/estadisticas.service";
 import ReturnButton from "../components/ReturnButton.astro";
-
-const userRole = Astro.locals.userRole;
-if (userRole === "recepcion" || !tieneAccesoRuta(userRole, "/estadisticas")) {
-    return Astro.redirect("/dashboard");
-}
 
 const hoyMX = new Date().toLocaleDateString("en-CA", { timeZone: "America/Merida" });
 const mesActual = hoyMX.slice(0, 7);

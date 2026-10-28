@@ -26,7 +26,6 @@ const isProtectedRoute = createRouteMatcher([
     '/manuales',
     '/usuarios',
     '/servicios',
-    '/estadisticas',
     '/horario',
     '/gestor',
     '/registro(.*)',
