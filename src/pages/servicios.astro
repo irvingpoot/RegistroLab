@@ -11,13 +11,8 @@ import Layout from "../layouts/Layout.astro";
 import RightArrow from "../components/icons/RightArrow.astro";
 import CheckIcon from "../components/icons/CheckIcon.astro";
 import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
-import { tieneAccesoRuta } from "../lib/permisos";
 import { getServiciosAdmin, type ServicioAdmin } from "../services/servicios.service";
 import ReturnButton from "../components/ReturnButton.astro";
-
-if (!tieneAccesoRuta(Astro.locals.userRole, "/servicios")) {
-    return Astro.redirect("/dashboard");
-}
 
 let servicios: ServicioAdmin[] = [];
 let errorCarga = false;
