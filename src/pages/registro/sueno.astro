@@ -21,6 +21,8 @@ import Icon from "../../components/Icon.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import SintomaGroup from "../../components/SintomaGroup.astro"
 import GuiaEntrevista from "../../components/GuiaEntrevista.astro"
+import SeccionFarmacosRegistro from "../../components/registro/SeccionFarmacosRegistro.astro"
+import { parseFarmacos } from "../../utils/form-data"
 import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(
@@ -112,6 +114,8 @@ if (Astro.request.method === "POST") {
             gravedad: data.get("gravedad"),
 
             alteracion_sueno: data.getAll("alteracion_sueno"),
+
+            ...parseFarmacos(data),
 
             epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
             dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
@@ -567,6 +571,8 @@ if (Astro.request.method === "POST") {
                         </div>
                     </div>
                 </section>
+
+                <SeccionFarmacosRegistro placeholderMedicamento="Ej. Zolpidem" placeholderMotivo="Ej. Insomnio crónico" />
 
                 <section class="w-full max-w-5xl px-2 md:px-0">
                     <h2 class="text-2xl md:text-3xl pb-2 mb-6 border-b border-white text-center text-gray-200 w-fit mx-auto px-10">Puntajes y Escalas</h2>

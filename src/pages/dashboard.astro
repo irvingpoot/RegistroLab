@@ -12,16 +12,17 @@ import SystemUpdates from "../components/SystemUpdate.astro";
 import PatientTypeModal from "../components/PatientTypeModal.astro";
 import {
     getCitasHoy,
-    getNotificaciones,
+    getResumenNotificaciones,
     getUsuariosRecientes,
     marcarTodasLeidas,
 } from "../services/dashboard.service";
+import type { Notificacion } from "../services/dashboard.service";
 import {
     getTareasDeUsuario,
-    completarTarea,
+    completarTareaPropia,
 } from "../services/lista-pendientes.service";
 import RightArrow from "../components/icons/RightArrow.astro";
-import { tieneAccesoRuta, puedeGestionarUsuarios } from "../lib/permisos";
+import { tieneAccesoRuta, puedeGestionarUsuarios, puedeVerNotificaciones } from "../lib/permisos";
 import NotificationIcon from "../components/icons/dashboard/NotificationIcon.astro";
 import CalendarIcon from "../components/icons/CalendarIcon.astro";
 import CheckIcon from "../components/icons/CheckIcon.astro";
@@ -44,6 +45,7 @@ import EstadisticasIcon from "../components/icons/dashboard/EstadisticasIcon.ast
 const esAdmin = puedeGestionarUsuarios(Astro.locals.userRole);
 
 const userRole = Astro.locals.userRole;
+const verNotificaciones = puedeVerNotificaciones(userRole);
 const restringida = (ruta: string) => !tieneAccesoRuta(userRole, ruta);
 
 const construirNombreCompleto = (u: Awaited<ReturnType<typeof Astro.locals.currentUser>>) =>
@@ -54,14 +56,18 @@ if (Astro.request.method === "POST") {
         const formData = await Astro.request.formData();
         const action   = formData.get("action");
 
-        if (action === "mark_all_read") {
+        if (action === "mark_all_read" && verNotificaciones) {
             await marcarTodasLeidas();
         }
 
         if (action === "completar_tarea_sidebar") {
-            const idTarea = formData.get("id_tarea") as string;
-            const usuarioPost = await Astro.locals.currentUser();
-            await completarTarea(idTarea, construirNombreCompleto(usuarioPost));
+            const idTarea = formData.get("id_tarea");
+            if (typeof idTarea === "string" && idTarea) {
+                const usuarioPost = await Astro.locals.currentUser();
+                const nombre = construirNombreCompleto(usuarioPost);
+                const completada = await completarTareaPropia(idTarea, nombre);
+                if (!completada) console.warn("completar_tarea_sidebar: tarea inexistente, ajena o ya completada", { idTarea });
+            }
         }
     } catch (e) {
         console.error("Error marcando notificaciones:", e);
@@ -71,10 +77,12 @@ if (Astro.request.method === "POST") {
 
 const userPromise = Astro.locals.currentUser();
 
-const [user, agenda, notificaciones, usuariosRecientes, tareasUsuario] = await Promise.all([
+const [user, agenda, resumenNotif, usuariosRecientes, tareasUsuario] = await Promise.all([
     userPromise,
     getCitasHoy(),
-    getNotificaciones(),
+    verNotificaciones
+        ? getResumenNotificaciones()
+        : Promise.resolve({ items: [] as Notificacion[], total: 0 }),
     getUsuariosRecientes(Astro),
     userPromise.then((u) => getTareasDeUsuario(construirNombreCompleto(u))),
 ]);
@@ -82,11 +90,17 @@ const [user, agenda, notificaciones, usuariosRecientes, tareasUsuario] = await P
 const nombreUsuario  = user?.firstName || user?.username || "Usuario";
 const horarioVisible = user?.publicMetadata?.horarioVisible === true;
 
-const { citasHoy, totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaNombre } = agenda;
+const { citasHoy, totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora12, proximaNombre } = agenda;
 const citasCompletadas = citasHoy.filter(c => c.estado === "completada").length;
 const citasCanceladas  = citasHoy.filter(c => c.estado === "cancelada").length;
 const primeraPendienteId = citasHoy.find(c => c.estado === "pendiente")?.id;
-const hayNotificaciones = notificaciones.length > 0;
+const notificaciones      = resumenNotif.items;
+const totalNotificaciones = resumenNotif.total;
+const hayNotificaciones   = totalNotificaciones > 0;
+
+const FORMATO_DIA_CORTO = new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit", month: "short", timeZone: "America/Merida",
+});
 
 const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
     timeZone: "America/Merida",
@@ -111,11 +125,11 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         <div class="relative w-56 h-11 rounded-full border border-white/10 bg-slate-900/50 overflow-hidden">
                             <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
                             <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#0f0f11]/90 to-transparent z-10 pointer-events-none"></div>
-                            <div class="flex items-center gap-4 h-full pr-4 animate-infinite-scroll w-max hover:[animation-play-state:paused]">
+                            <div class="flex items-center gap-4 h-full pr-4 animate-infinite-scroll w-max">
                                 {usuariosRecientes.map((u) => (
                                     <div class="flex items-center gap-2 shrink-0 select-none">
                                         <div class="relative">
-                                            <img src={u.imageUrl} class="size-7 rounded-full border border-white/15 bg-gray-800 object-cover" alt={u.firstName} />
+                                            <img src={u.imageUrl} width="28" height="28" decoding="async" class="size-7 rounded-full border border-white/15 bg-gray-800 object-cover" alt={u.firstName ?? ""} />
                                             <span class="absolute -bottom-0.5 -right-0.5 grid place-items-center size-2.5 rounded-full bg-[#0f0f11]"><span class="size-1.5 rounded-full bg-emerald-500"></span></span>
                                         </div>
                                         <span class="text-xs font-medium text-gray-400 whitespace-nowrap">{u.firstName}</span>
@@ -124,7 +138,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                 {usuariosRecientes.map((u) => (
                                     <div class="flex items-center gap-2 shrink-0 select-none" aria-hidden="true">
                                         <div class="relative">
-                                            <img src={u.imageUrl} class="size-7 rounded-full border border-white/15 bg-gray-800 object-cover" alt={u.firstName} />
+                                            <img src={u.imageUrl} width="28" height="28" loading="lazy" decoding="async" class="size-7 rounded-full border border-white/15 bg-gray-800 object-cover" alt="" />
                                             <span class="absolute -bottom-0.5 -right-0.5 grid place-items-center size-2.5 rounded-full bg-[#0f0f11]"><span class="size-1.5 rounded-full bg-emerald-500"></span></span>
                                         </div>
                                         <span class="text-xs font-medium text-gray-400 whitespace-nowrap">{u.firstName}</span>
@@ -134,7 +148,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         </div>
                     )}
 
-                    {userRole !=="recepcion" &&(
+                    {verNotificaciones && (
                         <div class="relative group z-50">
                             <button
                                 type="button"
@@ -150,7 +164,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                 )}
                             </button>
 
-                            <div class="absolute right-0 top-full pt-2 w-[22rem] origin-top-right translate-y-1 opacity-0 invisible group-hover:translate-y-0 group-hover:opacity-100 group-hover:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50">
+                            <div class="absolute right-0 top-full pt-2 w-[22rem] origin-top-right translate-y-1 opacity-0 invisible group-hover:translate-y-0 group-hover:opacity-100 group-hover:visible group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:visible transition-[opacity,transform,translate,visibility] duration-200 z-50">
                                 <div class="overflow-hidden rounded-2xl border border-white/10 bg-[#0f172a] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
 
                                     <div class="flex items-start justify-between gap-4 border-b border-white/10 px-5 pb-3 pt-4">
@@ -158,7 +172,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                             <h4 class="text-2xl leading-none text-white">Actividad</h4>
                                             <p class="mt-1.5 text-xs text-gray-400">
                                                 {hayNotificaciones
-                                                    ? (notificaciones.length === 1 ? '1 respuesta nueva' : `${notificaciones.length} respuestas nuevas`)
+                                                    ? (totalNotificaciones === 1 ? '1 respuesta nueva' : `${totalNotificaciones} respuestas nuevas`)
                                                     : 'Sin novedades'}
                                             </p>
                                         </div>
@@ -184,7 +198,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                                     <span class="min-w-0 flex-1">
                                                         <span class="flex items-baseline justify-between gap-3">
                                                             <span class="truncate text-sm font-semibold capitalize text-white">{notif.pacientes?.nombre || 'Paciente'}</span>
-                                                            <span class="shrink-0 text-[11px] text-gray-500">{new Date(notif.updated_at).toLocaleDateString('es-MX', {day: '2-digit', month:'short'})}</span>
+                                                            <span class="shrink-0 text-[11px] text-gray-500">{FORMATO_DIA_CORTO.format(new Date(notif.updated_at))}</span>
                                                         </span>
                                                         <span class="mt-1 flex items-center gap-2 text-xs text-gray-400">
                                                             Respondió
@@ -192,7 +206,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                                         </span>
                                                     </span>
 
-                                                    <RightTriangle class="size-4 shrink-0 text-gray-600 transition-all group-hover/item:translate-x-0.5 group-hover/item:text-blue-300" />
+                                                    <RightTriangle class="size-4 shrink-0 text-gray-600 transition-[color,transform,translate] group-hover/item:translate-x-0.5 group-hover/item:text-blue-300" />
                                                 </a>
                                             ))
                                         ) : (
@@ -205,6 +219,9 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                             </div>
                                         )}
                                     </div>
+                                    {totalNotificaciones > notificaciones.length && (
+                                        <p class="border-t border-white/5 px-5 py-2 text-[11px] text-gray-500">Mostrando las {notificaciones.length} más recientes</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -249,9 +266,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                         <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                             <div class="flex flex-wrap items-center gap-1" role="img" aria-label={`${citasCompletadas} completadas, ${citasCanceladas} canceladas y ${cantidadPendientes} pendientes de ${totalCitasHoy} citas`}>
                                 {citasHoy.map((c) => {
-                                    const hora = new Date(c.fecha_hora).toLocaleTimeString("es-MX", {
-                                        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Merida",
-                                    });
+                                    const hora = c.hora24;
                                     const clase =
                                         c.estado === "completada" ? "is-completada" :
                                         c.estado === "cancelada"  ? "is-cancelada"  :
@@ -275,13 +290,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                             <div>
                                 <p class="text-xs text-gray-400">Siguiente cita</p>
                                 <p class="text-3xl leading-none text-white whitespace-nowrap">
-                                    {(() => {
-                                        const texto = String(proximaHora ?? '');
-                                        const m = texto.match(/^(\d{1,2}):(\d{2})/);
-                                        if (!m || /[ap]\.?\s?m/i.test(texto)) return texto;
-                                        const h = Number(m[1]);
-                                        return `${h % 12 || 12}:${m[2]}\u00A0${h < 12 ? 'a. m.' : 'p. m.'}`;
-                                    })()}
+                                    {proximaHora12}
                                 </p>
                                 <p class="mt-1 max-w-56 truncate text-sm text-gray-300">{proximaNombre}</p>
                             </div>
@@ -513,7 +522,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
         <div
             id="panel-tareas"
             class="absolute top-1/2 -translate-y-1/2 right-7 w-64
-                bg-gray-900/90 border border-white/10 backdrop-blur-md
+                bg-gray-900/95 border border-white/10
                 shadow-2xl shadow-black/50 rounded-2xl overflow-hidden
                 translate-x-full transition-transform duration-300 ease-in-out"
         >
@@ -542,7 +551,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
                                 <button
                                     type="submit"
                                     title="Marcar como completada"
-                                    class="w-4 h-4 rounded-full border border-gray-600 group-hover:border-emerald-500 hover:bg-emerald-500/15 flex items-center justify-center transition-all duration-150 cursor-pointer shrink-0"
+                                    class="w-4 h-4 rounded-full border border-gray-600 group-hover:border-emerald-500 hover:bg-emerald-500/15 flex items-center justify-center transition-colors duration-150 cursor-pointer shrink-0"
                                 >
                                     <CheckIcon class="w-2.5 h-2.5 text-transparent group-hover:text-emerald-400 transition-colors" />
                                 </button>
@@ -565,7 +574,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
             <div class="px-4 py-3 border-t border-white/5">
                 <a
                     href="/pendientes/lista-pendientes"
-                    class="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-white/4 hover:bg-white/8 border border-white/6 hover:border-white/10 text-[11px] font-semibold text-gray-500 hover:text-gray-300 transition-all duration-150"
+                    class="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-white/4 hover:bg-white/8 border border-white/6 hover:border-white/10 text-[11px] font-semibold text-gray-500 hover:text-gray-300 transition-colors duration-150"
                 >
                     Ver todas las tareas
                 </a>
@@ -584,6 +593,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
     }
     .animate-infinite-scroll {
         animation: scroll 20s linear infinite;
+        will-change: transform;
     }
     .animate-infinite-scroll:hover {
         animation-play-state: paused;

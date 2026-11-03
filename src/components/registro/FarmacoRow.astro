@@ -1,0 +1,88 @@
+---
+/**
+ * @component FarmacoRow
+ * @description Fila de un medicamento del formulario de registro: nombre, dosis, motivo, tiempo de
+ * consumo y frecuencia (Mañana/Tarde/Noche). Los checkboxes NO se envían; llenan el campo oculto
+ * `farmacos_frecuencias` (ver utils/client/farmacos-registro.ts). Se usa para la fila inicial y
+ * dentro del <template> que se clona al pulsar "Agregar Fármaco".
+ *
+ * PROPS:
+ * @prop {string} [placeholderMedicamento] - Ejemplo del campo Medicamento.
+ * @prop {string} [placeholderMotivo]      - Ejemplo del campo Motivo / Diagnóstico.
+ * @prop {string} [nombre] [dosis] [motivo] [tiempo] - Valores iniciales (formulario de edición).
+ * @prop {string} [frecuencia] - Horarios iniciales separados por ", " (ej. "Mañana, Noche").
+ */
+import { horariosDe } from "../../utils/farmacos";
+
+interface Props {
+    placeholderMedicamento?: string;
+    placeholderMotivo?: string;
+    nombre?: string;
+    dosis?: string;
+    motivo?: string;
+    tiempo?: string;
+    frecuencia?: string;
+}
+
+const {
+    placeholderMedicamento = "Ej. Fluoxetina",
+    placeholderMotivo = "Ej. Trastorno depresivo mayor",
+    nombre = "",
+    dosis = "",
+    motivo = "",
+    tiempo = "",
+    frecuencia = "",
+} = Astro.props;
+
+const horarios = horariosDe(frecuencia);
+---
+
+<div class="p-4 bg-slate-900/50 rounded-xl border border-white/5 relative group transition-all hover:border-blue-500/30 item-farmaco">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-4">
+        <div class="md:col-span-8">
+            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Medicamento</label>
+            <input type="text" name="farmacos_nombres" value={nombre} placeholder={placeholderMedicamento} class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Dosis</label>
+            <input type="text" name="farmacos_dosis" value={dosis} placeholder="Ej. 20mg" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+        </div>
+
+        <div class="md:col-span-8">
+            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Motivo / Diagnóstico</label>
+            <input type="text" name="farmacos_motivos" value={motivo} placeholder={placeholderMotivo} class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-[10px] uppercase font-bold text-blue-400 mb-1">Tiempo de consumo</label>
+            <div class="flex items-center gap-3">
+                <input type="text" name="farmacos_tiempos" value={tiempo} placeholder="Ej. 6 meses" class="w-full bg-transparent border-b border-gray-700 text-white text-sm focus:border-blue-500 outline-none py-1 placeholder-gray-600">
+            </div>
+        </div>
+
+        <div class="flex justify-between md:col-span-12 freq-container pt-2 border-t border-white/5">
+            <div>
+                <label class="block text-[10px] uppercase font-bold text-blue-400 mb-2">Frecuencia (Horario)</label>
+                <input type="hidden" name="farmacos_frecuencias" class="input-frecuencia-real" value={horarios.join(", ")}>
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                        <input type="checkbox" value="Mañana" checked={horarios.includes("Mañana")} class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Mañana</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                        <input type="checkbox" value="Tarde" checked={horarios.includes("Tarde")} class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Tarde</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer group/chk">
+                        <input type="checkbox" value="Noche" checked={horarios.includes("Noche")} class="chk-freq accent-blue-500 w-4 h-4 rounded cursor-pointer">
+                        <span class="text-sm text-gray-400 group-hover/chk:text-white transition-colors">Noche</span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <button type="button" data-farmaco-quitar class="btn-remove-farmaco text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer bg-gray-800 p-1.5 rounded-md hover:bg-red-900/20 shrink-0" title="Eliminar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

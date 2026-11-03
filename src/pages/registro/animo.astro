@@ -10,6 +10,7 @@ import Icon from "../../components/Icon.astro"
 import ReturnButton from "../../components/ReturnButton.astro"
 import SintomaGroup from "../../components/SintomaGroup.astro"
 import { createClient } from "@supabase/supabase-js"
+import GuiaEntrevista from "../../components/GuiaEntrevista.astro"
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
@@ -245,6 +246,7 @@ if (Astro.request.method === "POST") {
 <Layout title="Registro: Estado de Ánimo | Lab-Somno">
     <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
+    <GuiaEntrevista lado="derecha" />
 
     {registroExitoso && (
         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300 px-4">

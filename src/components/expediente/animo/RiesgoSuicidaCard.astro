@@ -1,0 +1,41 @@
+---
+/**
+ * @component RiesgoSuicidaCard
+ * @description Tarjeta "Riesgo Suicida": ideación, planeación e intentos previos (PRESENTE/AUSENTE),
+ * con la descripción cuando está presente. Lee `<campo>` y `<campo>_desc` del paciente.
+ */
+import InfoCard from "../../InfoCard.astro";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+
+const ITEMS = [
+    { campo: "ideacion_suicida", etiqueta: "Ideación Suicida" },
+    { campo: "planeacion_suicida", etiqueta: "Planeación Suicida" },
+    { campo: "intento_suicida", etiqueta: "Intentos Previos" },
+] as const;
+---
+
+<InfoCard title="Riesgo Suicida">
+    <div class="space-y-4">
+        {ITEMS.map(({ campo, etiqueta }) => {
+            const presente = paciente[campo] === "si";
+            return (
+                <div class={`p-3 rounded-lg border ${presente ? "bg-red-900/10 border-red-500/30" : "bg-green-900/10 border-green-500/20"}`}>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-gray-400 text-sm font-bold uppercase">{etiqueta}</span>
+                        <span class={`font-bold ${presente ? "text-red-400" : "text-green-400"}`}>
+                            {presente ? "PRESENTE" : "AUSENTE"}
+                        </span>
+                    </div>
+                    {presente && (
+                        <p class="text-red-200 text-sm mt-1 border-t border-red-500/20 pt-2">{paciente[`${campo}_desc`]}</p>
+                    )}
+                </div>
+            );
+        })}
+    </div>
+</InfoCard>

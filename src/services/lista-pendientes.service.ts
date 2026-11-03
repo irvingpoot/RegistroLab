@@ -77,3 +77,20 @@ export async function completarTarea(idTarea: string, completadoPor: string): Pr
 
     if (error) throw new Error(`completarTarea: ${error.message}`);
 }
+
+export async function completarTareaPropia(idTarea: string, responsable: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from("tareas_pendientes")
+        .update({
+            estado:         "completada",
+            completado_por: responsable,
+            completado_el:  new Date().toISOString(),
+        })
+        .eq("id", idTarea)
+        .eq("responsable", responsable)
+        .eq("estado", "pendiente")
+        .select("id");
+
+    if (error) throw new Error(`completarTareaPropia: ${error.message}`);
+    return (data?.length ?? 0) > 0;
+}

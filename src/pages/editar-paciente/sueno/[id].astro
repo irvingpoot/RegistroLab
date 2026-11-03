@@ -12,6 +12,9 @@
  * - Recálculo automático de `edad`: Se actualiza en el servidor basado en la fecha de nacimiento.
  * - Formularios Dinámicos: Utiliza JavaScript (cliente) para clonar templates HTML
  * y permitir agregar 'N' cantidad de síntomas o puntajes.
+ * - Fármacos: se guardan como arreglos paralelos (nombres, dosis, motivos, tiempos, frecuencias).
+ * Cada guardado REEMPLAZA los arreglos completos con las filas que muestre el formulario
+ * (ver `parseFarmacos`); las filas sin nombre se descartan.
  * * CARGA DE DATOS:
  * - Ejecuta 3 consultas en paralelo (`Promise.all`) para reconstruir el estado completo
  * del paciente antes de renderizar.
@@ -22,6 +25,9 @@ import Layout from "../../../layouts/Layout.astro"
 import ReturnButton from "../../../components/ReturnButton.astro"
 import SintomaGroup from "../../../components/SintomaGroup.astro"
 import PuntajeExtraGroup from "../../../components/PuntajeExtraGroup.astro"
+import SeccionFarmacosRegistro from "../../../components/registro/SeccionFarmacosRegistro.astro"
+import { parseFarmacos } from "../../../utils/form-data"
+import { farmacosDePaciente } from "../../../utils/farmacos"
 import { createClient } from "@supabase/supabase-js"
 
 const { id } = Astro.params;
@@ -102,6 +108,8 @@ if (Astro.request.method === "POST") {
 
             alteracion_sueno: data.getAll("alteracion_sueno"),
 
+            ...parseFarmacos(data),
+
             epworth_pre: getInt("epworth_pre"), epworth_inter: getInt("epworth_inter"), epworth_post: getInt("epworth_post"),
             dbi_pre: getInt("dbi_pre"), dbi_inter: getInt("dbi_inter"), dbi_post: getInt("dbi_post"),
             hamilton_d_pre: getInt("hamilton_d_pre"), hamilton_d_inter: getInt("hamilton_d_inter"), hamilton_d_post: getInt("hamilton_d_post"),
@@ -173,6 +181,7 @@ if (loadError || !p) return Astro.redirect("/lista");
 
 const listaSintomas = p.pacientes_sintomas && p.pacientes_sintomas.length > 0 ? p.pacientes_sintomas : [{}];
 const listaExtras = p.pacientes_puntajes_extra || [];
+const farmacos = farmacosDePaciente(p);
 ---
 
 <Layout title={`Editar: ${p.nombre}`}>
@@ -442,6 +451,14 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                     </div>
                 </section>
 
+                <SeccionFarmacosRegistro
+                    farmacos={farmacos}
+                    bordeTitulo="suave"
+                    placeholderMedicamento="Ej. Zolpidem"
+                    placeholderMotivo="Ej. Insomnio crónico"
+                />
+
+
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Alteraciones del sueño</h2>
                     
@@ -464,7 +481,7 @@ const listaExtras = p.pacientes_puntajes_extra || [];
                         ))}
                     </div>
                 </section>
-
+                
                 <section class="w-full max-w-4xl px-2 md:px-0">
                     <h2 class="section-title">Puntajes</h2>
                     <div class="overflow-x-auto mb-8">

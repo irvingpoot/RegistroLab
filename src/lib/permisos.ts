@@ -10,6 +10,8 @@
 
 export type Rol = "psicologo" | "recepcion" | "admin";
 
+const ROLES: readonly string[] = ["psicologo", "recepcion", "admin"];
+
 const RUTAS_RECEPCION: string[] = [
     "/dashboard",
     "/citas",
@@ -20,6 +22,10 @@ const RUTAS_RECEPCION: string[] = [
     "/estadisticas",
     "/waitlist"
 ];
+
+export function esRolValido(valor: unknown): valor is Rol {
+    return typeof valor === "string" && ROLES.includes(valor);
+}
 
 export function tieneAccesoRuta(rol: Rol | undefined, pathname: string): boolean {
     if (rol === "psicologo" || rol === "admin") return true;
@@ -41,6 +47,10 @@ export function puedeVerTareas(userId: string | undefined): boolean {
 export function esUsuarioConAccesoEspecial(userId: string | undefined): boolean {
     const usuarioEspecifico = import.meta.env.USUARIO_ESPECIFICO;
     return userId === usuarioEspecifico;
+}
+
+export function puedeVerNotificaciones(rol: Rol | undefined): boolean {
+    return rol === "psicologo" || rol === "admin";
 }
 
 export function puedeGestionarUsuarios(rol: Rol | undefined): boolean {

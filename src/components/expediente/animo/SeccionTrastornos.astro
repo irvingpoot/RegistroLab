@@ -1,0 +1,71 @@
+---
+/**
+ * @component SeccionTrastornos
+ * @description Trastornos del ánimo agrupados por categoría (catálogo en data/trastornos-animo.ts).
+ */
+import InfoCard from "../../InfoCard.astro";
+import { GROUPS_TRASTORNOS } from "../../../data/trastornos-animo";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="trastorno" class="expediente-seccion">
+    <div class="grid grid-cols-1 gap-8">
+        <InfoCard title="Trastornos del Ánimo">
+            {paciente.trastornos_animo && paciente.trastornos_animo.length > 0 ? (
+                <div class="flex flex-col gap-4">
+                    {GROUPS_TRASTORNOS.map((grupo) => {
+                        const matches = grupo.opciones.filter(opcion => 
+                            paciente.trastornos_animo.includes(opcion)
+                        );
+
+                        if (matches.length === 0) return null;
+                        return (
+                            <div class="bg-gray-800/30 border border-white/5 rounded-xl p-3">
+                                <h4 class="text-[10px] font-bold text-white uppercase tracking-widest mb-3 border-b border-white/5 pb-2 flex items-center gap-2">
+                                    {grupo.categoria}
+                                </h4>
+
+                                <div class="flex flex-wrap gap-2">
+                                    {matches.map((t: string) => (
+                                        <span class="px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-200 text-sm font-medium hover:bg-blue-600/20 transition-colors">
+                                            {t}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {(() => {
+                        const todosLosCatalogados = GROUPS_TRASTORNOS.flatMap(g => g.opciones);
+                        const sinCategoria = paciente.trastornos_animo.filter((t: string) => !todosLosCatalogados.includes(t));
+
+                        if (sinCategoria.length === 0) return null;
+
+                        return (
+                            <div class="bg-gray-800/30 border border-white/5 rounded-xl p-3">
+                                <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Otros / Sin clasificar</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    {sinCategoria.map((t: string) => (
+                                        <span class="px-3 py-1.5 rounded-lg bg-gray-700/30 border border-gray-600/30 text-gray-300 text-sm font-medium">
+                                            {t.replace(/_/g, ' ')}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+            ) : (
+                <div class="text-center py-6 border border-dashed border-gray-700 rounded-xl bg-white/[0.02]">
+                    <p class="text-gray-500 italic text-sm">No se han registrado diagnósticos específicos.</p>
+                </div>
+            )}
+        </InfoCard>
+    </div>
+</section>

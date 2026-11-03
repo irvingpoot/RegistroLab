@@ -25,12 +25,17 @@ interface Props {
 
 const { cita } = Astro.props;
 
+const TZ = 'America/Merida';
+const fechaObj = new Date(cita.fecha_hora);
+const fechaTextoMerida = fechaObj.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', timeZone: TZ });
+const horaFormateada = fechaObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TZ });
+
 const generarLinkWhatsapp = () => {
     if (!cita.telefono) return '#';
     const numeroLimpio = cita.telefono.replace(/\D/g, '');
     const nombrePaciente = cita.nombre || "Paciente";
-    const fechaTexto = new Date(cita.fecha_hora).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-    const horaTexto = cita.fecha_hora ? new Date(cita.fecha_hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Merida' }) : '';
+    const fechaTexto = fechaTextoMerida;
+    const horaTexto = horaFormateada;
     const mensaje = `Hola ${nombrePaciente}, le escribimos del Laboratorio del Sueño y Neurociencias para confirmar su cita del día *${fechaTexto}* a las *${horaTexto}*. ¿Podría confirmar su asistencia?. 
 Igualmente le recordamos que si gusta realizar el pago por transferencia, puede hacerlo antes de su cita con los siguientes datos:
 PAGO POR TRANSFERENCIA
@@ -55,7 +60,6 @@ De requerir *FACTURA* favor de enviarlo con copia al correo: contabilidad.cfdi.f
 };
 
 const linkWA = generarLinkWhatsapp();
-const horaFormateada = new Date(cita.fecha_hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Merida' });
 
 const motivoColors = {
     entrevista: "bg-blue-500/20 text-blue-300 border-blue-500/50",
@@ -77,7 +81,7 @@ const precioTexto = precioMonto === null || Number.isNaN(precioMonto)
         : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(precioMonto);
 ---
 
-<div class="cita-card-container relative group bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 p-6 rounded-2xl transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(30,58,138,0.3)]">
+<div class="cita-card-container relative group bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 p-6 rounded-2xl transition-[border-color,box-shadow] duration-300 hover:shadow-[0_0_30px_-10px_rgba(30,58,138,0.3)]">
     
     <div class="flex justify-between items-start gap-4 mb-3">
         <div class="flex-1 min-w-0">
@@ -170,7 +174,8 @@ const precioTexto = precioMonto === null || Number.isNaN(precioMonto)
         )}
     </div>
 
-    <dialog class="bg-gray-900 border border-amber-500/30 rounded-xl p-6 shadow-2xl backdrop:backdrop-blur-sm m-auto max-w-sm w-full text-left" onclick="event.target === this && this.close()">
+    {esPendiente && (
+    <dialog class="bg-gray-900 border border-amber-500/30 rounded-xl p-6 shadow-2xl backdrop:bg-black/60 m-auto max-w-sm w-full text-left" onclick="event.target === this && this.close()">
         <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             Reagendar Cita
@@ -200,5 +205,6 @@ const precioTexto = precioMonto === null || Number.isNaN(precioMonto)
             </div>
         </form>
     </dialog>
+    )}
 
 </div>

@@ -14,6 +14,7 @@ export const COLORES_EVENTO_LISTA: ColorEvento[] = ["azul", "verde", "purpura", 
 export const COLORES_EVENTO: Record<ColorEvento, {
     bg: string;
     bgFuerte: string;
+    hoverBgFuerte: string;
     border: string;
     text: string;
     dot: string;
@@ -24,12 +25,12 @@ export const COLORES_EVENTO: Record<ColorEvento, {
     borderFuerte: string;
     borderSuave: string;
 }> = {
-    azul:    { bg: "bg-blue-600/10",    bgFuerte: "bg-blue-600/25",    border: "border-blue-500/40",    text: "text-blue-300",    dot: "bg-blue-500",    hex: "#3b82f6", bgBase: "bg-blue-950",    bgHeader: "bg-blue-900/40",    bgFooter: "bg-blue-950/70",    borderFuerte: "border-blue-800/60",    borderSuave: "border-blue-800/40" },
-    verde:   { bg: "bg-emerald-600/10", bgFuerte: "bg-emerald-600/25", border: "border-emerald-500/40", text: "text-emerald-300", dot: "bg-emerald-500", hex: "#10b981", bgBase: "bg-emerald-950", bgHeader: "bg-emerald-900/40", bgFooter: "bg-emerald-950/70", borderFuerte: "border-emerald-800/60", borderSuave: "border-emerald-800/40" },
-    purpura: { bg: "bg-purple-600/10",  bgFuerte: "bg-purple-600/25",  border: "border-purple-500/40",  text: "text-purple-300",  dot: "bg-purple-500",  hex: "#a855f7", bgBase: "bg-purple-950",  bgHeader: "bg-purple-900/40",  bgFooter: "bg-purple-950/70",  borderFuerte: "border-purple-800/60",  borderSuave: "border-purple-800/40" },
-    rosa:    { bg: "bg-pink-600/10",    bgFuerte: "bg-pink-600/25",    border: "border-pink-500/40",    text: "text-pink-300",    dot: "bg-pink-500",    hex: "#ec4899", bgBase: "bg-pink-950",    bgHeader: "bg-pink-900/40",    bgFooter: "bg-pink-950/70",    borderFuerte: "border-pink-800/60",    borderSuave: "border-pink-800/40" },
-    ambar:   { bg: "bg-amber-600/10",   bgFuerte: "bg-amber-600/25",   border: "border-amber-500/40",   text: "text-amber-300",   dot: "bg-amber-500",   hex: "#f59e0b", bgBase: "bg-amber-950",   bgHeader: "bg-amber-900/40",   bgFooter: "bg-amber-950/70",   borderFuerte: "border-amber-800/60",   borderSuave: "border-amber-800/40" },
-    rojo:    { bg: "bg-red-600/10",     bgFuerte: "bg-red-600/25",     border: "border-red-500/40",     text: "text-red-300",     dot: "bg-red-500",     hex: "#ef4444", bgBase: "bg-red-950",     bgHeader: "bg-red-900/40",     bgFooter: "bg-red-950/70",     borderFuerte: "border-red-800/60",     borderSuave: "border-red-800/40" },
+    azul:    { bg: "bg-blue-600/10",    bgFuerte: "bg-blue-600/25", hoverBgFuerte: "hover:bg-blue-600/25",    border: "border-blue-500/40",    text: "text-blue-300",    dot: "bg-blue-500",    hex: "#3b82f6", bgBase: "bg-blue-950",    bgHeader: "bg-blue-900/40",    bgFooter: "bg-blue-950/70",    borderFuerte: "border-blue-800/60",    borderSuave: "border-blue-800/40" },
+    verde:   { bg: "bg-emerald-600/10", bgFuerte: "bg-emerald-600/25", hoverBgFuerte: "hover:bg-emerald-600/25", border: "border-emerald-500/40", text: "text-emerald-300", dot: "bg-emerald-500", hex: "#10b981", bgBase: "bg-emerald-950", bgHeader: "bg-emerald-900/40", bgFooter: "bg-emerald-950/70", borderFuerte: "border-emerald-800/60", borderSuave: "border-emerald-800/40" },
+    purpura: { bg: "bg-purple-600/10",  bgFuerte: "bg-purple-600/25", hoverBgFuerte: "hover:bg-purple-600/25",  border: "border-purple-500/40",  text: "text-purple-300",  dot: "bg-purple-500",  hex: "#a855f7", bgBase: "bg-purple-950",  bgHeader: "bg-purple-900/40",  bgFooter: "bg-purple-950/70",  borderFuerte: "border-purple-800/60",  borderSuave: "border-purple-800/40" },
+    rosa:    { bg: "bg-pink-600/10",    bgFuerte: "bg-pink-600/25", hoverBgFuerte: "hover:bg-pink-600/25",    border: "border-pink-500/40",    text: "text-pink-300",    dot: "bg-pink-500",    hex: "#ec4899", bgBase: "bg-pink-950",    bgHeader: "bg-pink-900/40",    bgFooter: "bg-pink-950/70",    borderFuerte: "border-pink-800/60",    borderSuave: "border-pink-800/40" },
+    ambar:   { bg: "bg-amber-600/10",   bgFuerte: "bg-amber-600/25", hoverBgFuerte: "hover:bg-amber-600/25",   border: "border-amber-500/40",   text: "text-amber-300",   dot: "bg-amber-500",   hex: "#f59e0b", bgBase: "bg-amber-950",   bgHeader: "bg-amber-900/40",   bgFooter: "bg-amber-950/70",   borderFuerte: "border-amber-800/60",   borderSuave: "border-amber-800/40" },
+    rojo:    { bg: "bg-red-600/10",     bgFuerte: "bg-red-600/25", hoverBgFuerte: "hover:bg-red-600/25",     border: "border-red-500/40",     text: "text-red-300",     dot: "bg-red-500",     hex: "#ef4444", bgBase: "bg-red-950",     bgHeader: "bg-red-900/40",     bgFooter: "bg-red-950/70",     borderFuerte: "border-red-800/60",     borderSuave: "border-red-800/40" },
 };
 
 export interface EventoDia {

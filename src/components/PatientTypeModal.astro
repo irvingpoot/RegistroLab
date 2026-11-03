@@ -78,8 +78,13 @@ import CrossIcon from "./icons/CrossIcon.astro";
     }
 
     #modal-tipo-paciente::backdrop {
-        background: rgba(0, 0, 0, 0.75);
-        backdrop-filter: blur(6px);
+        background: rgba(0, 0, 0, 0.85);
+    }
+    @media (min-width: 768px) and (hover: hover) {
+        #modal-tipo-paciente::backdrop {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+        }
     }
 
     #modal-tipo-paciente[open] {
