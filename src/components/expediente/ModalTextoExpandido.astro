@@ -4,16 +4,8 @@
  * @description Modal de lectura (`#modal-texto-expandido`): muestra un texto largo en una tarjeta
  * amplia, con fuente, tamaño e interlineado pensados para leer. Lo llena
  * utils/client/texto-expandido.ts desde un `BotonExpandirTexto`. Incluirlo UNA vez por página.
- *
- * FUENTE (opcional): por defecto usa "Atkinson Hyperlegible" si está disponible y, si no, la
- * fuente del sistema. Para cargarla desde tu propio sitio (sin servicios externos):
- *   npm i @fontsource/atkinson-hyperlegible
- * y descomenta las dos líneas de import de abajo. Los archivos solo se descargan cuando el
- * modal se abre y se muestra el texto.
  */
 import ModalDialog from "./ModalDialog.astro";
-// import "@fontsource/atkinson-hyperlegible/400.css";
-// import "@fontsource/atkinson-hyperlegible/700.css";
 ---
 
 <ModalDialog id="modal-texto-expandido" title="" titleId="texto-expandido-titulo" size="4xl">

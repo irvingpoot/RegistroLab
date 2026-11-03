@@ -13,6 +13,8 @@ export interface CitaResumen {
     fecha_hora: string;
     nombre: string;
     estado: "pendiente" | "completada" | "cancelada" | null;
+    /** Hora "HH:mm" (24 h) en America/Merida, calculada una sola vez aquí. */
+    hora24: string;
 }
 
 export interface PacienteRelacion {
@@ -34,7 +36,31 @@ export interface ResumenAgenda {
     cantidadPendientes: number;
     estadoAgenda: "vacio" | "pendiente" | "completado";
     proximaHora: string;
+    proximaHora12: string;
     proximaNombre: string;
+}
+
+const ZONA_MERIDA = "America/Merida";
+
+const FORMATO_HORA_MINUTO = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: ZONA_MERIDA,
+});
+
+function horasMerida(iso: string): { hora24: string; hora12: string } {
+    const fecha = new Date(iso);
+    if (Number.isNaN(fecha.getTime())) return { hora24: "--:--", hora12: "--:--" };
+
+    const partes = FORMATO_HORA_MINUTO.formatToParts(fecha);
+    const h = Number(partes.find((p) => p.type === "hour")?.value ?? 0) % 24;
+    const m = partes.find((p) => p.type === "minute")?.value ?? "00";
+
+    return {
+        hora24: `${String(h).padStart(2, "0")}:${m}`,
+        hora12: `${h % 12 || 12}:${m}\u00A0${h < 12 ? "a. m." : "p. m."}`,
+    };
 }
 
 function getRangoHoy(): { inicioDia: string; finDia: string } {
@@ -65,51 +91,73 @@ export async function getCitasHoy(): Promise<ResumenAgenda> {
 
     if (error) console.error("getCitasHoy:", error);
 
-    const citasHoy          = (data ?? []) as CitaResumen[];
+    const citasHoy: CitaResumen[] = ((data ?? []) as Omit<CitaResumen, "hora24">[]).map((c) => ({
+        ...c,
+        hora24: horasMerida(c.fecha_hora).hora24,
+    }));
     const totalCitasHoy     = citasHoy.length;
     const citasPendientes   = citasHoy.filter(c => c.estado === "pendiente");
     const cantidadPendientes = citasPendientes.length;
 
     let estadoAgenda: ResumenAgenda["estadoAgenda"] = "vacio";
     let proximaHora   = "--:--";
+    let proximaHora12 = "--:--";
     let proximaNombre = "";
 
     if (cantidadPendientes > 0) {
         estadoAgenda  = "pendiente";
         const siguiente = citasPendientes[0];
         proximaNombre = siguiente.nombre || "Paciente";
-        proximaHora   = new Date(siguiente.fecha_hora).toLocaleTimeString("es-MX", {
-            hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Merida",
-        });
+        proximaHora   = siguiente.hora24;
+        proximaHora12 = horasMerida(siguiente.fecha_hora).hora12;
     } else if (totalCitasHoy > 0) {
         estadoAgenda  = "completado";
         proximaNombre = "Todas las citas finalizadas";
     }
 
-    return { citasHoy, totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaNombre };
+    return { citasHoy, totalCitasHoy, cantidadPendientes, estadoAgenda, proximaHora, proximaHora12, proximaNombre };
 }
 
-export async function getNotificaciones(): Promise<Notificacion[]> {
-    const { data, error } = await supabase
-        .from("respuestas_cuestionarios")
-        .select(`
-            id,
-            cuestionario,
-            updated_at,
-            pacientes ( id, nombre, tipo_paciente )
-        `)
-        .eq("visto", false)
-        .order("updated_at", { ascending: false })
-        .limit(10);
+const SELECT_NOTIFICACIONES = `
+    id,
+    cuestionario,
+    updated_at,
+    pacientes ( id, nombre, tipo_paciente )
+`;
 
-    if (error) console.error("getNotificaciones:", error);
-    const normalizado = (data ?? []).map(row => ({
+function normalizarNotificaciones(data: any[] | null): Notificacion[] {
+    const normalizado = (data ?? []).map((row) => ({
         ...row,
         pacientes: Array.isArray(row.pacientes)
             ? (row.pacientes[0] ?? null)
             : row.pacientes,
     }));
     return normalizado as unknown as Notificacion[];
+}
+
+export async function getNotificaciones(): Promise<Notificacion[]> {
+    const { data, error } = await supabase
+        .from("respuestas_cuestionarios")
+        .select(SELECT_NOTIFICACIONES)
+        .eq("visto", false)
+        .order("updated_at", { ascending: false })
+        .limit(10);
+
+    if (error) console.error("getNotificaciones:", error);
+    return normalizarNotificaciones(data);
+}
+
+export async function getResumenNotificaciones(): Promise<{ items: Notificacion[]; total: number }> {
+    const { data, error, count } = await supabase
+        .from("respuestas_cuestionarios")
+        .select(SELECT_NOTIFICACIONES, { count: "exact" })
+        .eq("visto", false)
+        .order("updated_at", { ascending: false })
+        .limit(10);
+
+    if (error) console.error("getResumenNotificaciones:", error);
+    const items = normalizarNotificaciones(data);
+    return { items, total: count ?? items.length };
 }
 
 export async function getUsuariosRecientes(astroContext: Parameters<typeof clerkClient>[0]) {

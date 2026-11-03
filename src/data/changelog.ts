@@ -1,8 +1,8 @@
-export const currentVersion = "4.2.0";
+export const currentVersion = "4.3.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "27 de octubre del 2026";
+export const updateDate = "3 de noviembre del 2026";
 
 type Changes = {
     title: string;
@@ -12,28 +12,38 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Lista de espera",
-        description: "Se agregó una página para gestionar la lista de espera de pacientes que aún no se han agendado.",
+        title: "Sección de farmacos",
+        description: "Se agregó una sección para registrar y editar los medicamentos de los pacientes de sueño.",
         type: "feature"
     },
     {
-        title: "Solicitud de cita",
-        description: "Se agregó una funcionalidad para que los pacientes puedan solicitar una cita de entrevista mediante un link o QR.",
-        type: "feature"
-    },
-    {
-        title: "Guía de entrevista",
-        description: "Se agregó una guía que muestra sugerencias de preguntas para diferentes tipos de entrevista. Pendiente de llenar.",
-        type: "feature"
-    },
-    {
-        title: "Texto expandible",
-        description: "Ahora es posible expandir el texto escrito en las secciones de motivo y antecendentes del expediente de pacientes.",
-        type: "feature"
-    },
-    {
-        title: "Optimizaciones de rendimiento",
-        description: "Se realizaron optimizaciones para mejorar el rendimiento del expediente de paciente.",
+        title: "Expediente de ánimo",
+        description: "Se realizaron optimizaciones en la sección del expediente de ánimo para mejorar la carga de la página.",
         type: "fix"
     },
+    {
+        title: "Calendario de citas",
+        description: "Se realizaron optimizaciones en la carga de las citas y en el diseño del calendario para mejorar el rendimiento general de la página.",
+        type: "fix"
+    },
+    {
+        title: "Dashboard",
+        description: "Se realizaron más optimizaciones en la página del dashboard para mejorar el rendimiento, carga y consumo general de la aplicación.",
+        type: "fix"
+    },
+    {
+        title: "Seguridad",
+        description: "Se realizaron mejoras generales en la seguridad del sistema, para cuentas sin rol y errores de redirección.",
+        type: "fix"
+    },
+    {
+        title: "Calendario de citas",
+        description: "Se agregaron unas animaciones faltantes al calendario.",
+        type: "style"
+    },
+    {
+        title: "Guión de entrevista",
+        description: "Se cambió el diseño del panel de guía de entrevista para que sea más accesible y fácil de leer.",
+        type: "style"
+    }
 ];

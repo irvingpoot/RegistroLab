@@ -59,25 +59,26 @@ const getMeridaDate = () => {
     return new Date(year, month, day);
 };
 
-const getMeridaDayOfMonth = (fechaISO: string): number => {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Merida",
-        day: "numeric",
-    });
-    return parseInt(formatter.format(new Date(fechaISO)));
-};
+const MERIDA_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Merida",
+    day: "numeric",
+});
+const getMeridaDayOfMonth = (fechaISO: string): number =>
+    parseInt(MERIDA_DAY_FORMATTER.format(new Date(fechaISO)), 10);
 
 const today        = getMeridaDate();
-const currentYear  = parseInt(Astro.url.searchParams.get("year")  || today.getFullYear().toString());
-const currentMonth = parseInt(Astro.url.searchParams.get("month") || today.getMonth().toString());
+const paramYear    = parseInt(Astro.url.searchParams.get("year")  ?? "", 10);
+const paramMonth   = parseInt(Astro.url.searchParams.get("month") ?? "", 10);
+const currentYear  = Number.isInteger(paramYear)  && paramYear  >= 2000 && paramYear  <= 2100 ? paramYear  : today.getFullYear();
+const currentMonth = Number.isInteger(paramMonth) && paramMonth >= 0    && paramMonth <= 11   ? paramMonth : today.getMonth();
 
 const monthNames   = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const displayMonth = monthNames[currentMonth];
 
 const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
 const daysInMonth     = new Date(currentYear, currentMonth + 1, 0).getDate();
-const baseYear        = new Date().getFullYear();
-const yearsRange      = Array.from({ length: 3 }, (_, i) => baseYear - 1 + i);
+const baseYear        = today.getFullYear();
+const yearsRange      = [...new Set([baseYear - 1, baseYear, baseYear + 1, currentYear])].sort((a, b) => a - b);
 
 const prevDate = new Date(currentYear, currentMonth - 1, 1);
 const nextDate = new Date(currentYear, currentMonth + 1, 1);
@@ -150,6 +151,15 @@ citasRaw.forEach(cita => {
     if (!citasPorDia.has(dia)) citasPorDia.set(dia, []);
     citasPorDia.get(dia)!.push(cita);
 });
+
+const pageDataJson = JSON.stringify({
+    mesNombre: displayMonth,
+    anio: currentYear,
+    mesNumero: currentMonth,
+    diasInhabiles: Array.from(diasInhabilesSet),
+    eventos: Array.from(eventosDelMes.entries()),
+    colores: COLORES_EVENTO,
+}).replace(/</g, "\\u003c");
 ---
 
 <Layout title={`Agenda - ${displayMonth} ${currentYear} | Lab-Somno`}>
@@ -210,7 +220,7 @@ citasRaw.forEach(cita => {
                     </details>
                 </div>
 
-                <div class="flex items-center bg-gray-800/50 border border-gray-700 rounded-full p-1 backdrop-blur-md flex-shrink-0">
+                <div class="flex items-center bg-gray-800/50 border border-gray-700 rounded-full p-1 flex-shrink-0">
                     <a href={prevLink} class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors">
                         <LeftTriangle class="w-5 h-5" />
                     </a>
@@ -267,7 +277,7 @@ citasRaw.forEach(cita => {
                 ))}
             </div>
 
-            <div class="grid grid-cols-7 gap-2 md:gap-4 auto-rows-[140px]">
+            <div id="calendar-grid" class="grid grid-cols-7 gap-2 md:gap-4 auto-rows-[140px]">
                 
                 {Array.from({ length: firstDayOfMonth }).map(() => (
                     <div class="pointer-events-none"></div>
@@ -287,17 +297,19 @@ citasRaw.forEach(cita => {
                     
                     return (
                         <div 
-                            class={`group relative p-3 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden
+                            class={`group relative p-3 rounded-2xl border transition-[background-color,border-color,box-shadow,transform] duration-200 cursor-pointer flex flex-col justify-between overflow-hidden
                                 ${isInhabil 
                                     ? 'bg-red-900/10 border-red-500/20 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)] hover:border-red-500/40' 
                                     : evento
-                                        ? `${eventoColor!.bg} ${eventoColor!.border} hover:${eventoColor!.bgFuerte}`
+                                        ? `${eventoColor!.bg} ${eventoColor!.border} ${eventoColor!.hoverBgFuerte}`
                                         : isToday 
                                             ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.2)]' 
                                             : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] hover:shadow-xl'
                                 }
                             `}
-                            onclick={`window.openDayModal(${dayNum})`}
+                            data-day={dayNum}
+                            role="button"
+                            tabindex="0"
                         >
                             <div class="flex justify-between items-start z-10">
                                 <span class={`text-lg font-bold leading-none ${isInhabil ? 'text-red-400' : evento ? eventoColor!.text : isToday ? 'text-blue-400' : 'text-gray-400 group-hover:text-white'}`}>
@@ -324,7 +336,7 @@ citasRaw.forEach(cita => {
 
                             <div class="space-y-1 mt-2 z-10">
                                 {citasDia.slice(0, 2).map((cita) => (
-                                    <div class={`flex items-center gap-1.5 text-[10px] rounded px-1.5 py-1 backdrop-blur-sm border truncate 
+                                    <div class={`flex items-center gap-1.5 text-[10px] rounded px-1.5 py-1 border truncate 
                                         ${isInhabil ? 'bg-red-900/40 border-red-500/10 text-red-300/70' : 'bg-gray-900/40 border-white/5 text-gray-300'}`}>
                                         <div class={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                                             cita.estado === 'completada' ? 'bg-emerald-400' : 
@@ -345,17 +357,19 @@ citasRaw.forEach(cita => {
         </div>
     </main>
 
-    <div id="citas-store" class="hidden" style="content-visibility: auto;">
+    <div id="citas-store" hidden>
         {Array.from(citasPorDia.entries()).map(([dia, citas]) => (
-            <div data-day={dia} class="space-y-4">
-                {citas.map((cita) => (
-                    <CitaCard cita={cita} />
-                ))}
-            </div>
+            <template data-day={dia}>
+                <div class="space-y-4">
+                    {citas.map((cita) => (
+                        <CitaCard cita={cita} />
+                    ))}
+                </div>
+            </template>
         ))}
     </div>
 
-    <dialog id="modal-periodo" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-md text-left p-0 overflow-hidden outline-none">
+    <dialog id="modal-periodo" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl w-full max-w-md text-left p-0 overflow-hidden outline-none">
         <div class="relative bg-gray-800/30 p-6 border-b border-gray-700/50 flex justify-between items-center">
             <h3 class="text-xl font-extrabold text-white">Gestionar días inhabiles</h3>
             <button onclick="document.getElementById('modal-periodo').close()" type="button" class="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">✕</button>
@@ -403,7 +417,7 @@ citasRaw.forEach(cita => {
         </form>
     </dialog>
 
-    <dialog id="modal-dia" class="m-auto bg-transparent border-0 p-0 outline-none w-full max-w-lg text-left backdrop:backdrop-blur-xl overflow-visible">
+    <dialog id="modal-dia" class="m-auto bg-transparent border-0 p-0 outline-none w-full max-w-lg text-left overflow-visible">
         <div id="cartel-evento" class="hidden relative z-0 mx-4 mb-[-1.75rem] rounded-2xl border px-4 pt-3 pb-8 shadow-lg items-start justify-between gap-3">
             <div class="flex items-start gap-3 min-w-0">
                 <span id="cartel-evento-dot" class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0"></span>
@@ -415,7 +429,7 @@ citasRaw.forEach(cita => {
                     <p id="cartel-evento-desc" class="text-xs text-gray-300/80 mt-0.5"></p>
                 </div>
             </div>
-            <button type="button" onclick="window.eliminarEventoModal()" class="text-gray-400 hover:text-white hover:bg-white/10 px-2 py-1 rounded-full transition-colors flex-shrink-0 cursor-pointer" title="Quitar evento">✕</button>
+            <button type="button" data-eliminar-evento class="text-gray-400 hover:text-white hover:bg-white/10 px-2 py-1 rounded-full transition-colors flex-shrink-0 cursor-pointer" title="Quitar evento">✕</button>
         </div>
 
         <div id="modal-dia-inner" class="relative z-10 rounded-3xl shadow-2xl overflow-hidden max-h-[88vh] flex flex-col transition-colors duration-300 border bg-gray-900 border-gray-700">
@@ -492,7 +506,7 @@ citasRaw.forEach(cita => {
                 </label>
 
                 <div class="flex justify-between items-center gap-3">
-                    <button type="button" id="btn-eliminar-evento-form" onclick="window.eliminarEventoModal()" class="hidden text-xs font-bold text-red-400/80 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer">
+                    <button type="button" id="btn-eliminar-evento-form" data-eliminar-evento class="hidden text-xs font-bold text-red-400/80 hover:text-red-400 uppercase tracking-widest transition-colors cursor-pointer">
                         Eliminar evento
                     </button>
                     <button type="submit" class="ml-auto px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 transition-all hover:scale-105">
@@ -528,8 +542,13 @@ citasRaw.forEach(cita => {
     #modal-lista-citas::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
     
     dialog::backdrop {
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(8px);
+        background: rgba(0, 0, 0, 0.8);
+    }
+    @media (min-width: 768px) and (hover: hover) {
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+        }
     }
     dialog[open] {
         animation: modalFadeIn 0.2s ease-out;
@@ -538,189 +557,243 @@ citasRaw.forEach(cita => {
         from { opacity: 0; transform: scale(0.95); }
         to { opacity: 1; transform: scale(1); }
     }
+    @media (prefers-reduced-motion: reduce) {
+        dialog[open] { animation: none; }
+    }
 </style>
 
-<script define:vars={{
-    displayMonth,
-    currentYear,
-    currentMonth,
-    diasInhabilesArray: Array.from(diasInhabilesSet),
-    eventosArray: Array.from(eventosDelMes.entries()),
-    coloresEvento: COLORES_EVENTO,
-}}>
-    window.mesNombre = displayMonth;
-    window.anio = currentYear;
-    window.mesNumero = currentMonth;
-    window.diasInhabiles = new Set(diasInhabilesArray);
-    window.eventosPorFecha = new Map(eventosArray);
-    window.coloresEvento = coloresEvento;
+<script type="application/json" id="citas-page-data" is:inline set:html={pageDataJson} />
 
-    window.openDayModal = (day) => {
-        const modal = document.getElementById('modal-dia');
-        const listaContainer = document.getElementById('modal-lista-citas');
-        const btnAgendar = document.getElementById('btn-agendar-modal');
-        
-        document.getElementById('modal-dia-num').textContent = day;
-        document.getElementById('modal-mes-anio').textContent = `${window.mesNombre} ${window.anio}`;
-        
-        const m = String(window.mesNumero + 1).padStart(2, '0');
-        const d = String(day).padStart(2, '0');
-        const fechaISO = `${window.anio}-${m}-${d}`;
-        const isInhabil = window.diasInhabiles.has(fechaISO);
+<script>
+    interface Paleta {
+        bg: string; border: string; borderSuave: string; borderFuerte: string;
+        bgFuerte: string; bgBase: string; bgHeader: string; bgFooter: string;
+        text: string; dot: string;
+    }
+    interface Evento {
+        titulo: string;
+        descripcion?: string | null;
+        hora_inicio?: string | null;
+        color: string;
+        restringe_dia?: boolean | null;
+    }
+    interface PageData {
+        mesNombre: string;
+        anio: number;
+        mesNumero: number;
+        diasInhabiles: string[];
+        eventos: [string, Evento][];
+        colores: Record<string, Paleta>;
+    }
 
-        if (btnAgendar) {
+    const CLASES_BASE = {
+        modal:  'relative z-10 rounded-3xl shadow-2xl overflow-hidden max-h-[88vh] flex flex-col transition-colors duration-300 border',
+        header: 'relative z-10 flex-shrink-0 p-6 transition-colors duration-300 border-b',
+        footer: 'relative z-10 flex-shrink-0 p-4 flex justify-center gap-x-3 transition-colors duration-300 border-t',
+        form:   'transition-colors duration-300 border-t',
+    };
+
+    const ICONO_HABILITAR = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+        Habilitar Día
+    `;
+    const ICONO_BLOQUEAR = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+        Marcar como Inhábil
+    `;
+
+    function init() {
+        const grid  = document.getElementById('calendar-grid');
+        const modal = document.getElementById('modal-dia') as HTMLDialogElement | null;
+        if (!grid || !modal || grid.dataset.ready === '1') return;
+        grid.dataset.ready = '1';
+
+        const data: PageData = JSON.parse(document.getElementById('citas-page-data')?.textContent || '{}');
+        const diasInhabiles   = new Set(data.diasInhabiles);
+        const eventosPorFecha = new Map(data.eventos);
+        const colores         = data.colores;
+
+        const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+        const el = {
+            numDia:        $('modal-dia-num'),
+            mesAnio:       $('modal-mes-anio'),
+            lista:         $('modal-lista-citas'),
+            btnAgendar:    $<HTMLAnchorElement>('btn-agendar-modal'),
+            fechaInhabil:  $<HTMLInputElement>('modal-fecha-inhabil'),
+            esInhabil:     $<HTMLInputElement>('modal-es-inhabil'),
+            cartel:        $('cartel-evento'),
+            cartelDot:     $('cartel-evento-dot'),
+            cartelTitulo:  $('cartel-evento-titulo'),
+            cartelHora:    $('cartel-evento-hora'),
+            cartelDesc:    $('cartel-evento-desc'),
+            centrado:      $('modal-evento-centrado'),
+            centradoIcon:  $('modal-evento-centrado-icon'),
+            centradoTit:   $('modal-evento-centrado-titulo'),
+            centradoHora:  $('modal-evento-centrado-hora'),
+            centradoDesc:  $('modal-evento-centrado-desc'),
+            formWrap:      $<HTMLDetailsElement>('modal-form-evento-wrap'),
+            formToggleTxt: $('btn-toggle-form-evento-texto'),
+            formFecha:     $<HTMLInputElement>('form-evento-fecha'),
+            formTitulo:    $<HTMLInputElement>('form-evento-titulo'),
+            formHora:      $<HTMLInputElement>('form-evento-hora'),
+            formDesc:      $<HTMLTextAreaElement>('form-evento-descripcion'),
+            formRestringe: $<HTMLInputElement>('form-evento-restringe'),
+            btnEliminar:   $('btn-eliminar-evento-form'),
+            elimFecha:     $<HTMLInputElement>('form-eliminar-evento-fecha'),
+            elimForm:      $<HTMLFormElement>('form-eliminar-evento'),
+            inner:         $('modal-dia-inner'),
+            header:        $('modal-dia-header'),
+            footer:        $('modal-dia-footer'),
+            badgeInhabil:  $('badge-inhabil'),
+            btnToggle:     $('btn-toggle-inhabil'),
+        };
+
+        const openDayModal = (day: number) => {
+            const m = String(data.mesNumero + 1).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            const fechaISO  = `${data.anio}-${m}-${d}`;
+            const isInhabil = diasInhabiles.has(fechaISO);
+            const evento    = eventosPorFecha.get(fechaISO);
+
+            el.numDia.textContent  = String(day);
+            el.mesAnio.textContent = `${data.mesNombre} ${data.anio}`;
+
             if (isInhabil) {
-                btnAgendar.classList.add('hidden');
-                btnAgendar.classList.remove('flex');
+                el.btnAgendar.classList.add('hidden');
+                el.btnAgendar.classList.remove('flex');
             } else {
-                btnAgendar.classList.remove('hidden');
-                btnAgendar.classList.add('flex');
-                btnAgendar.href = `/nueva-cita?fecha=${fechaISO}`;
+                el.btnAgendar.classList.remove('hidden');
+                el.btnAgendar.classList.add('flex');
+                el.btnAgendar.href = `/nueva-cita?fecha=${fechaISO}`;
             }
-        }
-        
-        document.getElementById('modal-fecha-inhabil').value = fechaISO;
-        document.getElementById('modal-es-inhabil').value = isInhabil;
 
-        const evento = window.eventosPorFecha.get(fechaISO);
-        const cartel = document.getElementById('cartel-evento');
-        const centrado = document.getElementById('modal-evento-centrado');
-        const listaCitas = document.getElementById('modal-lista-citas');
-        const formEventoWrap = document.getElementById('modal-form-evento-wrap');
-        const btnToggleFormTexto = document.getElementById('btn-toggle-form-evento-texto');
-        const modalInner = document.getElementById('modal-dia-inner');
-        const modalHeader = document.getElementById('modal-dia-header');
-        const modalFooter = document.getElementById('modal-dia-footer');
+            el.fechaInhabil.value = fechaISO;
+            el.esInhabil.value    = String(isInhabil);
+            el.formFecha.value    = fechaISO;
+            el.elimFecha.value    = fechaISO;
 
-        document.getElementById('form-evento-fecha').value = fechaISO;
-        document.getElementById('form-eliminar-evento-fecha').value = fechaISO;
+            if (evento) {
+                const paleta    = colores[evento.color] || colores.azul;
+                const horaTexto = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
 
-        const clasesBaseModal  = 'relative z-10 rounded-3xl shadow-2xl overflow-hidden max-h-[88vh] flex flex-col transition-colors duration-300 border';
-        const clasesBaseHeader = 'relative z-10 flex-shrink-0 p-6 transition-colors duration-300 border-b';
-        const clasesBaseFooter = 'relative z-10 flex-shrink-0 p-4 flex justify-center gap-x-3 transition-colors duration-300 border-t';
-        const clasesBaseForm   = 'transition-colors duration-300 border-t';
+                el.inner.className    = `${CLASES_BASE.modal} ${paleta.bgBase} ${paleta.borderFuerte}`;
+                el.header.className   = `${CLASES_BASE.header} ${paleta.bgHeader} ${paleta.borderSuave}`;
+                el.footer.className   = `${CLASES_BASE.footer} ${paleta.bgFooter} ${paleta.borderSuave}`;
+                el.formWrap.className = `${CLASES_BASE.form} ${paleta.borderSuave}`;
 
-        if (evento) {
-            const paleta = window.coloresEvento[evento.color] || window.coloresEvento.azul;
-            const horaTexto = evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : '';
+                el.cartel.className = `relative z-0 mx-4 mb-[-1.75rem] rounded-2xl border px-4 pt-3 pb-8 shadow-lg flex items-start justify-between gap-3 ${paleta.bgFuerte} ${paleta.border}`;
+                el.cartelDot.className = `w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${paleta.dot}`;
+                el.cartelTitulo.textContent = evento.titulo;
+                el.cartelHora.textContent   = horaTexto;
+                el.cartelHora.className     = `text-[10px] font-bold uppercase tracking-widest opacity-90 ${paleta.text}`;
+                el.cartelDesc.textContent   = evento.descripcion || '';
 
-            modalInner.className  = `${clasesBaseModal} ${paleta.bgBase} ${paleta.borderFuerte}`;
-            modalHeader.className = `${clasesBaseHeader} ${paleta.bgHeader} ${paleta.borderSuave}`;
-            modalFooter.className = `${clasesBaseFooter} ${paleta.bgFooter} ${paleta.borderSuave}`;
-            formEventoWrap.className = `${clasesBaseForm} ${paleta.borderSuave}`;
+                el.formTitulo.value    = evento.titulo;
+                el.formHora.value      = horaTexto;
+                el.formDesc.value      = evento.descripcion || '';
+                el.formRestringe.checked = !!evento.restringe_dia;
+                const radioColor = document.querySelector<HTMLInputElement>(`input[name="color"][value="${evento.color}"]`);
+                if (radioColor) radioColor.checked = true;
+                el.formToggleTxt.textContent = 'Editar evento de este día';
+                el.btnEliminar.classList.remove('hidden');
 
-            cartel.className = `relative z-0 mx-4 mb-[-1.75rem] rounded-2xl border px-4 pt-3 pb-8 shadow-lg flex items-start justify-between gap-3 ${paleta.bgFuerte} ${paleta.border}`;
-            document.getElementById('cartel-evento-dot').className = `w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${paleta.dot}`;
-            document.getElementById('cartel-evento-titulo').textContent = evento.titulo;
-            document.getElementById('cartel-evento-hora').textContent = horaTexto;
-            document.getElementById('cartel-evento-hora').className = `text-[10px] font-bold uppercase tracking-widest opacity-90 ${paleta.text}`;
-            document.getElementById('cartel-evento-desc').textContent = evento.descripcion || '';
+                if (evento.restringe_dia) {
+                    el.cartel.classList.add('hidden');
 
-            document.getElementById('form-evento-titulo').value = evento.titulo;
-            document.getElementById('form-evento-hora').value = horaTexto;
-            document.getElementById('form-evento-descripcion').value = evento.descripcion || '';
-            document.getElementById('form-evento-restringe').checked = !!evento.restringe_dia;
-            const radioColor = document.querySelector(`input[name="color"][value="${evento.color}"]`);
-            if (radioColor) radioColor.checked = true;
-            btnToggleFormTexto.textContent = 'Editar evento de este día';
-            document.getElementById('btn-eliminar-evento-form').classList.remove('hidden');
+                    el.centradoIcon.className = `w-16 h-16 rounded-2xl flex items-center justify-center border ${paleta.bgFuerte} ${paleta.border} ${paleta.text}`;
+                    el.centradoTit.textContent  = evento.titulo;
+                    el.centradoHora.textContent = horaTexto;
+                    el.centradoHora.className   = `inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${paleta.bg} ${paleta.border} ${paleta.text}`;
 
-            if (evento.restringe_dia) {
-                cartel.classList.add('hidden');
+                    if (evento.descripcion) {
+                        el.centradoDesc.textContent = evento.descripcion;
+                        el.centradoDesc.classList.remove('hidden');
+                    } else {
+                        el.centradoDesc.textContent = '';
+                        el.centradoDesc.classList.add('hidden');
+                    }
 
-                document.getElementById('modal-evento-centrado-icon').className = `w-16 h-16 rounded-2xl flex items-center justify-center border ${paleta.bgFuerte} ${paleta.border} ${paleta.text}`;
-                document.getElementById('modal-evento-centrado-titulo').textContent = evento.titulo;
-                document.getElementById('modal-evento-centrado-hora').textContent = horaTexto;
-                document.getElementById('modal-evento-centrado-hora').className = `inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${paleta.bg} ${paleta.border} ${paleta.text}`;
-
-                const descCentrado = document.getElementById('modal-evento-centrado-desc');
-                if (evento.descripcion) {
-                    descCentrado.textContent = evento.descripcion;
-                    descCentrado.classList.remove('hidden');
+                    el.centrado.classList.remove('hidden');
+                    el.lista.classList.add('hidden');
                 } else {
-                    descCentrado.textContent = '';
-                    descCentrado.classList.add('hidden');
+                    el.cartel.classList.remove('hidden');
+                    el.centrado.classList.add('hidden');
+                    el.lista.classList.remove('hidden');
                 }
-
-                centrado.classList.remove('hidden');
-                listaCitas.classList.add('hidden');
             } else {
-                cartel.classList.remove('hidden');
-                centrado.classList.add('hidden');
-                listaCitas.classList.remove('hidden');
+                el.cartel.classList.add('hidden');
+                el.centrado.classList.add('hidden');
+                el.lista.classList.remove('hidden');
+                el.inner.className    = `${CLASES_BASE.modal} bg-gray-900 border-gray-700`;
+                el.header.className   = `${CLASES_BASE.header} bg-gray-800/30 border-gray-700/50`;
+                el.footer.className   = `${CLASES_BASE.footer} bg-gray-950/30 border-gray-800/50`;
+                el.formWrap.className = `${CLASES_BASE.form} border-gray-800/50`;
+
+                el.formTitulo.value = '';
+                el.formHora.value   = '';
+                el.formDesc.value   = '';
+                el.formRestringe.checked = false;
+                const primerColor = document.querySelector<HTMLInputElement>('input[name="color"]');
+                if (primerColor) primerColor.checked = true;
+                el.formToggleTxt.textContent = 'Agregar evento a este día';
+                el.btnEliminar.classList.add('hidden');
             }
-        } else {
-            cartel.classList.add('hidden');
-            centrado.classList.add('hidden');
-            listaCitas.classList.remove('hidden');
-            modalInner.className = `${clasesBaseModal} bg-gray-900 border-gray-700`;
-            modalHeader.className = `${clasesBaseHeader} bg-gray-800/30 border-gray-700/50`;
-            modalFooter.className = `${clasesBaseFooter} bg-gray-950/30 border-gray-800/50`;
-            formEventoWrap.className = `${clasesBaseForm} border-gray-800/50`;
 
-            document.getElementById('form-evento-titulo').value = '';
-            document.getElementById('form-evento-hora').value = '';
-            document.getElementById('form-evento-descripcion').value = '';
-            document.getElementById('form-evento-restringe').checked = false;
-            const primerColor = document.querySelector('input[name="color"]');
-            if (primerColor) primerColor.checked = true;
-            btnToggleFormTexto.textContent = 'Agregar evento a este día';
-            document.getElementById('btn-eliminar-evento-form').classList.add('hidden');
-        }
+            el.formWrap.open = false;
 
-        formEventoWrap.open = false;
+            if (isInhabil) {
+                el.badgeInhabil.classList.remove('hidden');
+                el.btnToggle.innerHTML = ICONO_HABILITAR;
+                el.btnToggle.className = 'text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors uppercase tracking-widest py-2 flex items-center gap-1.5';
+            } else {
+                el.badgeInhabil.classList.add('hidden');
+                el.btnToggle.innerHTML = ICONO_BLOQUEAR;
+                el.btnToggle.className = 'text-xs font-bold text-gray-400 hover:text-red-400 transition-colors uppercase tracking-widest py-2 flex items-center gap-1.5 cursor-pointer';
+            }
 
-        const badgeInhabil = document.getElementById('badge-inhabil');
-        const btnToggle = document.getElementById('btn-toggle-inhabil');
-        
-        if (isInhabil) {
-            badgeInhabil.classList.remove('hidden');
-            btnToggle.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                Habilitar Día
-            `;
-            btnToggle.className = 'text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors uppercase tracking-widest py-2 flex items-center gap-1.5';
-        } else {
-            badgeInhabil.classList.add('hidden');
-            btnToggle.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                Marcar como Inhábil
-            `;
-            btnToggle.className = 'text-xs font-bold text-gray-400 hover:text-red-400 transition-colors uppercase tracking-widest py-2 flex items-center gap-1.5 cursor-pointer';
-        }
+            const tpl = document.querySelector<HTMLTemplateElement>(`#citas-store template[data-day="${day}"]`);
+            if (tpl) {
+                el.lista.replaceChildren(document.importNode(tpl.content, true));
+            } else {
+                el.lista.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12 text-gray-500 border-2 border-dashed border-gray-800 rounded-2xl">
+                        <p class="font-medium">${isInhabil ? 'Día bloqueado' : 'Sin citas programadas'}</p>
+                        <p class="text-xs mt-1 opacity-60">${isInhabil ? 'No se deberían agendar citas' : 'Tiempo libre disponible'}</p>
+                    </div>
+                `;
+            }
 
-        const tarjetasGuardadas = document.querySelector(`#citas-store div[data-day="${day}"]`);
-        
-        if (tarjetasGuardadas && tarjetasGuardadas.children.length > 0) {
-            listaContainer.innerHTML = tarjetasGuardadas.outerHTML;
-            listaContainer.firstElementChild.classList.remove('hidden');
-            listaContainer.firstElementChild.classList.add('block');
-        } else {
-            listaContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-12 text-gray-500 border-2 border-dashed border-gray-800 rounded-2xl">
-                    <p class="font-medium">${isInhabil ? 'Día bloqueado' : 'Sin citas programadas'}</p>
-                    <p class="text-xs mt-1 opacity-60">${isInhabil ? 'No se deberían agendar citas' : 'Tiempo libre disponible'}</p>
-                </div>
-            `;
-        }
+            modal.showModal();
+        };
 
-        modal.showModal();
+        grid.addEventListener('click', (e) => {
+            const cell = (e.target as Element).closest<HTMLElement>('[data-day]');
+            if (cell) openDayModal(Number(cell.dataset.day));
+        });
+        grid.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const cell = (e.target as Element).closest<HTMLElement>('[data-day]');
+            if (!cell || cell !== e.target) return;
+            e.preventDefault();
+            openDayModal(Number(cell.dataset.day));
+        });
+
+        modal.addEventListener('close', () => el.lista.replaceChildren());
+
+        modal.addEventListener('click', (e) => {
+            if (!(e.target as Element).closest('[data-eliminar-evento]')) return;
+            if (confirm('¿Quitar el evento marcado para este día?')) el.elimForm.requestSubmit();
+        });
+
+        el.formWrap.addEventListener('toggle', () => {
+            if (!el.formWrap.open) return;
+            setTimeout(() => {
+                el.formWrap.querySelector('form')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 50);
+        });
     }
 
-    window.eliminarEventoModal = () => {
-        if (confirm('¿Quitar el evento marcado para este día?')) {
-            document.getElementById('form-eliminar-evento').requestSubmit();
-        }
-    }
-
-    const formEventoWrap = document.getElementById('modal-form-evento-wrap');
-    formEventoWrap.addEventListener('toggle', () => {
-        if (!formEventoWrap.open) return;
-        setTimeout(() => {
-            formEventoWrap.querySelector('form').scrollIntoView({
-                behavior: 'smooth',
-                block: 'end',
-            });
-        }, 50);
-    });
+    init();
+    document.addEventListener('astro:page-load', init);
 </script>

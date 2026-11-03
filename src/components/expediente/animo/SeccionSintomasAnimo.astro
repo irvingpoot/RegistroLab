@@ -1,0 +1,39 @@
+---
+/**
+ * @component SeccionSintomasAnimo
+ * @description Síntomas latentes del paciente de ánimo y tarjeta de riesgo suicida.
+ */
+import InfoCard from "../../InfoCard.astro";
+import RiesgoSuicidaCard from "./RiesgoSuicidaCard.astro";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="sintomas" class="expediente-seccion">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <InfoCard title="Síntomas Latentes">
+            {paciente.pacientes_sintomas && paciente.pacientes_sintomas.length > 0 ? (
+                <div class="flex flex-col gap-3">
+                    {paciente.pacientes_sintomas.map((s: any, index: number) => (
+                        <div class="bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg relative">
+                            <div class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#{index + 1}</div>
+                            <h4 class="text-base font-bold text-blue-200 capitalize mb-1">{s.sintoma}</h4>
+                            <div class="text-xs text-gray-400 flex gap-4">
+                                {s.gravedad && <span>Intensidad: {s.gravedad}</span>}
+                                {s.frecuencia && <span>Frec: {s.frecuencia}</span>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div class="text-gray-500 italic py-4 text-center">No hay síntomas desglosados.</div>
+            )}
+        </InfoCard>
+
+        <RiesgoSuicidaCard paciente={paciente} />
+    </div>
+</section>

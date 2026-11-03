@@ -34,6 +34,24 @@ const clasesTab = esIzquierda
 const clasesPanel = esIzquierda
     ? "left-0 border-r rounded-r-2xl"
     : "right-0 border-l rounded-l-2xl";
+
+const categoriasNormalizadas = categorias.map((categoria, i) => {
+    const grupos: { titulo?: string; descripcion?: string; preguntas: string[] }[] = [];
+
+    if (categoria.preguntas && categoria.preguntas.length > 0) {
+        grupos.push({ preguntas: categoria.preguntas });
+    }
+    for (const sub of categoria.subcategorias ?? []) {
+        grupos.push({
+            titulo: sub.titulo,
+            descripcion: sub.descripcion,
+            preguntas: sub.preguntas ?? [],
+        });
+    }
+
+    const total = grupos.reduce((acc, g) => acc + g.preguntas.length, 0);
+    return { ...categoria, indice: i, grupos, total };
+});
 ---
 
 <div data-guia-root data-lado={lado} class="print:hidden">
@@ -55,82 +73,123 @@ const clasesPanel = esIzquierda
         data-guia-panel
         data-open="false"
         aria-label={titulo}
-        class={`guia-panel fixed top-0 h-dvh z-40 w-[min(22rem,90vw)] flex flex-col bg-gray-900 border-gray-700 shadow-2xl ${clasesPanel}`}
+        class={`guia-panel fixed top-0 h-dvh z-40 w-[min(30rem,92vw)] flex flex-col bg-gray-900 border-gray-700 shadow-2xl ${clasesPanel}`}
     >
-        <header class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
-            <h2 class="text-xl font-semibold text-gray-200 pb-1 border-b border-white">{titulo}</h2>
-            <button
-                type="button"
-                data-guia-cerrar
-                aria-label="Cerrar guía de entrevista"
-                class="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-            </button>
+        <header class="flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-800">
+            <h2 class="text-xl font-semibold text-gray-100 pb-1 border-b border-white">{titulo}</h2>
+            <div class="flex items-center gap-1">
+                <button
+                    type="button"
+                    data-guia-reiniciar
+                    class="px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    title="Quitar todas las marcas de preguntas realizadas"
+                >
+                    Reiniciar
+                </button>
+                <button
+                    type="button"
+                    data-guia-cerrar
+                    aria-label="Cerrar guía de entrevista"
+                    class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto px-5 pb-8 space-y-3">
-            {categorias.length === 0 && (
-                <p class="text-sm text-gray-500 italic">Aún no hay categorías configuradas.</p>
+        <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            {categoriasNormalizadas.length === 0 && (
+                <p class="text-base text-gray-400 italic">Aún no hay categorías configuradas.</p>
             )}
 
-            {categorias.map((categoria) => {
-                const totalPreguntas = (categoria.preguntas?.length ?? 0) + 
-                    (categoria.subcategorias?.reduce((acc, sub) => acc + (sub.preguntas?.length ?? 0), 0) || 0);
-
-                return (
-                    <details name="guia-entrevista" class="guia-categoria border border-gray-700/50 rounded-xl bg-gray-800/20 overflow-hidden">
-                        <summary class="flex items-center justify-between gap-3 p-4 cursor-pointer select-none text-lg font-medium text-gray-300 hover:text-blue-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
-                            <span>{categoria.titulo}</span>
-                            <span class="flex items-center gap-2 shrink-0">
-                                <span class="text-xs text-blue-300 bg-blue-900/20 border border-blue-500/30 rounded-full px-2 py-0.5">
-                                    {totalPreguntas}
-                                </span>
-                                <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-4 h-4 text-gray-500" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                                </svg>
+            {categoriasNormalizadas.map((categoria) => (
+                <details
+                    name="guia-entrevista"
+                    class="guia-categoria border border-gray-700/60 rounded-xl bg-gray-800/20 overflow-hidden"
+                    data-categoria
+                >
+                    <summary class="flex items-center justify-between gap-3 px-4 py-4 cursor-pointer select-none text-lg font-semibold text-gray-200 hover:text-blue-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                        <span>{categoria.titulo}</span>
+                        <span class="flex items-center gap-2 shrink-0">
+                            <span class="text-sm text-blue-200 bg-blue-900/30 border border-blue-500/40 rounded-full px-2.5 py-0.5 tabular-nums">
+                                {categoria.total}
                             </span>
-                        </summary>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-5 h-5 text-gray-400" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </span>
+                    </summary>
 
-                        <div class="guia-contenido px-4 pb-4 space-y-4">
-                            {categoria.descripcion && (
-                                <p class="text-sm text-blue-300 mb-1">{categoria.descripcion}</p>
-                            )}
-                            
-                            {categoria.preguntas && categoria.preguntas.length > 0 && (
-                                <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-400 text-sm text-gray-300">
-                                    {categoria.preguntas.map((pregunta) => (
-                                        <li class="pl-1 leading-snug">{pregunta}</li>
-                                    ))}
-                                </ol>
-                            )}
+                    <div class="guia-contenido px-3 pb-4 space-y-3">
+                        {categoria.descripcion && (
+                            <p class="px-1 text-sm text-blue-200">{categoria.descripcion}</p>
+                        )}
 
-                            {categoria.subcategorias && categoria.subcategorias.map((subcategoria) => (
-                                <div class="border-l-2 border-gray-700 pl-4 mt-3 space-y-2">
-                                    <h4 class="text-sm font-semibold text-blue-400 flex items-center gap-2">
-                                        <span>{subcategoria.titulo}</span>
-                                        <span class="text-xs font-normal text-gray-500">
-                                            ({subcategoria.preguntas?.length ?? 0})
+                        {categoria.grupos.map((grupo, gi) =>
+                            grupo.titulo ? (
+                                <details
+                                    name={`guia-sub-${categoria.indice}`}
+                                    open={gi === 0}
+                                    class="guia-grupo rounded-lg border border-gray-700/50 bg-gray-900/60 overflow-hidden"
+                                    data-grupo
+                                    data-total={grupo.preguntas.length}
+                                >
+                                    <summary class="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none text-base font-semibold text-blue-300 hover:text-blue-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+                                        <span class="leading-snug">{grupo.titulo}</span>
+                                        <span class="flex items-center gap-2 shrink-0">
+                                            <span class="text-sm font-normal text-gray-300 tabular-nums" data-progreso>
+                                                0/{grupo.preguntas.length}
+                                            </span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="guia-chevron w-4 h-4 text-gray-400" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                            </svg>
                                         </span>
-                                    </h4>
-                                    {subcategoria.descripcion && (
-                                        <p class="text-xs text-gray-400">{subcategoria.descripcion}</p>
-                                    )}
-                                    {subcategoria.preguntas && (
-                                        <ol class="space-y-2 list-decimal list-outside pl-5 marker:text-blue-500/70 text-sm text-gray-300">
-                                            {subcategoria.preguntas.map((pregunta) => (
-                                                <li class="pl-1 leading-snug">{pregunta}</li>
+                                    </summary>
+
+                                    <div class="px-4 pb-3">
+                                        {grupo.descripcion && (
+                                            <p class="my-2 rounded-md bg-blue-900/20 px-3 py-2 text-sm text-blue-100">
+                                                {grupo.descripcion}
+                                            </p>
+                                        )}
+                                        <ol class="divide-y divide-gray-800">
+                                            {grupo.preguntas.map((pregunta, pi) => (
+                                                <li>
+                                                    <label class="guia-pregunta flex items-start gap-3 py-3 cursor-pointer">
+                                                        <input type="checkbox" class="guia-check sr-only" />
+                                                        <span class="guia-num mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-500/50 text-sm font-medium text-blue-300 tabular-nums">
+                                                            {pi + 1}
+                                                        </span>
+                                                        <span class="guia-texto text-base leading-relaxed text-gray-100">{pregunta}</span>
+                                                    </label>
+                                                </li>
                                             ))}
                                         </ol>
-                                    )}
+                                    </div>
+                                </details>
+                            ) : (
+                                <div class="rounded-lg border border-gray-700/50 bg-gray-900/60 px-4 pb-1" data-grupo data-total={grupo.preguntas.length}>
+                                    <ol class="divide-y divide-gray-800">
+                                        {grupo.preguntas.map((pregunta, pi) => (
+                                            <li>
+                                                <label class="guia-pregunta flex items-start gap-3 py-3 cursor-pointer">
+                                                    <input type="checkbox" class="guia-check sr-only" />
+                                                    <span class="guia-num mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-500/50 text-sm font-medium text-blue-300 tabular-nums">
+                                                        {pi + 1}
+                                                    </span>
+                                                    <span class="guia-texto text-base leading-relaxed text-gray-100">{pregunta}</span>
+                                                </label>
+                                            </li>
+                                        ))}
+                                    </ol>
                                 </div>
-                            ))}
-                        </div>
-                    </details>
-                );
-            })}
+                            )
+                        )}
+                    </div>
+                </details>
+            ))}
         </div>
     </aside>
 </div>
@@ -154,13 +213,40 @@ const clasesPanel = esIzquierda
         pointer-events: none;
     }
 
-    /* Acordeón */
-    .guia-categoria summary { list-style: none; }
-    .guia-categoria summary::-webkit-details-marker { display: none; }
+    .guia-categoria summary,
+    .guia-grupo summary { list-style: none; }
+    .guia-categoria summary::-webkit-details-marker,
+    .guia-grupo summary::-webkit-details-marker { display: none; }
+
     .guia-chevron { transition: transform 0.2s ease; }
-    .guia-categoria[open] .guia-chevron { transform: rotate(180deg); }
-    .guia-categoria[open] { border-color: rgba(59, 130, 246, 0.4); }
+    .guia-categoria[open] > summary .guia-chevron,
+    .guia-grupo[open] > summary .guia-chevron { transform: rotate(180deg); }
+
+    .guia-categoria[open] { border-color: rgba(59, 130, 246, 0.45); }
+    .guia-grupo[open] { border-color: rgba(59, 130, 246, 0.3); }
+    .guia-grupo[open] > summary { background: rgba(30, 58, 138, 0.15); }
+
     .guia-categoria[open] .guia-contenido { animation: guiaFadeInDown 0.25s ease-out; }
+
+    .guia-pregunta:hover .guia-texto { color: #fff; }
+    .guia-check:focus-visible ~ .guia-num {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+    .guia-check:checked ~ .guia-num {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: transparent;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 16px;
+    }
+    .guia-check:checked ~ .guia-texto {
+        color: #9ca3af;
+        text-decoration: line-through;
+        text-decoration-color: rgba(156, 163, 175, 0.5);
+    }
 
     @keyframes guiaFadeInDown {
         from { opacity: 0; transform: translateY(-6px); }
@@ -170,6 +256,7 @@ const clasesPanel = esIzquierda
     @media (prefers-reduced-motion: reduce) {
         .guia-panel, .guia-panel[data-open="true"] { transition: none; }
         .guia-categoria[open] .guia-contenido { animation: none; }
+        .guia-chevron { transition: none; }
     }
 </style>
 
@@ -180,6 +267,7 @@ const clasesPanel = esIzquierda
         const panel = root.querySelector<HTMLElement>("[data-guia-panel]")!;
         const btnAbrir = root.querySelector<HTMLButtonElement>("[data-guia-abrir]")!;
         const btnCerrar = root.querySelector<HTMLButtonElement>("[data-guia-cerrar]")!;
+        const btnReiniciar = root.querySelector<HTMLButtonElement>("[data-guia-reiniciar]")!;
 
         const estaAbierto = () => panel.dataset.open === "true";
 
@@ -209,6 +297,29 @@ const clasesPanel = esIzquierda
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && estaAbierto()) cerrar();
+        });
+
+        const actualizarProgreso = (grupo: HTMLElement) => {
+            const total = Number(grupo.dataset.total ?? 0);
+            const hechas = grupo.querySelectorAll<HTMLInputElement>(".guia-check:checked").length;
+            const etiqueta = grupo.querySelector<HTMLElement>("[data-progreso]");
+            if (etiqueta) {
+                etiqueta.textContent = `${hechas}/${total}`;
+                etiqueta.classList.toggle("text-blue-300", total > 0 && hechas === total);
+                etiqueta.classList.toggle("font-semibold", total > 0 && hechas === total);
+            }
+        };
+
+        panel.addEventListener("change", (e) => {
+            const input = e.target as HTMLElement;
+            if (!input.classList.contains("guia-check")) return;
+            const grupo = input.closest<HTMLElement>("[data-grupo]");
+            if (grupo) actualizarProgreso(grupo);
+        });
+
+        btnReiniciar.addEventListener("click", () => {
+            panel.querySelectorAll<HTMLInputElement>(".guia-check").forEach((c) => (c.checked = false));
+            panel.querySelectorAll<HTMLElement>("[data-grupo]").forEach(actualizarProgreso);
         });
     }
 </script>

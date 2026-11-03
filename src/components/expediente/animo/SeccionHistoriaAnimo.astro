@@ -1,0 +1,34 @@
+---
+/**
+ * @component SeccionHistoriaAnimo
+ * @description Historia clínica (antecedentes, con botón para ampliar) y estilo de vida/sustancias. Requiere ModalTextoExpandido en la página.
+ */
+import InfoCard from "../../InfoCard.astro";
+import BotonExpandirTexto from "../BotonExpandirTexto.astro";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="historia" class="expediente-seccion">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <InfoCard title="Historia Clínica">
+            <div class="relative bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 min-h-[100px]">
+                    {paciente.antecedentes && <BotonExpandirTexto objetivo="texto-historia" titulo="Historia Clínica" />}
+                    <p id="texto-historia" class="text-gray-300 italic leading-relaxed text-sm pr-10">{paciente.antecedentes || 'No se han registrado antecedentes.'}</p>
+                </div>
+        </InfoCard>
+
+        <InfoCard title="Estilo de Vida y Sustancias">
+            <ul class="space-y-3">
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Ejercicio</span><span class="text-white font-medium">{paciente.ejercicio === 'si' ? `Sí (${paciente.horas_ejercicio}h/sem)` : 'No'}</span></li>
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Alcohol</span><span class="text-white font-medium">{paciente.alcohol === 'si' ? `${paciente.cervezas_semana} / semana` : 'No'}</span></li>
+                <li class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Tabaco</span><span class="text-white font-medium">{paciente.fuma === 'si' ? `${paciente.cigarros_semana} / semana` : 'No'}</span></li>
+                <li class="flex justify-between pb-1"><span class="text-gray-400">Café</span><span class="text-white font-medium">{paciente.cafe === 'si' ? `${paciente.tazas_cafe_semana} tazas/sem` : 'No'}</span></li>
+            </ul>
+        </InfoCard>
+    </div>
+</section>

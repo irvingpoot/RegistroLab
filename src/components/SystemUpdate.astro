@@ -158,15 +158,16 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
             badge?.classList.add('hidden');
         };
 
+        const MAX_ESCALON = 8;
         const animarTarjetas = () => {
             let i = 0;
             cards.forEach((card) => {
                 card.classList.remove('is-in');
                 if (card.hidden) return;
-                card.style.setProperty('--i', String(i++));
-                void card.offsetWidth;
-                card.classList.add('is-in');
+                card.style.setProperty('--i', String(Math.min(i++, MAX_ESCALON)));
             });
+            void panel.offsetWidth;
+            cards.forEach((card) => { if (!card.hidden) card.classList.add('is-in'); });
         };
 
         const aplicarFiltro = (f) => {
@@ -186,13 +187,23 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
         };
         filtros.forEach((b) => b.addEventListener('click', () => aplicarFiltro(b.dataset.filterBtn)));
 
-        scroll?.addEventListener('pointermove', (e) => {
-            const card = e.target instanceof Element ? e.target.closest('.su-card') : null;
-            if (!card) return;
-            const r = card.getBoundingClientRect();
-            card.style.setProperty('--mx', `${e.clientX - r.left}px`);
-            card.style.setProperty('--my', `${e.clientY - r.top}px`);
-        });
+        if (scroll && matchMedia('(hover: hover)').matches) {
+            let raf = 0;
+            let ultimo = null;
+            scroll.addEventListener('pointermove', (e) => {
+                ultimo = { target: e.target, x: e.clientX, y: e.clientY };
+                if (raf) return;
+                raf = requestAnimationFrame(() => {
+                    raf = 0;
+                    const { target, x, y } = ultimo;
+                    const card = target instanceof Element ? target.closest('.su-card') : null;
+                    if (!card) return;
+                    const r = card.getBoundingClientRect();
+                    card.style.setProperty('--mx', `${x - r.left}px`);
+                    card.style.setProperty('--my', `${y - r.top}px`);
+                });
+            });
+        }
 
         let cerrando = false;
 
@@ -240,6 +251,12 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
 </script>
 
 <style>
+    @property --ga {
+        syntax: "<number>+";
+        inherits: true;
+        initial-value: 99 102 241;
+    }
+
     [data-tipo="all"]     { --a: 129 140 248; --t: 199 210 254; }
     [data-tipo="feature"] { --a: 59 130 246;  --t: 147 197 253; }
     [data-tipo="fix"]     { --a: 16 185 129;  --t: 110 231 183; }
@@ -253,13 +270,12 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
         padding: .375rem 1rem .375rem .375rem;
         border-radius: 9999px;
         border: 1px solid rgb(255 255 255 / .1);
-        background: rgb(15 23 42 / .75);
-        backdrop-filter: blur(12px);
+        background: rgb(15 23 42 / .92);
         box-shadow: 0 10px 30px -10px rgb(0 0 0 / .6);
         cursor: pointer;
         transition: border-color .2s ease, background-color .2s ease;
     }
-    .su-trigger:hover { border-color: rgb(59 130 246 / .45); background: rgb(30 41 59 / .9); }
+    .su-trigger:hover { border-color: rgb(59 130 246 / .45); background: rgb(30 41 59 / .96); }
     .su-trigger:focus-visible { outline: 2px solid rgb(147 197 253); outline-offset: 2px; }
     .su-trigger-chip {
         position: relative;
@@ -288,9 +304,14 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
     }
     .su-dialog[open] { display: flex; align-items: center; justify-content: center; }
     .su-dialog::backdrop {
-        background: radial-gradient(70% 60% at 50% 45%, rgb(30 41 120 / .25), transparent 70%), rgb(2 6 23 / .8);
-        backdrop-filter: blur(6px);
+        background: radial-gradient(70% 60% at 50% 45%, rgb(30 41 120 / .25), transparent 70%), rgb(2 6 23 / .88);
         animation: su-fade .25s ease both;
+    }
+    @media (min-width: 768px) and (hover: hover) {
+        .su-dialog::backdrop {
+            background: radial-gradient(70% 60% at 50% 45%, rgb(30 41 120 / .25), transparent 70%), rgb(2 6 23 / .8);
+            backdrop-filter: blur(6px);
+        }
     }
     .su-dialog.is-closing::backdrop { animation: su-fade .24s ease reverse both; }
     @keyframes su-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -311,7 +332,7 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
         box-shadow: 0 40px 100px -20px rgb(0 0 0 / .9), 0 0 0 1px rgb(255 255 255 / .02);
         opacity: 0;
         transform: translateY(14px) scale(.97);
-        transition: opacity .3s ease, transform .45s cubic-bezier(.2, .8, .2, 1);
+        transition: opacity .3s ease, transform .45s cubic-bezier(.2, .8, .2, 1), --ga .6s ease;
     }
     .su-panel.is-open { opacity: 1; transform: none; }
     .su-panel[data-filter="feature"] { --ga: 59 130 246; }
@@ -333,8 +354,7 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
         border-radius: 9999px;
         color: rgb(156 163 175);
         border: 1px solid rgb(255 255 255 / .08);
-        background: rgb(11 17 32 / .7);
-        backdrop-filter: blur(6px);
+        background: rgb(11 17 32 / .88);
         cursor: pointer;
         transition: color .15s ease, background-color .15s ease, transform .25s ease;
     }
@@ -357,15 +377,13 @@ const textoTotal = `${lista.length} ${lista.length === 1 ? "cambio" : "cambios"}
     }
     .su-glow {
         position: absolute;
-        top: -5rem;
-        left: -5rem;
-        width: 16rem;
-        height: 16rem;
+        top: -10rem;
+        left: -10rem;
+        width: 26rem;
+        height: 26rem;
         border-radius: 9999px;
-        background: rgb(var(--ga) / .4);
-        filter: blur(70px);
+        background: radial-gradient(closest-side, rgb(var(--ga) / .34), rgb(var(--ga) / .12) 55%, transparent 100%);
         pointer-events: none;
-        transition: background-color .6s ease;
     }
 
     .su-eyebrow {

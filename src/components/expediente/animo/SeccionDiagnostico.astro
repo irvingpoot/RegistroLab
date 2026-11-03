@@ -1,0 +1,23 @@
+---
+/**
+ * @component SeccionDiagnostico
+ * @description Diagnóstico (texto libre del paciente de ánimo) con botón para ampliarlo. Requiere ModalTextoExpandido en la página.
+ */
+import InfoCard from "../../InfoCard.astro";
+import BotonExpandirTexto from "../BotonExpandirTexto.astro";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="diagnostico" class="expediente-seccion">
+    <InfoCard title="Diagnostico">
+        <div class="relative bg-gray-800/50 p-6 rounded-xl border border-gray-700/50">
+            {paciente.motivo && <BotonExpandirTexto objetivo="texto-diagnostico" titulo="Diagnóstico" />}
+            <p id="texto-diagnostico" class="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap pr-10">{paciente.motivo}</p>
+        </div>
+    </InfoCard>
+</section>

@@ -9,6 +9,7 @@
  * @prop {string[]} escalas  - Claves de escala.
  * @prop {object[]} [extras] - `pacientes_puntajes_extra`.
  * @prop {Record<string,string>} [etiquetas] - Nombres personalizados por escala.
+ * @prop {string} [titulo] - Título del modal (default "Actualizar Puntajes (Pre / Inter / Post)").
  */
 import ModalDialog from "./ModalDialog.astro";
 import PuntajeExtraRow from "./PuntajeExtraRow.astro";
@@ -19,12 +20,13 @@ interface Props {
     escalas: readonly string[];
     extras?: any[] | null;
     etiquetas?: Record<string, string>;
+    titulo?: string;
 }
 
-const { paciente, escalas, extras, etiquetas } = Astro.props;
+const { paciente, escalas, extras, etiquetas, titulo = "Actualizar Puntajes (Pre / Inter / Post)" } = Astro.props;
 ---
 
-<ModalDialog id="modal-puntajes" title="Actualizar Puntajes (Pre / Inter / Post)" size="4xl">
+<ModalDialog id="modal-puntajes" title={titulo} size="4xl">
     <form method="POST" class="space-y-6">
         <input type="hidden" name="action" value="update_scores" />
 

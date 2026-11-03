@@ -1,0 +1,45 @@
+---
+/**
+ * @file sin-acceso.astro
+ * @description Destino de usuarios con sesión activa pero sin un rol reconocido (ver middleware.ts).
+ *
+ * Es pública a propósito: si estuviera en `isProtectedRoute` volvería a redirigir y se
+ * formaría un bucle de redirecciones.
+ */
+
+import Layout from "../layouts/Layout.astro";
+import { UserButton } from "@clerk/astro/components";
+import LockIcon from "../components/icons/dashboard/LockIcon.astro";
+
+export const prerender = false;
+---
+
+<Layout title="Sin acceso | Lab-Somno">
+    <main class="grid min-h-[70vh] place-items-center px-6 py-16">
+        <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/40 p-8 text-center">
+            <span class="mx-auto grid size-12 place-items-center rounded-xl bg-amber-500/15 text-amber-300" aria-hidden="true">
+                <LockIcon class="size-6" />
+            </span>
+
+            <h1 class="mt-5 text-4xl leading-tight text-white">Tu cuenta aún no tiene acceso</h1>
+            <p class="mt-3 leading-relaxed text-gray-400">
+                Iniciaste sesión correctamente, pero tu cuenta no tiene un rol asignado en Lab-Somno.
+                Pide a un administrador que te lo asigne y vuelve a intentarlo.
+            </p>
+            <p class="mt-2 text-xs text-gray-500">Si ya te lo asignaron, puede tardar un minuto en reflejarse.</p>
+
+            <div class="mt-7 flex flex-col items-center gap-4">
+                <a
+                    href="/dashboard"
+                    class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+                >
+                    Reintentar
+                </a>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <span>Para cambiar de cuenta, cierra sesión aquí:</span>
+                    <UserButton />
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>

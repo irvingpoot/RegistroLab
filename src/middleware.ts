@@ -1,17 +1,22 @@
 /**
  * @file middleware.ts
  * @description Middleware de seguridad y control de sesiones (Clerk).
- * * FUNCIÓN PRINCIPAL:
+ *
+ * FUNCIÓN PRINCIPAL:
  * - Intercepta todas las solicitudes al servidor (SSR) antes de renderizar la página.
- * * LÓGICA DE PROTECCIÓN:
- * 1. Rutas Protegidas (`isProtectedRoute`): Define la lista blanca de rutas que requieren sesión activa
- * (ej: /dashboard, /lista, /registro). Si no hay usuario, redirige al inicio (/).
- * 2. Redirección Inversa: Si un usuario YA logueado intenta entrar explícitamente a `/login`
- * (o la landing page de login), lo redirige automáticamente al `/dashboard` para mejorar la UX.
+ *
+ * LÓGICA DE PROTECCIÓN (ver `resolverRedireccion`):
+ * 1. Rutas Protegidas (`isProtectedRoute`): lista blanca de rutas que requieren sesión activa
+ *    (ej: /dashboard, /lista, /registro). Sin usuario, redirige al inicio (/).
+ * 2. Redirección Inversa: si un usuario YA logueado entra a `/login`, va al `/dashboard`.
+ * 3. Permisos por rol: si el rol no puede ver la ruta, vuelve al `/dashboard`.
+ * 4. Sesión sin rol reconocido: va a `/sin-acceso`, una página pública. Antes se le mandaba a
+ *    `/dashboard`, que también exige rol, y el navegador caía en un bucle de redirecciones.
  */
 
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
-import { tieneAccesoRuta } from "./lib/permisos";
+import { tieneAccesoRuta, esRolValido } from "./lib/permisos";
+import type { Rol } from "./lib/permisos";
 
 const isProtectedRoute = createRouteMatcher([
     '/dashboard',
@@ -37,25 +42,45 @@ const isProtectedRoute = createRouteMatcher([
     '/waitlist'
 ]);
 
+const RUTA_SIN_ACCESO = "/sin-acceso";
+
+function resolverRedireccion(p: {
+    userId: string | null | undefined;
+    role: Rol | undefined;
+    pathname: string;
+    protegida: boolean;
+}): string | null {
+    const { userId, role, pathname, protegida } = p;
+
+    if (!userId) {
+        return protegida || pathname === RUTA_SIN_ACCESO ? "/" : null;
+    }
+
+    if (pathname === "/login") return role ? "/dashboard" : RUTA_SIN_ACCESO;
+
+    if (!role) return protegida ? RUTA_SIN_ACCESO : null;
+
+    if (pathname === RUTA_SIN_ACCESO) return tieneAccesoRuta(role, "/dashboard") ? "/dashboard" : null;
+
+    if (protegida && !tieneAccesoRuta(role, pathname)) {
+        return pathname === "/dashboard" ? RUTA_SIN_ACCESO : "/dashboard";
+    }
+
+    return null;
+}
+
 export const onRequest = clerkMiddleware((auth, context) => {
     const { userId, sessionClaims } = auth();
-    const role = sessionClaims?.metadata?.role;
+    const claimRole = sessionClaims?.metadata?.role;
+    const role = esRolValido(claimRole) ? claimRole : undefined;
 
-    if (isProtectedRoute(context.request) && !userId) {
-        return context.redirect("/")
-    }
-
-    if (userId && context.url.pathname === "/login") {
-        return context.redirect("/dashboard");
-    }
-
-    if (
-        userId &&
-        isProtectedRoute(context.request) &&
-        !tieneAccesoRuta(role, context.url.pathname)
-    ) {
-        return context.redirect("/dashboard");
-    }
+    const destino = resolverRedireccion({
+        userId,
+        role,
+        pathname: context.url.pathname,
+        protegida: isProtectedRoute(context.request),
+    });
+    if (destino) return context.redirect(destino);
 
     context.locals.userRole = role;
 });

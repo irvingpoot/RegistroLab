@@ -140,8 +140,7 @@ export const categoriasEntrevista: CategoriaEntrevista[] = [
                     "¿Las dificultades para dormir iniciaron al mismo tiempo que comenzó el padecimiento médico o psiquiátrico?",
                     "¿Actualmente estas tomando medicamentos?, ¿Cuáles?",
                     "¿Las dificultades para dormir iniciaron al mismo tiempo que comenzaste la medicación?",
-                    "¿Consumes bebidas alcohólicas, sustancias narcóticas, cafeína o alguna otra sustancia que crees que puede",
-                    "estar alterando tu sueño?, ¿Cuáles y con qué frecuencia?",
+                    "¿Consumes bebidas alcohólicas, sustancias narcóticas, cafeína o alguna otra sustancia que crees que puede estar alterando tu sueño?, ¿Cuáles y con qué frecuencia?",
                     "¿Las dificultades para dormir iniciaron al mismo tiempo que el consumo de estas sustancias?"
                 ]
             },

@@ -65,3 +65,25 @@ export const parsePuntajesExtra = (fd: FormData): PuntajeExtra[] => {
         }))
         .filter((item) => item.nombre_prueba.trim() !== "");
 };
+
+export interface FarmacosPayload {
+    farmacos_nombres: string[];
+    farmacos_dosis: string[];
+    farmacos_motivos: string[];
+    farmacos_frecuencias: string[];
+    farmacos_tiempos: string[];
+}
+
+export const parseFarmacos = (fd: FormData): FarmacosPayload => {
+    const conNombre = fd.getAll("farmacos_nombres").map((n) => n.toString().trim() !== "");
+    const soloConNombre = (campo: string) =>
+        fd.getAll(campo).map((v) => v.toString()).filter((_, i) => conNombre[i]);
+
+    return {
+        farmacos_nombres: soloConNombre("farmacos_nombres"),
+        farmacos_tiempos: soloConNombre("farmacos_tiempos"),
+        farmacos_motivos: soloConNombre("farmacos_motivos"),
+        farmacos_frecuencias: soloConNombre("farmacos_frecuencias"),
+        farmacos_dosis: soloConNombre("farmacos_dosis"),
+    };
+};

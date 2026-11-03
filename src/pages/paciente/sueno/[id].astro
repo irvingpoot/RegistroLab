@@ -21,6 +21,7 @@ import ExpedienteNav from "../../../components/expediente/ExpedienteNav.astro";
 import SeccionSociodemografica from "../../../components/expediente/SeccionSociodemografica.astro";
 import SeccionTms from "../../../components/expediente/SeccionTms.astro";
 import SeccionSeguimiento from "../../../components/expediente/SeccionSeguimiento.astro";
+import SeccionFarmacos from "../../../components/expediente/SeccionFarmacos.astro";
 import ZonaPeligro from "../../../components/expediente/ZonaPeligro.astro";
 import ModalPuntajes from "../../../components/expediente/ModalPuntajes.astro";
 import ModalTms from "../../../components/expediente/ModalTms.astro";
@@ -90,6 +91,7 @@ const NAV_LINKS = [
     { id: "sintomas", label: "Síntomas" },
     { id: "habitos", label: "Hábitos" },
     { id: "alteraciones", label: "Alteraciones" },
+    { id: "farmacos", label: "Fármacos" },
     { id: "puntajes", label: "Puntajes" },
     { id: "reporte-resultados", label: "Resultados" },
     { id: "tms", label: "TMS" },
@@ -113,6 +115,7 @@ const NAV_LINKS = [
 
             <SeccionSociodemografica paciente={paciente} />
             <SeccionHistoriaClinica paciente={paciente} />
+            <SeccionFarmacos paciente={paciente} />
             <SeccionSintomas sintomas={paciente.pacientes_sintomas} />
             <SeccionHabitos paciente={paciente} />
             <SeccionAlteraciones alteraciones={paciente.alteracion_sueno} />

@@ -1,0 +1,44 @@
+---
+/**
+ * @component SeccionAcompanante
+ * @description Acompañante / responsable del paciente de ánimo.
+ */
+import InfoCard from "../../InfoCard.astro";
+
+interface Props {
+    paciente: Record<string, any>;
+}
+
+const { paciente } = Astro.props;
+---
+
+<section id="acompa" class="expediente-seccion">
+    <InfoCard title="Acompañante / Responsable">
+        {paciente.acompanante_nombre ? (
+            <div class="space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <span class="label">Nombre Completo</span>
+                        <p class="value">{paciente.acompanante_nombre}</p>
+                    </div>
+                    <div>
+                        <span class="label">Contacto</span>
+                        <a href={`tel:${paciente.acompanante_telefono}`} class="value text-blue-300 hover:underline flex items-center gap-1">
+                            {paciente.acompanante_telefono}
+                        </a>
+                    </div>
+                    <div>
+                        <span class="label">Parentesco</span>
+                        <span class="inline-block bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-sm border border-blue-500/20">
+                            {paciente.acompanante_parentesco}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            <div class="flex items-center justify-center text-gray-500 italic">
+                Sin acompañante registrado.
+            </div>
+        )}
+    </InfoCard>
+</section>
