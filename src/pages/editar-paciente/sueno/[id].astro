@@ -50,6 +50,11 @@ if (Astro.request.method === "POST") {
             return val && val.toString().trim() !== '' ? parseInt(val as string) : null;
         };
 
+        const getTime = (key: string) => {
+            const val = data.get(key) as string | null;
+            return val && val.trim() !== "" ? val : null;
+        };
+
         let edadCalculada = 0;
         const fechaNacString = data.get("fecha_nacimiento") as string;
         if (fechaNacString) {
@@ -77,10 +82,10 @@ if (Astro.request.method === "POST") {
             altura: data.get("altura") ? parseFloat(data.get("altura") as string) : null,
 
             donde_duerme: data.get("donde_duerme"),
-            hora_acostarse: data.get("hora_acostarse"), 
-            hora_dormir: data.get("hora_dormir"),
-            hora_despertar: data.get("hora_despertar"),
-            hora_levantarse: data.get("hora_levantarse"),
+            hora_acostarse: getTime("hora_acostarse"), 
+            hora_dormir: getTime("hora_dormir"),
+            hora_despertar: getTime("hora_despertar"),
+            hora_levantarse: getTime("hora_levantarse"),
             despierta_noche: data.get("despierta_noche"),
             que_despierta: data.get("que_despierta"),
             somnolencia: data.get("somnolencia"),
@@ -224,7 +229,7 @@ const farmacos = farmacosDePaciente(p);
                         <div class="flex flex-col md:flex-row gap-4 md:gap-7">
                             <div class="flex grow flex-col md:w-1/2"> 
                                 <label class="label">Fecha de Nacimiento:</label>
-                                <input type="date" name="fecha_nacimiento" value={p.fecha_nacimiento} required class="input" style="color-scheme: dark;">
+                                <input type="date" name="fecha_nacimiento" value={p.fecha_nacimiento ?? ""} class="input" style="color-scheme: dark;">
                             </div>
                             <div class="flex grow flex-col md:w-1/2"> 
                                 <label class="label">Género:</label>
@@ -257,7 +262,6 @@ const farmacos = farmacosDePaciente(p);
                                 <div class="relative">
                                     <select 
                                         name="referencia" 
-                                        required
                                         class="w-full bg-gray-900/50 border border-gray-600 text-white p-3 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none transition-all cursor-pointer"
                                     >
                                         <option value="" disabled>Selecciona una opción</option>
@@ -308,7 +312,6 @@ const farmacos = farmacosDePaciente(p);
                     <h2 class="section-title">Motivo de Consulta</h2>
                     <textarea 
                         name="motivo" 
-                        required 
                         rows="4" 
                         class="input resize-y"
                     >{p.motivo}</textarea>

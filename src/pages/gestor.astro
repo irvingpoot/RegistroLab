@@ -75,7 +75,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 <Layout title="Gestor de citas | Lab-Somno">
     <ReturnButton href="/citas" text="Volver a la agenda" />
 
-    <main id="gestor" data-fase="inicio" class="max-w-5xl mx-auto px-4 pb-24">
+    <main id="gestor" data-fase="inicio" class="max-w-5xl mx-auto mt-5 px-4 pb-24">
         <div class="spacer spacer-top" aria-hidden="true"></div>
 
         <section id="buscador" class="w-full">
@@ -248,6 +248,11 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
     }
 
     const PAGINA = 15;
+    const LIMITE_API = 30;
+    const TOPE_RESTAURAR = 150;
+    const CLAVE_SCROLL = "gestor:scroll";
+
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     const EASING = "cubic-bezier(.22,1,.36,1)";
     const reducirMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -295,6 +300,37 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 
 
     let paramsBase = new URLSearchParams();
+    let scrollPendiente: number | null = null;
+
+    function sincronizarURL(cantidad?: number) {
+        const params = new URLSearchParams(paramsBase);
+        params.set("b", "1");
+        if (cantidad && cantidad > PAGINA) params.set("n", String(Math.min(cantidad, TOPE_RESTAURAR)));
+        history.replaceState(history.state, "", `${location.pathname}?${params}`);
+    }
+
+    function limpiarURL() {
+        history.replaceState(history.state, "", location.pathname);
+    }
+
+    function hrefEditar(id: number): string {
+        const volver = encodeURIComponent(location.pathname + location.search);
+        return `/editar-cita/${id}?volver=${volver}`;
+    }
+
+    const claveScroll = (search: string) => new URLSearchParams(search).toString();
+
+    function leerScrollGuardado(): number | null {
+        try {
+            const crudo = sessionStorage.getItem(CLAVE_SCROLL);
+            sessionStorage.removeItem(CLAVE_SCROLL);
+            if (!crudo) return null;
+            const guardado = JSON.parse(crudo);
+            return guardado.clave === claveScroll(location.search) && Number.isFinite(guardado.y) ? guardado.y : null;
+        } catch {
+            return null;
+        }
+    }
     let terminos: string[] = [];
     let camposBuscados: string[] = [];
     let items: Cita[] = [];
@@ -395,7 +431,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-800/50">
                     <div role="group" aria-label="Estado de la cita" class="inline-flex flex-wrap gap-0.5 rounded-full border border-gray-800 bg-gray-950/40 p-0.5">${botonesEstado}</div>
                     <div class="flex items-center gap-4">
-                        <a href="/editar-cita/${c.id}" class="text-xs text-gray-400 hover:text-white hover:underline flex items-center gap-1 transition-colors">
+                        <a href="${hrefEditar(c.id)}" data-editar class="text-xs text-gray-400 hover:text-white hover:underline flex items-center gap-1 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
                             Editar cita
                         </a>
@@ -496,10 +532,10 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         btnMas.textContent = `Mostrar más (${restantes} restantes)`;
     }
 
-    async function pedir(offset: number): Promise<{ citas: Cita[]; total: number }> {
+    async function pedir(offset: number, limite = PAGINA): Promise<{ citas: Cita[]; total: number }> {
         const params = new URLSearchParams(paramsBase);
         params.set("offset", String(offset));
-        params.set("limit", String(PAGINA));
+        params.set("limit", String(limite));
         const res = await fetch(`/api/citas/buscar?${params}`, { headers: { Accept: "application/json" } });
         if (!res.ok) {
             const cuerpo = await res.json().catch(() => null);
@@ -508,12 +544,25 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         return res.json();
     }
 
-    async function ejecutarBusqueda() {
+    async function pedirHasta(cantidad: number): Promise<{ citas: Cita[]; total: number }> {
+        let citas: Cita[] = [];
+        let totalServidor = 0;
+        while (citas.length < cantidad) {
+            const lote = await pedir(citas.length, Math.min(cantidad - citas.length, LIMITE_API));
+            totalServidor = lote.total;
+            citas = citas.concat(lote.citas);
+            if (!lote.citas.length || citas.length >= totalServidor) break;
+        }
+        return { citas, total: totalServidor };
+    }
+
+    async function ejecutarBusqueda(opciones: { cantidad?: number; restaurando?: boolean } = {}) {
         const mia = ++secuencia;
 
         paramsBase = leerFormulario();
         const q = paramsBase.get("q") ?? "";
         terminos = q.split(/\s+/).filter(Boolean).slice(0, 6);
+        sincronizarURL();
         camposBuscados = paramsBase.getAll("campo");
         if (!camposBuscados.length) camposBuscados = ["nombre", "sintoma", "telefono", "observaciones", "motivo"];
 
@@ -523,14 +572,27 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         lista.innerHTML = esqueletos();
         contMas.hidden = true;
         resumen.textContent = "Buscando…";
-        if (primera) irAResultados();
+        if (primera) {
+            if (opciones.restaurando) {
+                main.dataset.fase = "resultados";
+                resultados.hidden = false;
+            } else {
+                irAResultados();
+            }
+        }
 
         try {
-            const datos = await pedir(0);
+            const datos = await pedirHasta(opciones.cantidad ?? PAGINA);
             if (mia !== secuencia) return;
             items = datos.citas;
             total = datos.total;
+            sincronizarURL(items.length);
             pintarLista();
+            if (opciones.restaurando && scrollPendiente !== null) {
+                const y = scrollPendiente;
+                scrollPendiente = null;
+                requestAnimationFrame(() => window.scrollTo(0, y));
+            }
         } catch (e) {
             if (mia !== secuencia) return;
             items = [];
@@ -551,6 +613,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
             if (mia !== secuencia) return;
             items = items.concat(datos.citas);
             total = datos.total;
+            sincronizarURL(items.length);
             pintarLista();
         } catch (e) {
             mostrarToast(e instanceof Error ? e.message : "No se pudieron cargar más citas", true);
@@ -676,6 +739,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         secuencia++;
         form.reset();
         actualizarContador();
+        limpiarURL();
         if (ejecutada) volverAlInicio();
         inputQ.focus();
     }
@@ -685,7 +749,7 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         actualizarContador();
         if (!ejecutada) return;
         window.clearTimeout(temporizadorFiltros);
-        temporizadorFiltros = window.setTimeout(ejecutarBusqueda, 250);
+        temporizadorFiltros = window.setTimeout(() => ejecutarBusqueda(), 250);
     });
 
     form.addEventListener("submit", (e) => {
@@ -699,6 +763,12 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
 
     resultados.addEventListener("click", (e) => {
         const objetivo = e.target as HTMLElement;
+        if (objetivo.closest("a[data-editar]")) {
+            try {
+                sessionStorage.setItem(CLAVE_SCROLL, JSON.stringify({ clave: claveScroll(location.search), y: window.scrollY }));
+            } catch {}
+            return;
+        }
         const botonEliminar = objetivo.closest<HTMLElement>("[data-eliminar]");
         const botonEstado = objetivo.closest<HTMLElement>("[data-set-estado]");
         if (botonEstado) {
@@ -738,7 +808,29 @@ const atendidoPorOpciones = [...listaPsicologos, "Por asignar"];
         }
     }
 
-    cargarFiltroServicios();
+    async function restaurarDesdeURL() {
+        const p = new URLSearchParams(location.search);
+        scrollPendiente = leerScrollGuardado();
+
+        inputQ.value = p.get("q") ?? "";
+        for (const nombre of ["campo", "referencia", "estado", "servicio", "atendido_por", "registrado_por"]) {
+            const valores = p.getAll(nombre);
+            form.querySelectorAll<HTMLInputElement>(`input[name="${nombre}"]`).forEach((cb) => {
+                cb.checked = valores.includes(cb.value);
+            });
+        }
+        actualizarContador();
+
+        const n = parseInt(p.get("n") ?? "", 10);
+        const cantidad = Number.isFinite(n) ? Math.min(Math.max(n, PAGINA), TOPE_RESTAURAR) : PAGINA;
+        await ejecutarBusqueda({ cantidad, restaurando: true });
+    }
+
+    const filtrosListos = cargarFiltroServicios();
     actualizarContador();
-    inputQ.focus();
+    if (new URLSearchParams(location.search).get("b") === "1") {
+        filtrosListos.then(restaurarDesdeURL);
+    } else {
+        inputQ.focus();
+    }
 </script>

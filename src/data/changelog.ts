@@ -1,8 +1,8 @@
-export const currentVersion = "4.3.0";
+export const currentVersion = "4.3.1";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "3 de noviembre del 2026";
+export const updateDate = "13 de noviembre del 2026";
 
 type Changes = {
     title: string;
@@ -12,38 +12,23 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Sección de farmacos",
-        description: "Se agregó una sección para registrar y editar los medicamentos de los pacientes de sueño.",
+        title: "Edición en el gestor de citas",
+        description: "Se agregó una funcionalidad para que al momento de editar una cita, el gestor mantenga el estado de la busqueda y la edición redigija correctamente.",
         type: "feature"
     },
     {
-        title: "Expediente de ánimo",
-        description: "Se realizaron optimizaciones en la sección del expediente de ánimo para mejorar la carga de la página.",
+        title: "Edición de expedientes",
+        description: "Se corrgió un problema donde la edición daba error al intentar editar un expediente sin colocar campos de fechas u horas.",
         type: "fix"
     },
     {
-        title: "Calendario de citas",
-        description: "Se realizaron optimizaciones en la carga de las citas y en el diseño del calendario para mejorar el rendimiento general de la página.",
+        title: "Edición de expedientes",
+        description: "Se corrgió un problema con los campos obligatorios de los expedientes.",
         type: "fix"
     },
     {
-        title: "Dashboard",
-        description: "Se realizaron más optimizaciones en la página del dashboard para mejorar el rendimiento, carga y consumo general de la aplicación.",
-        type: "fix"
-    },
-    {
-        title: "Seguridad",
-        description: "Se realizaron mejoras generales en la seguridad del sistema, para cuentas sin rol y errores de redirección.",
-        type: "fix"
-    },
-    {
-        title: "Calendario de citas",
-        description: "Se agregaron unas animaciones faltantes al calendario.",
+        title: "Tabla de lista de espera",
+        description: "Se cambió el diseño de la tabla de la lista de espera para alinearse con el estilo de la página.",
         type: "style"
     },
-    {
-        title: "Guión de entrevista",
-        description: "Se cambió el diseño del panel de guía de entrevista para que sea más accesible y fácil de leer.",
-        type: "style"
-    }
 ];
