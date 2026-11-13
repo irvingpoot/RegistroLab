@@ -23,7 +23,18 @@ import { getPrecioParaCita } from "../../services/servicios.service";
 
 const { id } = Astro.params;
 
-if (!id) return Astro.redirect("/citas");
+const destinoVolver = (() => {
+    const raw = Astro.url.searchParams.get("volver");
+    if (!raw) return "/citas";
+    try {
+        const u = new URL(raw, Astro.url.origin);
+        return u.origin === Astro.url.origin ? u.pathname + u.search : "/citas";
+    } catch {
+        return "/citas";
+    }
+})();
+
+if (!id) return Astro.redirect(destinoVolver);
 
 const supabase = createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
@@ -109,7 +120,7 @@ if (Astro.request.method === "POST") {
 
         if (updateError) throw updateError;
         
-        return Astro.redirect("/citas"); 
+        return Astro.redirect(destinoVolver); 
 
     } catch (e) {
         console.error(e);
@@ -124,7 +135,7 @@ const { data: cita, error: fetchError } = await supabase
     .eq('id', id)
     .single();
 
-if (fetchError || !cita) return Astro.redirect("/citas");
+if (fetchError || !cita) return Astro.redirect(destinoVolver);
 
 const fechaObjCita = new Date(cita.fecha_hora);
 
@@ -150,7 +161,7 @@ const precioActualTexto = precioActual === null || Number.isNaN(precioActual)
 ---
 
 <Layout title={`Editar Cita: ${cita.nombre}`}>
-    <ReturnButton href="/citas" text="Cancelar edición" />
+    <ReturnButton href={destinoVolver} text="Cancelar edición" />
 
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
         <div class="flex flex-col items-center justify-center mb-10">

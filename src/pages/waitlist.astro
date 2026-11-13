@@ -149,7 +149,7 @@ const CAMPO =
         {mensajeError}
     </div>
 
-    <main class="max-w-5xl mx-auto pt-6 md:pt-10 pb-28 px-4 md:px-6">
+    <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
         <div class="max-w-7xl mx-auto mb-5">
             <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
             <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">
@@ -188,7 +188,7 @@ const CAMPO =
         )}
 
         {total === 0 ? (
-            <section class="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/40 px-6 py-14 text-center">
+            <section class="mt-6 flex flex-col items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/20 backdrop-blur shadow-lg px-6 py-14 text-center">
                 <span class="grid place-items-center size-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                     <CheckIcon class="size-6" />
                 </span>
@@ -205,9 +205,9 @@ const CAMPO =
                 </button>
             </section>
         ) : (
-            <section aria-label="Pacientes en espera" class="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40">
+            <section aria-label="Pacientes en espera" class="mt-6 w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-900/20 backdrop-blur shadow-lg">
 
-                <div class={`hidden lg:grid ${COLUMNAS_LG} items-center gap-x-4 px-5 py-3 border-b border-white/10 text-sm font-semibold text-gray-400`}>
+                <div class={`hidden lg:grid ${COLUMNAS_LG} items-center gap-x-4 px-5 py-4 bg-gradient-to-r from-transparent via-blue-950/30 to-transparent text-sm font-semibold uppercase tracking-wider text-gray-400`}>
                     <span></span>
                     <span></span>
                     <span>Turno</span>
@@ -217,10 +217,10 @@ const CAMPO =
                     <span></span>
                 </div>
 
-                <ol id="lista-espera" class="divide-y divide-white/5">
+                <ol id="lista-espera">
                     {pacientes.map((p) => (
                         <li
-                            class={`espera-item grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)] ${COLUMNAS_LG} items-center gap-x-3 lg:gap-x-4 gap-y-3 px-3 lg:px-5 py-4 transition-colors hover:bg-white/[0.03]`}
+                            class={`espera-item grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)] ${COLUMNAS_LG} group/fila relative items-center gap-x-3 lg:gap-x-4 gap-y-3 px-3 lg:px-5 py-5 transition-colors hover:bg-white/[0.02]`}
                             data-id={p.id}
                             data-nombre={p.nombre}
                             data-telefono={p.telefono}
@@ -244,14 +244,14 @@ const CAMPO =
                                 </button>
                             </div>
 
-                            <span class="turno grid place-items-center mx-3 py-1 rounded-md bg-blue-500/15 text-blue-300 text-lg leading-none" title="Turno">{p.posicion}</span>
+                            <span class="turno grid place-items-center mx-3 py-1.5 rounded-md border border-blue-500/20 bg-blue-500/10 text-blue-400 text-base font-bold font-mono leading-none" title="Turno">{p.posicion}</span>
 
                             <div class="min-w-0 lg:contents">
                                 <div class="flex flex-col min-w-0 items-start">
-                                    <p class="truncate font-semibold capitalize text-white text-pretty">{p.nombre}</p>
+                                    <p class="truncate font-medium text-lg capitalize text-gray-200 group-hover/fila:text-white transition-colors text-pretty">{p.nombre}</p>
                                     {p.origen === "formulario" && (
                                         <span
-                                            class="shrink-0 rounded-md bg-blue-950 px-1.5 py-0.5 text-[11px] text-white"
+                                            class="mt-1.5 shrink-0 inline-flex items-center rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[11px] font-bold uppercase text-blue-400"
                                             title="Este paciente se registró solo desde el formulario"
                                         >
                                             Formulario
@@ -262,11 +262,11 @@ const CAMPO =
                                     href={`https://wa.me/${p.telefono.replace(/\D/g, "")}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    class="block w-fit text-sm text-gray-300 tabular-nums hover:text-green-300 transition-colors"
+                                    class="block w-fit text-gray-400 tabular-nums hover:text-green-300 transition-colors"
                                 >
                                     {p.telefono}
                                 </a>
-                                <p class="text-sm text-gray-400 leading-snug line-clamp-2" title={p.motivo}>{p.motivo}</p>
+                                <p class="text-gray-400 leading-snug line-clamp-2" title={p.motivo}>{p.motivo}</p>
                             </div>
 
                             <div class="col-span-3 lg:col-span-1 flex items-center justify-end gap-1">
@@ -285,6 +285,8 @@ const CAMPO =
                                     <RightArrow class="size-4 group-hover:translate-x-0.5 transition-transform" />
                                 </a>
                             </div>
+
+                            <div class="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-700/50 to-transparent group-hover/fila:via-blue-500/50 transition-all"></div>
                         </li>
                     ))}
                 </ol>
@@ -384,6 +386,7 @@ const CAMPO =
 <style>
     .espera-item:first-child .turno {
         background: rgb(59 130 246);
+        border-color: rgb(59 130 246);
         color: #fff;
     }
     .espera-item.is-dragging {
