@@ -44,11 +44,6 @@ export function puedeVerTareas(userId: string | undefined): boolean {
     return userId !== idRestringido;
 }
 
-export function esUsuarioConAccesoEspecial(userId: string | undefined): boolean {
-    const usuarioEspecifico = import.meta.env.USUARIO_ESPECIFICO;
-    return userId === usuarioEspecifico;
-}
-
 export function puedeVerNotificaciones(rol: Rol | undefined): boolean {
     return rol === "psicologo" || rol === "admin";
 }
