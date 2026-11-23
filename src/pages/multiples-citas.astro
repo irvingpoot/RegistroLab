@@ -1,15 +1,16 @@
 ---
 /**
  * @file citas-masivas.astro
- * @description Registro de múltiples citas en un solo envío mediante calendario múltiple. v4
+ * @description Registro de múltiples citas en un solo envío mediante calendario múltiple. v5
+ *
+ * Rediseño visual: mismo lenguaje que dashboard.astro (paneles, acentos --a/--t, títulos grandes).
+ * La lógica de datos/envío no cambió: mismos IDs, mismo payload `lote_json`.
  */
 
 import Layout from "../layouts/Layout.astro";
 import Icon from "../components/Icon.astro";
 import ReturnButton from "../components/ReturnButton.astro";
-import HiddenModalIcon from "../components/icons/HiddenModalIcon.astro";
 import { clerkClient } from "@clerk/astro/server";
-import { esUsuarioConAccesoEspecial } from "../lib/permisos";
 import {
     crearCitasEnLote,
     getDiasBloqueadosDesdeHoy,
@@ -17,19 +18,23 @@ import {
     type ResultadoLote,
 } from "../services/citas.service";
 import DownTriangle from "../components/icons/DownTriangle.astro";
-import CrossIcon from "../components/icons/CrossIcon.astro";
 import CalendarIcon from "../components/icons/CalendarIcon.astro";
 import LeftTriangle from "../components/icons/LeftTriangle.astro";
 import RightTriangle from "../components/icons/RightTriangle.astro";
+import ClockIcon from "../components/icons/ClockIcon.astro";
+import CheckIcon from "../components/icons/CheckIcon.astro";
+import PacientesIcon from "../components/icons/dashboard/PacientesIcon.astro";
+import AgendaIcon from "../components/icons/dashboard/AgendaIcon.astro";
+import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
+import ConfirmModal from "../components/ConfirmModal.astro";
+import AlertModal from "../components/AlertModal.astro";
 
-const msjSecreto = import.meta.env.MSJ_SECRETO as string;
 
 const user = await Astro.locals.currentUser();
 const nombreRegistrador = user
     ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Desconocido"
     : "Anónimo";
 
-const esUsuarioEspecial = esUsuarioConAccesoEspecial(user?.id);
 
 let listaPsicologos: string[] = [];
 try {
@@ -77,85 +82,20 @@ const opcionesReferencia = [
     { value: "Particular",      label: "Particular"      },
     { value: "Protocolo",       label: "Protocolo (Tesis/Investigación)" },
 ];
+
+const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
+    timeZone: "America/Merida",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+});
 ---
 
 <Layout title="Multiples citas | Lab-Somno">
     <Icon />
     <ReturnButton href="/citas" text="Volver a la Agenda" />
 
-    {esUsuarioEspecial && (
-        <button 
-            type="button" 
-            id="btn-admin-config" 
-            class="fixed bottom-20 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-stone-600 to-rose-600 text-white shadow-xl shadow-rose-900/20 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-rose-400/20"
-            title="Un detalle especial"
-        >
-            <HiddenModalIcon class="w-6 h-6" />
-        </button>
-
-        <dialog
-            id="modal-admin"
-            class="m-auto bg-transparent border-0 rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop:backdrop-blur-xl backdrop:bg-[#1a0d0b]/60 w-full max-w-4xl max-h-[96dvh] p-0 overflow-x-hidden overflow-y-auto outline-none opacity-0 scale-95 transition-all duration-300 ease-out backdrop:transition-opacity backdrop:duration-300"
-        >
-            <div class="relative flex min-h-[min(600px,88dvh)] w-full flex-col overflow-hidden rounded-3xl">
-
-                <img
-                    src="https://images.unsplash.com/photo-1698544922251-533dd07cdbfd?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                    alt=""
-                    class="photo absolute inset-0 w-full h-full object-cover"
-                />
-
-                <div class="absolute inset-0 bg-[#2a1a18]/25"></div>
-                <div class="absolute inset-0 bg-[linear-gradient(to_top,rgba(31,19,17,0.96)_0%,rgba(31,19,17,0.72)_38%,transparent_78%)]"></div>
-                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(240,105,161,0.28),transparent_65%)]"></div>
-                <div class="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.55)] rounded-3xl pointer-events-none"></div>
-
-                <div class="absolute inset-3 rounded-[1.25rem] border border-[#f5d0cc]/15 pointer-events-none"></div>
-
-                <button type="button" id="btn-cerrar-admin" class="absolute top-6 right-6 z-20 bg-[#3a2825]/40 hover:bg-[#3a2825]/70 text-rose-300/90 hover:text-white p-2.5 rounded-full backdrop-blur-xl border border-rose-200/10 transition-all duration-200 cursor-pointer shadow-lg shadow-black/20">
-                    <CrossIcon class="h-5 w-5" />
-                </button>
-
-                <div class="rise relative z-10 mt-auto flex flex-col items-center px-6 pb-9 pt-24 text-center md:px-10">
-
-                    <h3 id="msg-titulo" class="text-4xl md:text-5xl font-semibold leading-none text-[#fdf6f5] [text-shadow:0_4px_30px_rgba(240,105,161,0.45)]">
-                        ¡Holaaaaaaaaa!
-                    </h3>
-
-                    <div class="mt-3 flex items-center gap-3 text-[#f2b8cf]/80" aria-hidden="true">
-                        <span class="h-px w-14 bg-gradient-to-r from-transparent to-[#f2b8cf]/60"></span>
-                        <svg class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2z" /></svg>
-                        <span class="h-px w-14 bg-gradient-to-l from-transparent to-[#f2b8cf]/60"></span>
-                    </div>
-
-                    <div class="relative mt-9 w-full max-w-2xl rounded-[1.75rem] border border-[#e8b4b0]/20 bg-[#362320]/35 px-8 pb-7 pt-9 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
-                        <span class="absolute -top-5 left-1/2 grid size-10 -translate-x-1/2 place-items-center rounded-full bg-[#f069a1] text-white ring-4 ring-[#1f1311]/60 shadow-[0_8px_24px_-4px_rgba(240,105,161,0.7)]">
-                            <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
-                        </span>
-                        <p
-                            id="msg-texto"
-                            class={`break-words leading-relaxed text-[#f2e1df] ${
-                                String(msjSecreto ?? '').length > 600 ? 'text-sm md:text-base'
-                                : String(msjSecreto ?? '').length > 300 ? 'text-base md:text-lg'
-                                : String(msjSecreto ?? '').length > 140 ? 'text-lg md:text-xl'
-                                : 'text-xl md:text-2xl'
-                            }`}
-                        >
-                            {msjSecreto}
-                        </p>
-                    </div>
-
-                    <button type="button" id="btn-guardar-admin" class="mt-7 cursor-pointer rounded-full bg-[#f069a1] px-12 py-3.5 text-sm font-semibold text-white shadow-[0_12px_36px_-8px_rgba(240,105,161,0.65)] transition-all duration-200 hover:scale-105 hover:bg-[#e0558f] active:scale-95">
-                        Cerrar
-                    </button>
-                </div>
-            </div>
-        </dialog>
-    )}
-
     {hayRespuesta && totalError === 0 && (
         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm px-4">
-            <div class="bg-gray-900 border border-gray-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full">
+            <div class="bg-gray-900 border border-white/10 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full">
                 <div class="success-checkmark">
                     <div class="check-icon">
                         <span class="icon-line line-tip"></span>
@@ -164,7 +104,7 @@ const opcionesReferencia = [
                         <div class="icon-fix"></div>
                     </div>
                 </div>
-                <h2 class="text-2xl font-bold text-white mt-4 text-center">
+                <h2 class="text-3xl text-white mt-4 text-center leading-tight">
                     ¡{totalExito} {totalExito === 1 ? "cita agendada" : "citas agendadas"}!
                 </h2>
                 <p class="text-gray-400 mt-2 text-center">Todas se guardaron correctamente.</p>
@@ -175,17 +115,17 @@ const opcionesReferencia = [
 
     {hayRespuesta && totalError > 0 && (
         <div class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 backdrop-blur-sm px-4 py-8 overflow-y-auto">
-            <div class="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
-                <h2 class="text-xl font-bold text-white mb-1 text-center">Resultado del lote</h2>
+            <div class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
+                <h2 class="text-3xl text-white mb-1 text-center leading-tight">Resultado del lote</h2>
                 <p class="text-gray-400 text-sm text-center mb-5">
-                    <span class="text-green-400 font-semibold">{totalExito} exitosas</span>
+                    <span class="text-emerald-400 font-semibold">{totalExito} exitosas</span>
                     &nbsp;·&nbsp;
                     <span class="text-red-400 font-semibold">{totalError} con error</span>
                 </p>
                 <ul class="space-y-2 max-h-72 overflow-y-auto pr-1">
                     {resultados.map(r => (
-                        <li class={`flex items-start gap-3 p-3 rounded-xl border text-sm ${r.exito ? "border-green-700/40 bg-green-900/10" : "border-red-700/40 bg-red-900/10"}`}>
-                            <span class={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${r.exito ? "bg-green-700 text-white" : "bg-red-700 text-white"}`}>
+                        <li class={`flex items-start gap-3 p-3 rounded-xl border text-sm ${r.exito ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"}`}>
+                            <span class={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${r.exito ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
                                 {r.exito ? "✓" : "✗"}
                             </span>
                             <div>
@@ -196,194 +136,462 @@ const opcionesReferencia = [
                     ))}
                 </ul>
                 <div class="mt-6 flex gap-3">
-                    <a href="/citas" class="flex-1 text-center bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl border border-gray-700 transition-colors text-sm">Ir a la Agenda</a>
-                    <button onclick="window.location.reload()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer">Registrar más</button>
+                    <a href="/citas" class="flex-1 text-center bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl border border-white/10 transition-colors text-sm">Ir a la Agenda</a>
+                    <button onclick="window.location.assign(window.location.pathname)" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer">Registrar más</button>
                 </div>
             </div>
         </div>
     )}
 
-    <main class="max-w-2xl mx-auto pt-6 md:pt-10 pb-36 px-4">
+    <main id="pagina" class="acc-blue max-w-6xl mx-auto pt-6 md:pt-10 pb-32 lg:pb-16 px-6">
 
-        <div class="flex flex-col items-center justify-center mb-8">
-            <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight">
-                Agendar <span class="bg-gradient-to-r from-blue-600 via-blue-300 to-blue-800 bg-clip-text text-transparent">varias</span> citas
-            </h1>
-        </div>
+        <header class="max-w-7xl mx-auto mb-5">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Agendar <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">varias</span> citas</h1>
+            <p class=" pt-5 text-lg text-gray-400 text-center">
+                Desde aquí puedes agendar todas las citas que necesitas para un paciente
+            </p>
+        </header>
 
-        <div class="mb-8 p-4 rounded-2xl border border-gray-800 bg-gray-900/40">
-            <p class="text-xs font-bold uppercase tracking-wider text-gray-200 mb-3">Selecciona el motivo de las citas</p>
-            <div class="flex gap-3" id="selector-servicio">
-                <button type="button" data-servicio="TMS" id="btn-tms"
-                    class="flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200 cursor-pointer border border-blue-500 bg-blue-500/10 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)]">
-                    TMS
-                </button>
-                <button type="button" data-servicio="NFB" id="btn-nfb"
-                    class="flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200 cursor-pointer border border-gray-700 bg-transparent text-gray-500">
-                    NFB
-                </button>
-            </div>
-        </div>
-
-        <form id="form-masivo" method="POST" data-hay-error={totalError > 0 ? "1" : undefined}>
+        <form id="form-masivo" method="POST" data-hay-error={totalError > 0 ? "1" : undefined}
+            class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start animate-fade-in-up">
             <input type="hidden" name="lote_json" id="lote_json" />
-            
-            <div class="rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden mb-6">
-                <div class="px-4 py-3 bg-gray-800/60 flex items-center gap-3">
-                    <p class="text-sm font-semibold text-gray-200">Datos de las citas</p>
+
+            <div class="space-y-6 min-w-0">
+
+                <section class="panel" aria-labelledby="t-servicio">
+                    <div class="panel-head">
+                        <span class="mod-chip"><ServiciosIcon class="size-5" /></span>
+                        <div class="min-w-0">
+                            <h2 id="t-servicio" class="text-xl text-white leading-tight">Servicio</h2>
+                            <p class="text-sm text-gray-400">Define el tipo de sesión de todo el lote</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-5" id="selector-servicio" role="group" aria-label="Servicio de las citas">
+                        <button type="button" data-servicio="TMS" id="btn-tms" aria-pressed="true" class="svc acc-blue">
+                            <span class="svc-name">TMS</span>
+                            <span class="svc-desc">Estimulación magnética transcraneal</span>
+                        </button>
+                        <button type="button" data-servicio="NFB" id="btn-nfb" aria-pressed="false" class="svc acc-purple">
+                            <span class="svc-name">NFB</span>
+                            <span class="svc-desc">Neurofeedback</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="panel" aria-labelledby="t-paciente">
+                    <div class="panel-head">
+                        <span class="mod-chip"><PacientesIcon class="size-5" /></span>
+                        <div class="min-w-0">
+                            <h2 id="t-paciente" class="text-xl text-white leading-tight">Paciente</h2>
+                            <p class="text-sm text-gray-400">Quién recibirá las sesiones</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+                        <div class="md:col-span-2">
+                            <label for="campo-nombre" class="lbl">Nombre completo <span class="text-red-400">*</span></label>
+                            <input type="text" id="campo-nombre" placeholder="Ej. María González López" class="field" />
+                        </div>
+
+                        <div>
+                            <label for="campo-telefono" class="lbl">Teléfono</label>
+                            <input type="tel" id="campo-telefono" placeholder="10 dígitos" class="field" />
+                        </div>
+
+                        <div>
+                            <label for="campo-referencia" class="lbl">Referencia <span class="text-red-400">*</span></label>
+                            <div class="relative">
+                                <select id="campo-referencia" class="field">
+                                    <option value="" disabled selected>Seleccionar…</option>
+                                    {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="campo-sintoma" class="lbl">Motivo de consulta</label>
+                            <input type="text" id="campo-sintoma" placeholder="Ej. Ansiedad, insomnio…" class="field" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel" aria-labelledby="t-detalles">
+                    <div class="panel-head">
+                        <span class="mod-chip"><AgendaIcon class="size-5" /></span>
+                        <div class="min-w-0">
+                            <h2 id="t-detalles" class="text-xl text-white leading-tight">Detalles de las citas</h2>
+                            <p class="text-sm text-gray-400">Se aplican igual a cada fecha del lote</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+                        <div>
+                            <label for="campo-motivo" class="lbl">Tipo de cita <span class="text-red-400">*</span></label>
+                            <div class="relative">
+                                <select id="campo-motivo" class="field">
+                                    <option value="" disabled selected>Seleccionar…</option>
+                                    {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="campo-atendido_por" class="lbl">¿Quién atenderá? <span class="text-red-400">*</span></label>
+                            <div class="relative">
+                                <select id="campo-atendido_por" class="field">
+                                    <option value="" disabled selected>¿Quién atenderá?</option>
+                                    {listaPsicologos.map(n => <option value={n}>{n}</option>)}
+                                    <option value="Por asignar">— Por definir —</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="campo-sesion-inicial" class="lbl">Número de sesión inicial</label>
+                            <input type="number" id="campo-sesion-inicial" min="1" placeholder="Ej. 1, 4 (opcional)" class="field" />
+                        </div>
+
+                        <div>
+                            <label for="campo-precio" class="lbl">Precio de la sesión <span id="precio-obligatorio" class="text-red-400 hidden">*</span></label>
+                            <div class="relative">
+                                <select id="campo-precio" data-estado="cargando" disabled class="field">
+                                    <option value="" disabled selected>Cargando precios…</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                                    <DownTriangle class="h-4 w-4" />
+                                </div>
+                            </div>
+                            <p id="precio-aviso" role="status" class="hidden mt-1.5 text-xs text-amber-400"></p>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="campo-observaciones" class="lbl">Observaciones</label>
+                            <input type="text" id="campo-observaciones" placeholder="Opcional" class="field" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel" aria-labelledby="t-fechas">
+                    <div class="panel-head">
+                        <span class="mod-chip"><ClockIcon class="size-5" /></span>
+                        <div class="min-w-0">
+                            <h2 id="t-fechas" class="text-xl text-white leading-tight">Fechas y hora</h2>
+                            <p class="text-sm text-gray-400">Elige los días; la hora es la misma para todas</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-5 p-5 md:items-end">
+                        <div>
+                            <label class="lbl">Fechas <span class="text-red-400">*</span></label>
+                            <button type="button" id="btn-abrir-calendario" class="pick">
+                                <span class="mod-chip"><CalendarIcon class="size-5" /></span>
+                                <span class="min-w-0 flex-1 text-left">
+                                    <span id="texto-fechas-seleccionadas" class="block font-semibold text-white leading-tight">Seleccionar fechas…</span>
+                                    <span class="block text-xs text-gray-400 mt-0.5">Abre el calendario y marca los días</span>
+                                </span>
+                                <RightTriangle class="mod-go size-4" />
+                            </button>
+                        </div>
+
+                        <div>
+                            <label for="campo-hora" class="lbl">Hora <span class="text-red-400">*</span></label>
+                            <input type="time" id="campo-hora" class="field h-14 cursor-pointer" />
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="lg:sticky lg:top-6" aria-label="Resumen del lote">
+                <div class="panel">
+                    <div class="panel-head">
+                        <span class="mod-chip"><CheckIcon class="size-5" /></span>
+                        <div class="min-w-0">
+                            <h2 class="text-xl text-white leading-tight">Resumen del lote</h2>
+                            <p class="text-sm text-gray-400">Así quedará tu registro</p>
+                        </div>
+                    </div>
+
+                    <div class="p-5">
+                        <div class="flex items-end gap-3">
+                            <span id="contador-num" class="text-7xl leading-none text-white tabular-nums">0</span>
+                            <span id="contador-label" class="pb-1.5 text-gray-400">citas en el lote</span>
+                        </div>
+
+                        <dl class="mt-5 text-sm divide-y divide-white/10 border-y border-white/10">
+                            <div class="flex items-center justify-between gap-4 py-2.5">
+                                <dt class="text-gray-400">Servicio</dt>
+                                <dd id="resumen-servicio" class="font-semibold" style="color: rgb(var(--t))">TMS</dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-4 py-2.5">
+                                <dt class="text-gray-400">Hora</dt>
+                                <dd id="resumen-hora" class="text-white">Sin definir</dd>
+                            </div>
+                            <div class="flex items-center justify-between gap-4 py-2.5">
+                                <dt class="text-gray-400">Sesiones</dt>
+                                <dd id="resumen-sesiones" class="text-white">—</dd>
+                            </div>
+                        </dl>
+
+                        <div id="lista-fechas" class="mt-4 flex flex-wrap gap-2"></div>
+                        <p id="fechas-vacio" class="mt-4 text-sm text-gray-500">Aún no hay fechas. Ábrelas desde el calendario.</p>
+
+                        <div class="hidden lg:block mt-6">
+                            <button type="submit" class="btn-primary">Registrar lote</button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="px-4 py-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Nombre completo <span class="text-red-500">*</span></label>
-                        <input type="text" id="campo-nombre" placeholder="Ej. María González López" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
-                    </div>
+            </aside>
+        </form>
 
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Teléfono</label>
-                        <input type="tel" id="campo-telefono" placeholder="10 dígitos" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
-                    </div>
+        <dialog id="modal-calendario" class="cal">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <button type="button" id="btn-prev-month" aria-label="Mes anterior" class="nav-btn">
+                        <LeftTriangle class="w-5 h-5" />
+                    </button>
+                    <h3 id="mes-anio-label" class="text-2xl text-white capitalize leading-none">Mes Año</h3>
+                    <button type="button" id="btn-next-month" aria-label="Mes siguiente" class="nav-btn">
+                        <RightTriangle class="w-5 h-5" />
+                    </button>
+                </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Referencia <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <select id="campo-referencia" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
-                                <option value="" disabled selected>Seleccionar…</option>
-                                {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <DownTriangle class="h-4 w-4" />
-                            </div>
-                        </div>
-                    </div>
+                <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                    <span class="text-xs font-semibold text-gray-500">Do</span>
+                    <span class="text-xs font-semibold text-gray-500">Lu</span>
+                    <span class="text-xs font-semibold text-gray-500">Ma</span>
+                    <span class="text-xs font-semibold text-gray-500">Mi</span>
+                    <span class="text-xs font-semibold text-gray-500">Ju</span>
+                    <span class="text-xs font-semibold text-gray-500">Vi</span>
+                    <span class="text-xs font-semibold text-gray-500">Sá</span>
+                </div>
 
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Motivo de consulta</label>
-                        <input type="text" id="campo-sintoma" placeholder="Ej. Ansiedad, insomnio…" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
-                    </div>
+                <div id="calendario-grid" class="grid grid-cols-7 gap-1"></div>
 
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Tipo de cita <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <select id="campo-motivo" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
-                                <option value="" disabled selected>Seleccionar…</option>
-                                {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <DownTriangle class="h-4 w-4" />
-                            </div>
-                        </div>
-                    </div>
+                <div class="mt-4 flex items-center gap-4 text-xs text-gray-400">
+                    <span class="flex items-center gap-1.5"><span class="leyenda leyenda-sel"></span>Seleccionado</span>
+                    <span class="flex items-center gap-1.5"><span class="leyenda leyenda-bloq"></span>Bloqueado</span>
+                </div>
 
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">¿Quién atenderá? <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <select id="campo-atendido_por" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm">
-                                <option value="" disabled selected>¿Quién atenderá?</option>
-                                {listaPsicologos.map(n => <option value={n}>{n}</option>)}
-                                <option value="Por asignar">— Por definir —</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <DownTriangle class="h-4 w-4" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Número de Sesión Inicial</label>
-                        <input type="number" id="campo-sesion-inicial" min="1" placeholder="Ej. 1, 4 (Opcional)" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
-                    </div>
-
-                    <div>
-                        <label for="campo-precio" class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Precio de la sesión <span id="precio-obligatorio" class="text-red-500 hidden">*</span></label>
-                        <div class="relative">
-                            <select id="campo-precio" data-estado="cargando" disabled class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none cursor-pointer pr-9 text-sm disabled:cursor-not-allowed disabled:opacity-60">
-                                <option value="" disabled selected>Cargando precios…</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                                <DownTriangle class="h-4 w-4" />
-                            </div>
-                        </div>
-                        <p id="precio-aviso" role="status" class="hidden mt-1.5 text-xs text-amber-400"></p>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Observaciones</label>
-                        <input type="text" id="campo-observaciones" placeholder="Opcional" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 transition-all text-sm" />
-                    </div>
-                    
-                    <div class="md:col-span-2 mt-2 pt-4 border-t border-gray-800">
-                        <h3 class="text-sm font-semibold text-white mb-4">Fechas de las citas</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Fechas <span class="text-red-500">*</span></label>
-                                <button type="button" id="btn-abrir-calendario" class="w-full p-3 border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg text-blue-400 font-medium transition-all text-sm flex items-center justify-between cursor-pointer">
-                                    <span id="texto-fechas-seleccionadas">Seleccionar fechas...</span>
-                                    <CalendarIcon class="h-5 w-5" />
-                                </button>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Hora (Aplica a todas) <span class="text-red-500">*</span></label>
-                                <input type="time" id="campo-hora" class="w-full p-3 border border-gray-700 bg-gray-900/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white transition-all text-sm cursor-pointer" />
-                            </div>
-                        </div>
-                    </div>
+                <div class="mt-5 pt-4 border-t border-white/10 flex items-center justify-between gap-4">
+                    <p id="modal-contador" class="text-sm text-gray-400">Ninguna fecha seleccionada</p>
+                    <button type="button" onclick="document.getElementById('modal-calendario').close()" class="btn-primary compact">
+                        Listo
+                    </button>
                 </div>
             </div>
-        </form>
+        </dialog>
+        <div class="fixed inset-x-0 bottom-0 z-40 flex lg:hidden items-center justify-between gap-4 border-t border-white/10 bg-[#0f0f11]/85 backdrop-blur-md px-6 pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
+            <p id="contador-mobile" class="text-sm text-gray-300">0 citas en el lote</p>
+            <button type="submit" form="form-masivo" class="btn-primary compact">Registrar lote</button>
+        </div>
     </main>
 
-    <div class="fixed bottom-0 left-0 right-0 z-40 rounded-full border-gray-800 bg-gray-950/80 backdrop-blur-md my-5 mx-100 px-4 py-3">
-        <div class="max-w-2xl mx-auto flex items-center justify-center gap-30">
-            <div class="flex items-center gap-3">
-                <div class="h-8 w-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
-                    <span id="contador-num" class="text-blue-400 font-bold text-xs">0</span>
-                </div>
-                <span id="contador-label" class="text-gray-400 text-sm">citas configuradas</span>
-            </div>
-            <button type="submit" form="form-masivo"
-                class="hover:scale-110 text-gray-400 bg-blue-600/20 font-bold px-8 py-2.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center gap-2 text-sm">
-                Registrar lote
-            </button>
-        </div>
-    </div>
 
-    <dialog id="modal-calendario" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-sm p-0 overflow-hidden outline-none">
-        <div class="p-5">
-            <div class="flex justify-between items-center mb-4">
-                <button type="button" id="btn-prev-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <LeftTriangle class="w-5 h-5" />
-                </button>
-                <h3 id="mes-anio-label" class="text-white font-bold capitalize">Mes Año</h3>
-                <button type="button" id="btn-next-month" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 cursor-pointer transition-colors">
-                    <RightTriangle class="w-5 h-5" />
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                <span class="text-xs font-bold text-gray-500">Do</span>
-                <span class="text-xs font-bold text-gray-500">Lu</span>
-                <span class="text-xs font-bold text-gray-500">Ma</span>
-                <span class="text-xs font-bold text-gray-500">Mi</span>
-                <span class="text-xs font-bold text-gray-500">Ju</span>
-                <span class="text-xs font-bold text-gray-500">Vi</span>
-                <span class="text-xs font-bold text-gray-500">Sá</span>
-            </div>
-            
-            <div id="calendario-grid" class="grid grid-cols-7 gap-1">
-                </div>
-            
-            <div class="mt-5 pt-4 border-t border-gray-800 flex justify-end">
-                <button type="button" onclick="document.getElementById('modal-calendario').close()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors cursor-pointer text-sm">
-                    Listo
-                </button>
-            </div>
-        </div>
-    </dialog>
+    <ConfirmModal />
+    <AlertModal />
 </Layout>
 
 <style>
+    .acc-blue   { --a: 59 130 246;  --t: 147 197 253; }
+    .acc-purple { --a: 168 85 247;  --t: 216 180 254; }
+
+    .panel {
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .4);
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    .panel-head {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgb(255 255 255 / .1);
+    }
+    .mod-chip {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: .75rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+        transition: background-color .2s ease, color .2s ease;
+    }
+    .mod-go {
+        flex-shrink: 0;
+        color: #6b7280;
+        transition: transform .2s ease, color .15s ease;
+    }
+
+    .lbl {
+        display: block;
+        margin-bottom: .4rem;
+        font-size: .875rem;
+        font-weight: 500;
+        color: #d1d5db;
+    }
+    .field {
+        display: block;
+        width: 100%;
+        padding: .75rem .9rem;
+        font-size: .9375rem;
+        color: #fff;
+        background: rgb(2 6 23 / .45);
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: .75rem;
+        transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .field::placeholder { color: #6b7280; }
+    .field:hover:not(:disabled) { border-color: rgb(255 255 255 / .22); }
+    .field:focus {
+        outline: none;
+        border-color: rgb(var(--a) / .75);
+        background: rgb(2 6 23 / .65);
+        box-shadow: 0 0 0 3px rgb(var(--a) / .2);
+    }
+    .field:disabled { opacity: .6; cursor: not-allowed; }
+    select.field { appearance: none; padding-right: 2.5rem; cursor: pointer; }
+    .field option { background: #0f172a; color: #fff; }
+    .field.is-error,
+    .pick.is-error {
+        border-color: rgb(239 68 68);
+        box-shadow: 0 0 0 3px rgb(239 68 68 / .25);
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: invert(.6);
+        cursor: pointer;
+    }
+
+    .svc {
+        position: relative;
+        text-align: left;
+        padding: 1.1rem 1.25rem 1.2rem;
+        border-radius: 1rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(255 255 255 / .02);
+        cursor: pointer;
+        transition: border-color .2s ease, background-color .2s ease;
+    }
+    .svc::after {
+        content: "";
+        position: absolute;
+        top: 1.1rem;
+        right: 1.1rem;
+        width: 1.1rem;
+        height: 1.1rem;
+        border-radius: 9999px;
+        border: 1.5px solid rgb(255 255 255 / .25);
+        transition: border-color .2s ease, background .2s ease;
+    }
+    .svc-name {
+        display: block;
+        font-size: 2.25rem;
+        line-height: 1;
+        letter-spacing: -.01em;
+        color: #9ca3af;
+        transition: color .2s ease;
+    }
+    .svc-desc {
+        display: block;
+        margin-top: .6rem;
+        font-size: .875rem;
+        line-height: 1.35;
+        color: #6b7280;
+    }
+    .svc:hover { border-color: rgb(var(--a) / .4); }
+    .svc[aria-pressed="true"] {
+        border-color: rgb(var(--a) / .6);
+        background: rgb(var(--a) / .1);
+    }
+    .svc[aria-pressed="true"]::after {
+        border-color: rgb(var(--t));
+        background: radial-gradient(circle, rgb(var(--t)) 0 38%, transparent 42%);
+    }
+    .svc[aria-pressed="true"] .svc-name { color: #fff; }
+    .svc[aria-pressed="true"] .svc-desc { color: rgb(var(--t)); }
+
+    .pick {
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        width: 100%;
+        min-height: 3.5rem;
+        padding: .5rem 1rem .5rem .5rem;
+        border-radius: .75rem;
+        border: 1px dashed rgb(var(--a) / .5);
+        background: rgb(var(--a) / .07);
+        cursor: pointer;
+        transition: background-color .2s ease, border-color .2s ease;
+    }
+    .pick:hover { background: rgb(var(--a) / .13); border-color: rgb(var(--a) / .8); }
+    .pick:hover .mod-chip { background: rgb(var(--a)); color: #fff; }
+    .pick:hover .mod-go { color: rgb(var(--t)); transform: translateX(3px); }
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: .85rem 1.25rem;
+        border-radius: .75rem;
+        font-size: .9375rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgb(var(--a));
+        cursor: pointer;
+        transition: filter .15s ease, transform .15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.12); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .6; cursor: wait; filter: none; transform: none; }
+    .btn-primary.compact { width: auto; padding: .65rem 1.5rem; }
+
+    .svc:focus-visible,
+    .pick:focus-visible,
+    .btn-primary:focus-visible,
+    .nav-btn:focus-visible {
+        outline: 2px solid rgb(var(--t));
+        outline-offset: 2px;
+    }
+
+    .cal {
+        margin: auto;
+        width: 100%;
+        max-width: 24rem;
+        padding: 0;
+        color: #fff;
+        background: #0f172a;
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: 1.5rem;
+        box-shadow: 0 24px 60px -12px rgb(0 0 0 / .7);
+        overflow: hidden;
+        outline: none;
+    }
+    .cal::backdrop {
+        background: rgb(0 0 0 / .55);
+        backdrop-filter: blur(6px);
+    }
+    .nav-btn {
+        padding: .5rem;
+        border-radius: 9999px;
+        color: #9ca3af;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .nav-btn:hover { background: rgb(255 255 255 / .08); color: #fff; }
+    .leyenda { width: .75rem; height: .75rem; border-radius: .25rem; }
+    .leyenda-sel  { background: rgb(var(--a)); }
+    .leyenda-bloq { background: rgb(239 68 68 / .3); border: 1px solid rgb(239 68 68 / .5); }
+
     .success-checkmark { width: 80px; height: 115px; margin: 0 auto; }
     .check-icon { width:80px; height:80px; position:relative; border-radius:50%; box-sizing:content-box; border:4px solid #4CAF50; }
     .check-icon::before, .check-icon::after { content:''; height:100px; position:absolute; background:#111827; transform:rotate(-45deg); }
@@ -397,117 +605,189 @@ const opcionesReferencia = [
     @keyframes rotate-circle { 0%{transform:rotate(-45deg)} 5%{transform:rotate(-45deg)} 12%{transform:rotate(-405deg)} 100%{transform:rotate(-405deg)} }
     @keyframes icon-line-tip  { 0%{width:0;left:1px;top:19px} 54%{width:0;left:1px;top:19px} 70%{width:50px;left:-8px;top:37px} 84%{width:17px;left:21px;top:48px} 100%{width:25px;left:14px;top:46px} }
     @keyframes icon-line-long { 0%{width:0;right:46px;top:54px} 65%{width:0;right:46px;top:54px} 84%{width:55px;right:0;top:35px} 100%{width:47px;right:8px;top:38px} }
-    
-    input[type="time"]::-webkit-calendar-picker-indicator {
-        filter: invert(.6);
-        cursor: pointer;
+</style>
+
+<style is:global>
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .25rem .35rem .25rem .75rem;
+        border-radius: 9999px;
+        font-size: .75rem;
+        text-transform: capitalize;
+        color: rgb(var(--t));
+        background: rgb(var(--a) / .14);
+        border: 1px solid rgb(var(--a) / .35);
     }
+    .chip button {
+        display: grid;
+        place-items: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 9999px;
+        font-size: .95rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background-color .15s ease;
+    }
+    .chip button:hover { background: rgb(var(--a) / .35); }
 
-    dialog[open] .photo { animation: kb 20s ease-out forwards; }
-    dialog[open] .rise  { animation: rise .9s .3s cubic-bezier(.2, .8, .2, 1) both; }
-
-    @keyframes kb   { from { transform: scale(1.04); } to { transform: scale(1.14); } }
-    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-
-    @media (prefers-reduced-motion: reduce) {
-        dialog[open] .photo, dialog[open] .rise { animation: none; }
+    .dia {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: .75rem;
+        font-size: .875rem;
+        color: #d1d5db;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+    .dia:hover { background: rgb(255 255 255 / .08); border-color: rgb(255 255 255 / .12); }
+    .dia-hoy { color: #fff; font-weight: 600; border-color: rgb(255 255 255 / .3); }
+    .dia-sel,
+    .dia-sel:hover {
+        color: #fff;
+        font-weight: 600;
+        background: rgb(var(--a));
+        border-color: transparent;
+    }
+    .dia-bloq,
+    .dia-bloq:hover {
+        color: rgb(248 113 113 / .75);
+        background: rgb(239 68 68 / .1);
+        border-color: rgb(239 68 68 / .25);
+        cursor: not-allowed;
     }
 </style>
 
 <script define:vars={{ listaInhabiles }}>
-    const btnAdmin = document.getElementById("btn-admin-config");
-    const modalAdmin = document.getElementById("modal-admin");
-    const btnCerrarAdmin = document.getElementById("btn-cerrar-admin");
-    const btnGuardarAdmin = document.getElementById("btn-guardar-admin");
+    const $ = (id) => document.getElementById(id);
 
+    const pagina = $("pagina");
     let servicioActual = "TMS";
     const fechasSeleccionadas = new Set();
-    let currentDate = new Date();
-    let currentMonth = currentDate.getMonth();
-    let currentYear = currentDate.getFullYear();
-    
-    const ERROR_INPUT = ["ring-2", "ring-red-500", "border-red-500"];
+
+    const hoy = new Date();
+    let currentMonth = hoy.getMonth();
+    let currentYear = hoy.getFullYear();
+    const pad = (n) => String(n).padStart(2, "0");
+    const hoyStr = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}`;
+
+    const fmtCorto = new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric", month: "short" });
+    const fechaDe = (iso) => {
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    };
+
+    const ERROR_INPUT = ["is-error"];
 
     document.querySelectorAll("input, select").forEach(el => {
         el.addEventListener("input", () => el.classList.remove(...ERROR_INPUT));
         el.addEventListener("change", () => el.classList.remove(...ERROR_INPUT));
     });
 
-    const ACTIVE_TMS = ["border-blue-500",  "bg-blue-500/10",  "text-blue-400",   "shadow-[0_0_20px_rgba(59,130,246,0.15)]"];
-    const ACTIVE_NFB = ["border-violet-500","bg-violet-500/10","text-violet-400", "shadow-[0_0_20px_rgba(139,92,246,0.15)]"];
-    const INACTIVE   = ["border-gray-700",  "bg-transparent",  "text-gray-500"];
-    
     document.querySelectorAll("[data-servicio]").forEach(btn => {
         btn.addEventListener("click", () => {
-            const esTMS = btn.dataset.servicio === "TMS";
             servicioActual = btn.dataset.servicio;
-            const btnTMS = document.getElementById("btn-tms");
-            const btnNFB = document.getElementById("btn-nfb");
-
-            btnTMS.classList.remove(...ACTIVE_TMS, ...INACTIVE);
-            btnNFB.classList.remove(...ACTIVE_NFB, ...INACTIVE);
-
-            if (esTMS) {
-                btnTMS.classList.add(...ACTIVE_TMS);
-                btnNFB.classList.add(...INACTIVE);
-            } else {
-                btnNFB.classList.add(...ACTIVE_NFB);
-                btnTMS.classList.add(...INACTIVE);
-            }
+            document.querySelectorAll("[data-servicio]").forEach(b =>
+                b.setAttribute("aria-pressed", String(b === btn))
+            );
+            pagina.classList.toggle("acc-blue", servicioActual === "TMS");
+            pagina.classList.toggle("acc-purple", servicioActual === "NFB");
+            $("resumen-servicio").textContent = servicioActual;
         });
     });
 
+    const formatoHora = (v) =>
+        new Date(`1970-01-01T${v}`).toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
+
+    function actualizarHora() {
+        const v = $("campo-hora").value;
+        $("resumen-hora").textContent = v ? formatoHora(v) : "Sin definir";
+    }
+
+    function actualizarSesiones() {
+        const inicio = parseInt($("campo-sesion-inicial").value);
+        const n = fechasSeleccionadas.size;
+        $("resumen-sesiones").textContent =
+            !inicio || inicio < 1 || n === 0 ? "—" : n === 1 ? `#${inicio}` : `#${inicio} a #${inicio + n - 1}`;
+    }
+
     function actualizarContador() {
         const n = fechasSeleccionadas.size;
-        document.getElementById("contador-num").textContent = n;
-        document.getElementById("contador-label").textContent = n === 1 ? "cita en el lote" : "citas en el lote";
-        
-        const btnFechas = document.getElementById("texto-fechas-seleccionadas");
-        if (n === 0) {
-            btnFechas.textContent = "Seleccionar fechas...";
-        } else if (n === 1) {
-            btnFechas.textContent = "1 fecha seleccionada";
-        } else {
-            btnFechas.textContent = `${n} fechas seleccionadas`;
-        }
-        document.getElementById("btn-abrir-calendario").classList.remove(...ERROR_INPUT);
+        const etiqueta = n === 1 ? "cita en el lote" : "citas en el lote";
+
+        $("contador-num").textContent = n;
+        $("contador-label").textContent = etiqueta;
+        $("contador-mobile").textContent = `${n} ${etiqueta}`;
+
+        const textoFechas = n === 0 ? "Ninguna fecha seleccionada" : n === 1 ? "1 fecha seleccionada" : `${n} fechas seleccionadas`;
+        $("modal-contador").textContent = textoFechas;
+        $("texto-fechas-seleccionadas").textContent = n === 0 ? "Seleccionar fechas…" : textoFechas;
+
+        const lista = $("lista-fechas");
+        lista.replaceChildren();
+        Array.from(fechasSeleccionadas).sort().forEach(f => {
+            const chip = document.createElement("span");
+            chip.className = "chip";
+            chip.append(fmtCorto.format(fechaDe(f)).replace(/\./g, "").replace(",", ""));
+
+            const quitar = document.createElement("button");
+            quitar.type = "button";
+            quitar.textContent = "×";
+            quitar.setAttribute("aria-label", `Quitar ${f}`);
+            quitar.addEventListener("click", () => {
+                fechasSeleccionadas.delete(f);
+                renderCalendar();
+                actualizarContador();
+            });
+            chip.append(quitar);
+            lista.append(chip);
+        });
+        $("fechas-vacio").classList.toggle("hidden", n > 0);
+
+        $("btn-abrir-calendario").classList.remove(...ERROR_INPUT);
+        actualizarSesiones();
     }
 
     function renderCalendar() {
-        const grid = document.getElementById("calendario-grid");
+        const grid = $("calendario-grid");
         grid.innerHTML = "";
-        
+
         const firstDay = new Date(currentYear, currentMonth, 1).getDay();
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-        
+
         for (let i = 0; i < firstDay; i++) {
-            const div = document.createElement("div");
-            grid.appendChild(div);
+            grid.appendChild(document.createElement("div"));
         }
-        
+
         for (let i = 1; i <= daysInMonth; i++) {
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(i)}`;
             const isInhabil = listaInhabiles.includes(dateStr);
             const isSelected = fechasSeleccionadas.has(dateStr);
-            
+
             const btn = document.createElement("button");
             btn.type = "button";
             btn.textContent = i;
-            
-            let classes = "w-full aspect-square rounded-lg flex items-center justify-center text-sm transition-all ";
-            
+
+            let clases = "dia";
             if (isInhabil) {
-                classes += "bg-red-900/30 text-red-500 cursor-not-allowed border border-red-500/30 opacity-60 font-medium";
+                clases += " dia-bloq";
                 btn.disabled = true;
                 btn.title = "Día bloqueado (Inhábil o Evento)";
             } else if (isSelected) {
-                classes += "bg-blue-600 text-white shadow-md font-bold cursor-pointer hover:bg-blue-500";
-            } else {
-                classes += "text-gray-300 hover:bg-gray-800 cursor-pointer border border-transparent hover:border-gray-700";
+                clases += " dia-sel";
+                btn.setAttribute("aria-pressed", "true");
+            } else if (dateStr === hoyStr) {
+                clases += " dia-hoy";
+                btn.title = "Hoy";
             }
-            
-            btn.className = classes;
-            
+            btn.className = clases;
+
             if (!isInhabil) {
                 btn.onclick = () => {
                     if (fechasSeleccionadas.has(dateStr)) fechasSeleccionadas.delete(dateStr);
@@ -518,78 +798,84 @@ const opcionesReferencia = [
             }
             grid.appendChild(btn);
         }
-        
-        const formatter = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' });
-        document.getElementById("mes-anio-label").textContent = formatter.format(new Date(currentYear, currentMonth));
+
+        const formatter = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" });
+        $("mes-anio-label").textContent = formatter.format(new Date(currentYear, currentMonth));
     }
 
-    document.getElementById("btn-prev-month").addEventListener("click", () => {
+    $("btn-prev-month").addEventListener("click", () => {
         currentMonth--;
         if (currentMonth < 0) { currentMonth = 11; currentYear--; }
         renderCalendar();
     });
 
-    document.getElementById("btn-next-month").addEventListener("click", () => {
+    $("btn-next-month").addEventListener("click", () => {
         currentMonth++;
         if (currentMonth > 11) { currentMonth = 0; currentYear++; }
         renderCalendar();
     });
 
-    document.getElementById("btn-abrir-calendario").addEventListener("click", () => {
+    $("btn-abrir-calendario").addEventListener("click", () => {
         renderCalendar();
-        document.getElementById("modal-calendario").showModal();
+        $("modal-calendario").showModal();
     });
 
-    document.getElementById("form-masivo").addEventListener("submit", e => {
-        e.preventDefault();
+    $("campo-hora").addEventListener("input", actualizarHora);
+    $("campo-sesion-inicial").addEventListener("input", actualizarSesiones);
 
+    /* ── Validación: devuelve el lote listo o null (tras avisar qué falta) ── */
+    async function validarYArmarLote() {
         if (fechasSeleccionadas.size === 0) {
-            document.getElementById("btn-abrir-calendario").classList.add(...ERROR_INPUT);
-            alert("Debes seleccionar al menos una fecha en el calendario.");
-            return;
-        }
-        const horaSeleccionada = document.getElementById("campo-hora").value;
-        if (!horaSeleccionada) {
-            document.getElementById("campo-hora").classList.add(...ERROR_INPUT);
-            alert("Debes seleccionar una hora para las citas.");
-            return;
+            $("btn-abrir-calendario").classList.add(...ERROR_INPUT);
+            await window.mostrarAlerta("Debes seleccionar al menos una fecha en el calendario.", { titulo: "Faltan fechas" });
+            $("btn-abrir-calendario").focus();
+            return null;
         }
 
-        const requeridos = ["nombre", "referencia", "motivo", "atendido_por"];
-        let valido = true;
-        
-        requeridos.forEach(idCampo => {
-            const el = document.getElementById(`campo-${idCampo}`);
+        const horaSeleccionada = $("campo-hora").value;
+        if (!horaSeleccionada) {
+            $("campo-hora").classList.add(...ERROR_INPUT);
+            await window.mostrarAlerta("Debes seleccionar una hora para las citas.", { titulo: "Falta la hora" });
+            $("campo-hora").focus();
+            return null;
+        }
+
+        let primerInvalido = null;
+        ["nombre", "referencia", "motivo", "atendido_por"].forEach(idCampo => {
+            const el = $(`campo-${idCampo}`);
             if (el && !el.value.trim()) {
                 el.classList.add(...ERROR_INPUT);
-                valido = false;
+                primerInvalido ??= el;
             }
         });
 
-        const precioSel = document.getElementById("campo-precio");
+        const precioSel = $("campo-precio");
         if (precioSel.dataset.estado === "cargando") {
-            alert("Espera un momento: todavía se están cargando los precios.");
-            return;
+            await window.mostrarAlerta("Espera un momento: todavía se están cargando los precios.", { titulo: "Cargando precios" });
+            return null;
         }
         if (!precioSel.disabled && !precioSel.value) {
             precioSel.classList.add(...ERROR_INPUT);
-            valido = false;
+            primerInvalido ??= precioSel;
         }
 
-        if (!valido) return;
+        if (primerInvalido) {
+            primerInvalido.scrollIntoView({ block: "center", behavior: "smooth" });
+            primerInvalido.focus({ preventScroll: true });
+            return null;
+        }
 
-        const getVal = (id) => document.getElementById(`campo-${id}`).value.trim();
+        const getVal = (id) => $(`campo-${id}`).value.trim();
         const lote = [];
-        
-        const numInicialStr = document.getElementById("campo-sesion-inicial").value;
+
+        const numInicialStr = $("campo-sesion-inicial").value;
         let numContador = numInicialStr ? parseInt(numInicialStr) : null;
 
-        const fechasOrdenadas = Array.from(fechasSeleccionadas).sort();
         const seleccionServicio = window.seleccionServicioLote
             ? window.seleccionServicioLote()
             : { servicioId: null, precioId: null };
 
-        fechasOrdenadas.forEach(fecha => {
+        Array.from(fechasSeleccionadas).sort().forEach(fecha => {
             let obsFinal = getVal("observaciones");
 
             if (numContador !== null) {
@@ -613,67 +899,57 @@ const opcionesReferencia = [
             });
         });
 
-        document.getElementById("lote_json").value = JSON.stringify(lote);
-        e.target.submit();
-    });
-
-    if (btnAdmin && modalAdmin) {
-        btnAdmin.addEventListener("click", () => {
-            modalAdmin.showModal();
-            setTimeout(() => {
-                modalAdmin.classList.remove("opacity-0", "scale-95");
-                modalAdmin.classList.add("opacity-100", "scale-100");
-            }, 10);
-        });
-
-        const cerrarModalAdmin = () => {
-            modalAdmin.classList.remove("opacity-100", "scale-100");
-            modalAdmin.classList.add("opacity-0", "scale-95");
-            setTimeout(() => {
-                modalAdmin.close();
-            }, 250);
-        };
-
-        btnCerrarAdmin?.addEventListener("click", cerrarModalAdmin);
-        btnGuardarAdmin?.addEventListener("click", cerrarModalAdmin);
-        
-        modalAdmin.addEventListener("click", (e) => {
-            if (e.target === modalAdmin) cerrarModalAdmin();
-        });
-
-        const msgTexto = document.getElementById("msg-texto");
-        const msgTitulo = document.getElementById("msg-titulo");
-
-        const ajustarTextoModal = () => {
-            if (!modalAdmin.open || !msgTexto || !msgTitulo) return;
-
-            msgTexto.style.fontSize = "";
-            msgTitulo.style.fontSize = "";
-            const desborda = () => modalAdmin.scrollHeight > modalAdmin.clientHeight + 1;
-
-            let t = parseFloat(getComputedStyle(msgTexto).fontSize);
-            while (desborda() && t > 13) {
-                t -= 1;
-                msgTexto.style.fontSize = `${t}px`;
-            }
-
-            let h = parseFloat(getComputedStyle(msgTitulo).fontSize);
-            while (desborda() && h > 32) {
-                h -= 2;
-                msgTitulo.style.fontSize = `${h}px`;
-            }
-        };
-
-        new MutationObserver(ajustarTextoModal).observe(modalAdmin, { attributes: true, attributeFilter: ["open"] });
-        window.addEventListener("resize", ajustarTextoModal);
-        document.fonts?.ready.then(ajustarTextoModal);
+        return lote;
     }
+
+    const formulario = $("form-masivo");
+    const botonesEnviar = document.querySelectorAll('button[type="submit"]');
+    let enProceso = false;
+
+    function bloquearEnvio() {
+        botonesEnviar.forEach(b => { b.disabled = true; b.textContent = "Registrando…"; });
+        formulario.setAttribute("aria-busy", "true");
+    }
+
+    function liberarEnvio() {
+        enProceso = false;
+        botonesEnviar.forEach(b => { b.disabled = false; b.textContent = "Registrar lote"; });
+        formulario.removeAttribute("aria-busy");
+    }
+
+    window.addEventListener("pageshow", e => { if (e.persisted) liberarEnvio(); });
+
+    formulario.addEventListener("submit", async e => {
+        e.preventDefault();
+        if (enProceso) return;
+        enProceso = true;
+
+        let enviado = false;
+        try {
+            const lote = await validarYArmarLote();
+            if (!lote) return;
+
+            const n = lote.length;
+            const confirmado = await window.confirmarAccion(
+                `¿Registrar ${n} ${n === 1 ? "cita" : "citas"} de ${servicioActual} para ${lote[0].nombre} a las ${formatoHora($("campo-hora").value)}?`,
+                { textoConfirmar: "Registrar", peligroso: false },
+            );
+            if (!confirmado) return;
+
+            bloquearEnvio();
+            $("lote_json").value = JSON.stringify(lote);
+            enviado = true;
+            formulario.submit();
+        } finally {
+            if (!enviado) enProceso = false;
+        }
+    });
 
 </script>
 
 <script>
     import { obtenerCatalogo, type ServicioCatalogo } from "../lib/catalogo-servicios";
-    
+
     type Codigo = "TMS" | "NFB";
     const PREFIJOS: Record<Codigo, string> = { TMS: "tms", NFB: "nfb" };
 
@@ -717,7 +993,7 @@ const opcionesReferencia = [
     }
 
     function pintarPrecios() {
-        selectPrecio.classList.remove("ring-2", "ring-red-500", "border-red-500");
+        selectPrecio.classList.remove("is-error");
 
         if (!catalogoCargado) {
             return sinPrecio("Catálogo no disponible", "No se pudo cargar el catálogo de servicios. Recarga la página; si continúas, las citas se guardarán sin precio.");

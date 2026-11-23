@@ -1,8 +1,8 @@
-export const currentVersion = "4.3.1";
+export const currentVersion = "4.4.0";
 
 export const isMajorUpdate = true;
 
-export const updateDate = "13 de noviembre del 2026";
+export const updateDate = "23 de noviembre del 2026";
 
 type Changes = {
     title: string;
@@ -12,23 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Edición en el gestor de citas",
-        description: "Se agregó una funcionalidad para que al momento de editar una cita, el gestor mantenga el estado de la busqueda y la edición redigija correctamente.",
-        type: "feature"
-    },
-    {
-        title: "Edición de expedientes",
-        description: "Se corrgió un problema donde la edición daba error al intentar editar un expediente sin colocar campos de fechas u horas.",
-        type: "fix"
-    },
-    {
-        title: "Edición de expedientes",
-        description: "Se corrgió un problema con los campos obligatorios de los expedientes.",
-        type: "fix"
-    },
-    {
-        title: "Tabla de lista de espera",
-        description: "Se cambió el diseño de la tabla de la lista de espera para alinearse con el estilo de la página.",
+        title: "Interfaz de multiples citas",
+        description: "Se rediseñó la página de agendar múltiples citas para mejorar la experiencia del usuario y facilitar la captura de datos.",
         type: "style"
-    },
+    }
 ];
