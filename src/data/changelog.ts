@@ -12,8 +12,8 @@ type Changes = {
 
 export const changes: Changes[] = [
     {
-        title: "Multiples citas independientes",
-        description: "Se implementó una pagína para crear multiples citas independientes, cada una con sus propios datos: paciente, servicio, fecha y hora.",
+        title: "Múltiples citas independientes",
+        description: "Se implementó una página para crear múltiples citas independientes, cada una con sus propios datos: paciente, servicio, fecha y hora.",
         type: "feature"
     },
     {
