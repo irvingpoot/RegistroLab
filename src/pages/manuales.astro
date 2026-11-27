@@ -1,19 +1,20 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Icon from '../components/Icon.astro';
 import ReturnButton from '../components/ReturnButton.astro';
 import ManualCard from '../components/ManualCard.astro';
 import ManualModal from '../components/ManualModal.astro';
 import { supabase } from '../lib/supabase';
 import AddIcon from '../components/icons/AddIcon.astro';
 import PencilIcon from '../components/icons/ManualIcons/PencilIcon.astro';
+import ManualIcon from '../components/icons/dashboard/ManualIcon.astro';
+import { TIPOS, ORDEN_TIPOS, estiloAcento, resolverTipo, type TipoManual } from '../lib/manual-tipos';
 
 export interface Manual {
     id: string;
     titulo: string;
     descripcion: string;
     url: string;
-    tipo: "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
+    tipo: TipoManual;
 }
 
 const { data: manuales, error } = await supabase
@@ -26,84 +27,258 @@ if (error) {
 }
 
 const listaManuales: Manual[] = manuales ?? [];
+
+const conteo = ORDEN_TIPOS
+    .map((tipo) => ({ tipo, n: listaManuales.filter((m) => resolverTipo(m.tipo) === tipo).length }))
+    .filter(({ n }) => n > 0);
+const mostrarFiltros = conteo.length > 1;
 ---
 
 <Layout title="Manuales | Lab-Somno">
-    <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
-    <div class="min-h-screen p-4 md:p-10">
 
-        <div class="max-w-7xl mx-auto mb-12 text-center relative">
+    <main class="mx-auto pt-15 pb-24 px-15">
+
+        <header class="max-w-7xl mx-auto mb-10 text-center relative">
             <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">
                 Biblioteca del <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">sueño</span>
             </h1>
             <p class="pt-5 text-lg text-gray-400">
                 Todos los recursos, guías y documentos necesarios están aquí.
             </p>
+
             <button
-                id="btn-agregar-manual"
-                class="mt-6 inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-5 py-2.5 text-sm font-semibold text-blue-400 transition hover:bg-blue-500/20 hover:text-blue-300 cursor-pointer"
+                type="button"
+                data-abrir-modal
+                class="inline-flex shrink-0 items-center justify-center mt-5 gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 cursor-pointer"
             >
                 <AddIcon class="size-4" />
                 Agregar manual
             </button>
-        </div>
+        </header>
 
-        <div
-            id="manuales-grid"
-            class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-            {listaManuales.map((manual, index) => (
-                <div
-                    class="manual-card-wrapper relative h-full group/wrapper"
-                    data-id={manual.id}
-                    data-titulo={manual.titulo}
-                    data-descripcion={manual.descripcion}
-                    data-url={manual.url}
-                    data-tipo={manual.tipo}
-                >
-                    <ManualCard
-                        titulo={manual.titulo}
-                        descripcion={manual.descripcion}
-                        url={manual.url}
-                        tipo={manual.tipo}
-                        delay={index * 100}
-                    />
-
-                    <button
-                        class="btn-editar-manual absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/10 bg-gray-900/90 px-2.5 py-1.5 text-xs font-medium text-gray-400 opacity-0 backdrop-blur-sm transition-all group-hover/wrapper:opacity-100 hover:border-blue-500/40 hover:text-blue-400 cursor-pointer"
-                        aria-label="Editar manual"
-                    >
-                        <PencilIcon class="size-3" />
-                        Editar
+        {mostrarFiltros && (
+            <div class="mt-6 flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Filtrar por tipo">
+                <button type="button" class="filtro" data-filtro="TODOS" aria-pressed="true">
+                    Todos
+                    <span class="filtro-n">{listaManuales.length}</span>
+                </button>
+                {conteo.map(({ tipo, n }) => (
+                    <button type="button" class="filtro" data-filtro={tipo} aria-pressed="false" style={estiloAcento(tipo)}>
+                        <span class="filtro-dot"></span>
+                        {TIPOS[tipo].label}
+                        <span class="filtro-n">{n}</span>
                     </button>
+                ))}
+            </div>
+        )}
+
+        {error ? (
+            <div class="mt-8 flex items-center gap-4 rounded-2xl border border-red-500/25 bg-red-500/[0.07] px-5 py-5 md:px-6" role="alert">
+                <span class="grid place-items-center size-10 shrink-0 rounded-xl bg-red-500/15 text-red-300">
+                    <ManualIcon class="size-5" />
+                </span>
+                <div>
+                    <h2 class="text-2xl text-white leading-tight">No se pudieron cargar los manuales</h2>
+                    <p class="text-sm text-gray-400">Recarga la página. Si el problema continúa, avisa al administrador.</p>
                 </div>
-            ))}
-        </div>
-    </div>
+            </div>
+        ) : listaManuales.length === 0 ? (
+            <div class="mt-8 flex flex-col md:flex-row md:items-center justify-between gap-5 rounded-2xl border border-white/10 bg-slate-900/40 px-5 py-5 md:px-6">
+                <div class="flex items-center gap-4">
+                    <span class="grid place-items-center size-12 shrink-0 rounded-2xl bg-cyan-500/15 text-cyan-300">
+                        <ManualIcon class="size-6" />
+                    </span>
+                    <div>
+                        <h2 class="text-2xl text-white leading-tight">Aún no hay manuales</h2>
+                        <p class="text-sm text-gray-400">Agrega el primero y el equipo lo encontrará aquí.</p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    data-abrir-modal
+                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-600 bg-gray-700 px-4 py-2.5 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-600 cursor-pointer"
+                >
+                    <AddIcon class="size-4" />
+                    Agregar el primero
+                </button>
+            </div>
+        ) : (
+            <>
+                <div
+                    id="manuales-grid"
+                    class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
+                >
+                    {listaManuales.map((manual, index) => {
+                        const tipo = resolverTipo(manual.tipo);
+                        return (
+                            <div
+                                class="manual-card-wrapper"
+                                style={estiloAcento(tipo)}
+                                data-id={manual.id}
+                                data-titulo={manual.titulo}
+                                data-descripcion={manual.descripcion}
+                                data-url={manual.url}
+                                data-tipo={tipo}
+                            >
+                                <ManualCard
+                                    titulo={manual.titulo}
+                                    descripcion={manual.descripcion}
+                                    url={manual.url}
+                                    tipo={tipo}
+                                    delay={index * 60}
+                                />
+
+                                <button
+                                    type="button"
+                                    class="btn-editar-manual"
+                                    aria-label={`Editar ${manual.titulo}`}
+                                    title="Editar"
+                                >
+                                    <PencilIcon class="size-4" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <p id="filtro-vacio" hidden class="mt-10 text-center text-gray-400">
+                    No hay manuales de este tipo.
+                </p>
+            </>
+        )}
+    </main>
 
     <ManualModal />
 </Layout>
 
 <style>
-    @keyframes enter-up {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
+    .manual-card-wrapper {
+        position: relative;
+        height: 100%;
     }
-    .animate-enter-up {
-        animation: enter-up 0.6s ease-out forwards;
+
+    .btn-editar-manual {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: .625rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .9);
+        color: #9ca3af;
+        cursor: pointer;
+        transition: opacity .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .btn-editar-manual:hover {
+        color: rgb(var(--t));
+        border-color: rgb(var(--a) / .5);
+    }
+    .btn-editar-manual:focus-visible {
+        opacity: 1;
+        outline: 2px solid rgb(var(--t));
+        outline-offset: 2px;
+    }
+    @media (hover: hover) {
+        .btn-editar-manual { opacity: 0; }
+        .manual-card-wrapper:hover .btn-editar-manual,
+        .manual-card-wrapper:focus-within .btn-editar-manual { opacity: 1; }
+    }
+
+    .filtro {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .45rem .875rem;
+        border-radius: 9999px;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .4);
+        font-size: .875rem;
+        font-weight: 500;
+        color: #9ca3af;
+        cursor: pointer;
+        transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+    }
+    .filtro[hidden] { display: none; }
+    .filtro:hover {
+        color: #fff;
+        border-color: rgb(var(--a, 148 163 184) / .45);
+    }
+    .filtro[aria-pressed="true"] {
+        color: rgb(var(--t, 255 255 255));
+        border-color: rgb(var(--a, 148 163 184) / .55);
+        background: rgb(var(--a, 148 163 184) / .14);
+    }
+    .filtro:focus-visible {
+        outline: 2px solid rgb(var(--t, 147 197 253));
+        outline-offset: 2px;
+    }
+    .filtro-dot {
+        width: .5rem;
+        height: .5rem;
+        border-radius: 9999px;
+        background: rgb(var(--a, 148 163 184));
+    }
+    .filtro-n {
+        font-size: .75rem;
+        color: #6b7280;
+        font-variant-numeric: tabular-nums;
+    }
+    .filtro[aria-pressed="true"] .filtro-n {
+        color: rgb(var(--t, 255 255 255) / .7);
     }
 </style>
 
 <script>
-    type TipoManual = "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
-    interface Manual { id: string; titulo: string; descripcion: string; url: string; tipo: TipoManual; }
+    import type { TipoManual } from "../lib/manual-tipos";
 
-    document.getElementById("btn-agregar-manual")?.addEventListener("click", () => {
-        document.dispatchEvent(new CustomEvent("modal:abrir", { detail: {} }));
+    let activo = "TODOS";
+
+    const chips = Array.from(document.querySelectorAll<HTMLButtonElement>(".filtro"));
+    const vacio = document.getElementById("filtro-vacio");
+    const wrappers = () => Array.from(document.querySelectorAll<HTMLElement>(".manual-card-wrapper"));
+
+    function aplicarFiltro() {
+        let visibles = 0;
+        wrappers().forEach((w) => {
+            const coincide = activo === "TODOS" || w.dataset.tipo === activo;
+            w.hidden = !coincide;
+            if (coincide) visibles++;
+        });
+        chips.forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.filtro === activo)));
+        if (vacio) vacio.hidden = visibles > 0;
+    }
+
+    function recontar() {
+        const lista = wrappers();
+        chips.forEach((c) => {
+            const f = c.dataset.filtro ?? "TODOS";
+            const n = f === "TODOS" ? lista.length : lista.filter((w) => w.dataset.tipo === f).length;
+            const el = c.querySelector(".filtro-n");
+            if (el) el.textContent = String(n);
+            c.hidden = n === 0 && f !== "TODOS";
+        });
+        if (activo !== "TODOS" && !lista.some((w) => w.dataset.tipo === activo)) activo = "TODOS";
+    }
+
+    chips.forEach((c) => {
+        c.addEventListener("click", () => {
+            activo = c.dataset.filtro ?? "TODOS";
+            aplicarFiltro();
+        });
     });
 
-    document.querySelectorAll<HTMLElement>(".manual-card-wrapper").forEach(wrapper => {
+    document.querySelectorAll("[data-abrir-modal]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            document.dispatchEvent(new CustomEvent("modal:abrir", { detail: {} }));
+        });
+    });
+
+    wrappers().forEach((wrapper) => {
         wrapper.querySelector(".btn-editar-manual")?.addEventListener("click", () => {
             const { id, titulo, descripcion, url, tipo } = wrapper.dataset;
             document.dispatchEvent(new CustomEvent("modal:abrir", {
@@ -121,5 +296,12 @@ const listaManuales: Manual[] = manuales ?? [];
     document.addEventListener("manual:eliminado", (e: Event) => {
         const { id } = (e as CustomEvent<{ id: string }>).detail;
         document.querySelector<HTMLElement>(`.manual-card-wrapper[data-id="${id}"]`)?.remove();
+
+        if (wrappers().length === 0) {
+            window.location.reload();
+            return;
+        }
+        recontar();
+        aplicarFiltro();
     });
 </script>

@@ -1,90 +1,92 @@
 ---
-export interface Manual {
-    id?: string;
-    titulo: string;
-    descripcion: string;
-    url: string;
-    tipo: "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
-}
+import ManualTipoIcon from './icons/ManualIcons/ManualTipoIcon.astro';
+import { TIPOS, ORDEN_TIPOS, estiloAcento } from '../lib/manual-tipos';
 ---
 
 <div id="confirmar-eliminar-overlay" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirmar-titulo">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
-        <div class="px-6 pt-6 pb-2 flex flex-col items-center text-center gap-3">
-            <div class="flex items-center justify-center size-12 rounded-full bg-red-500/10 border border-red-500/20">
-                <svg xmlns="http://www.w3.org/2000/svg" class="size-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f172a] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
+        <div class="flex flex-col items-center gap-3 px-6 pt-7 pb-2 text-center">
+            <div class="grid place-items-center size-12 rounded-2xl bg-red-500/15 text-red-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                 </svg>
             </div>
-            <h3 id="confirmar-titulo" class="text-base font-bold text-white">¿Eliminar este manual?</h3>
-            <p id="confirmar-nombre" class="text-sm text-gray-400 leading-relaxed"></p>
+            <h3 id="confirmar-titulo" class="text-2xl leading-tight text-white">¿Eliminar este manual?</h3>
+            <p id="confirmar-nombre" class="text-sm font-medium text-gray-300 leading-relaxed"></p>
             <p class="text-xs text-gray-500">Esta acción no se puede deshacer.</p>
         </div>
         <div class="flex gap-3 px-6 py-5">
-            <button id="confirmar-cancelar" class="flex-1 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-400 transition hover:bg-white/5 hover:text-white">
+            <button type="button" id="confirmar-cancelar" class="flex-1 cursor-pointer rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white">
                 Cancelar
             </button>
-            <button id="confirmar-aceptar" class="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50">
+            <button type="button" id="confirmar-aceptar" class="flex-1 cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:opacity-50">
                 Eliminar
             </button>
         </div>
     </div>
 </div>
 
-<div id="manual-modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+<div id="manual-modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
 
-    <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
+    <div class="w-full max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-white/10 bg-[#0f172a] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
 
-        <div class="flex items-center justify-between border-b border-white/10 px-6 py-4">
-            <h2 id="modal-titulo" class="text-lg font-bold text-white">Manual</h2>
-            <button id="modal-cerrar" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-white/10 hover:text-white" aria-label="Cerrar">
-                <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <div class="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-5">
+            <div>
+                <h2 id="modal-titulo" class="text-3xl leading-none text-white">Agregar manual</h2>
+                <p id="modal-subtitulo" class="mt-2 text-xs text-gray-400">Registra un recurso para el equipo.</p>
+            </div>
+            <button type="button" id="modal-cerrar" class="cerrar" aria-label="Cerrar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
-        <div class="space-y-4 px-6 py-5">
+        <div class="space-y-5 px-6 py-5">
+
+            <fieldset>
+                <legend class="mb-2 text-sm font-medium text-gray-300">Tipo de recurso</legend>
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {ORDEN_TIPOS.map((t) => (
+                        <label class="tipo-opt" style={estiloAcento(t)}>
+                            <input type="radio" name="manual-tipo" value={t} class="sr-only" />
+                            <span class="tipo-chip"><ManualTipoIcon tipo={t} class="size-4" /></span>
+                            <span class="min-w-0 leading-tight">
+                                <span class="block text-sm font-medium text-white">{TIPOS[t].label}</span>
+                                <span class="block truncate text-[11px] text-gray-500">{TIPOS[t].detalle}</span>
+                            </span>
+                        </label>
+                    ))}
+                </div>
+            </fieldset>
 
             <div>
                 <label for="manual-titulo" class="mb-1.5 block text-sm font-medium text-gray-300">Título</label>
-                <input id="manual-titulo" type="text" placeholder="Ej. Guía para el EMBLA" class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"/>
+                <input id="manual-titulo" type="text" placeholder="Ej. Guía para el EMBLA" class="campo" />
             </div>
 
             <div>
                 <label for="manual-descripcion" class="mb-1.5 block text-sm font-medium text-gray-300">Descripción</label>
-                <textarea id="manual-descripcion" rows="3" placeholder="Breve descripción del recurso…" class="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></textarea>
+                <textarea id="manual-descripcion" rows="3" placeholder="Breve descripción del recurso…" class="campo resize-none"></textarea>
             </div>
 
             <div>
                 <label for="manual-url" class="mb-1.5 block text-sm font-medium text-gray-300">URL</label>
-                <input id="manual-url" type="url" placeholder="https://…" class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"/>
+                <input id="manual-url" type="url" placeholder="https://…" class="campo" />
             </div>
 
-            <div>
-                <label for="manual-tipo" class="mb-1.5 block text-sm font-medium text-gray-300">Tipo</label>
-                <select id="manual-tipo" class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <option value="CANVA">Canva</option>
-                    <option value="WORD">Word / Google Docs</option>
-                    <option value="DRIVE">Google Drive</option>
-                    <option value="VIDEO">Video</option>
-                    <option value="EXCEL">Excel / Sheets</option>
-                    <option value="WEB">Página web</option>
-                </select>
-            </div>
-
-            <p id="modal-error" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400"></p>
+            <p id="modal-error" role="alert" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"></p>
         </div>
 
         <div class="flex items-center justify-between border-t border-white/10 px-6 py-4">
-            <button id="modal-eliminar" class="hidden rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50">
+            <button type="button" id="modal-eliminar" class="hidden cursor-pointer rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50">
                 Eliminar
             </button>
             <div class="ml-auto flex gap-3">
-                <button id="modal-cancelar" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 transition hover:text-white">
+                <button type="button" id="modal-cancelar" class="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-white">
                     Cancelar
                 </button>
-                <button id="modal-guardar" class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50">
+                <button type="button" id="modal-guardar" class="cursor-pointer rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50">
                     Guardar
                 </button>
             </div>
@@ -92,16 +94,79 @@ export interface Manual {
     </div>
 </div>
 
+<style>
+    .cerrar {
+        flex-shrink: 0;
+        padding: .375rem;
+        border-radius: .5rem;
+        color: #9ca3af;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .cerrar:hover { background: rgb(255 255 255 / .1); color: #fff; }
+    .cerrar:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+
+    .campo {
+        width: 100%;
+        padding: .625rem .875rem;
+        border-radius: .5rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(255 255 255 / .05);
+        font-size: .875rem;
+        color: #fff;
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .campo::placeholder { color: #6b7280; }
+    .campo:focus {
+        border-color: rgb(59 130 246);
+        box-shadow: 0 0 0 1px rgb(59 130 246);
+    }
+
+    .tipo-opt {
+        display: flex;
+        align-items: center;
+        gap: .625rem;
+        padding: .55rem .7rem;
+        border-radius: .75rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(255 255 255 / .03);
+        cursor: pointer;
+        transition: border-color .15s ease, background-color .15s ease;
+    }
+    .tipo-opt:hover {
+        border-color: rgb(var(--a) / .45);
+    }
+    .tipo-opt:has(input:checked) {
+        border-color: rgb(var(--a) / .7);
+        background: rgb(var(--a) / .13);
+    }
+    .tipo-opt:has(input:focus-visible) {
+        outline: 2px solid rgb(var(--t));
+        outline-offset: 2px;
+    }
+    .tipo-chip {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        border-radius: .625rem;
+        background: rgb(var(--a) / .16);
+        color: rgb(var(--t));
+    }
+</style>
+
 <script>
-    type TipoManual = "CANVA" | "WORD" | "DRIVE" | "VIDEO" | "EXCEL" | "WEB";
-    interface Manual { id?: string; titulo: string; descripcion: string; url: string; tipo: TipoManual; }
+    import type { Manual, TipoManual } from "../lib/manual-tipos";
 
     const overlay    = document.getElementById("manual-modal-overlay")!;
     const titulo     = document.getElementById("modal-titulo")!;
+    const subtitulo  = document.getElementById("modal-subtitulo")!;
     const inputTit   = document.getElementById("manual-titulo")      as HTMLInputElement;
     const inputDesc  = document.getElementById("manual-descripcion") as HTMLTextAreaElement;
     const inputUrl   = document.getElementById("manual-url")         as HTMLInputElement;
-    const selectTipo = document.getElementById("manual-tipo")        as HTMLSelectElement;
+    const radiosTipo = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="manual-tipo"]'));
     const btnGuardar = document.getElementById("modal-guardar")      as HTMLButtonElement;
     const btnEliminar= document.getElementById("modal-eliminar")     as HTMLButtonElement;
     const btnCerrar  = document.getElementById("modal-cerrar")!;
@@ -115,8 +180,12 @@ export interface Manual {
 
     let manualActual: Manual | null = null;
 
-    function mostrar() { overlay.classList.remove("hidden"); overlay.classList.add("flex"); }
-    function ocultar() { overlay.classList.add("hidden");   overlay.classList.remove("flex"); }
+    function mostrar() {
+        overlay.classList.remove("hidden");
+        overlay.classList.add("flex");
+        requestAnimationFrame(() => inputTit.focus());
+    }
+    function ocultar() { overlay.classList.add("hidden"); overlay.classList.remove("flex"); }
 
     function mostrarError(msg: string) {
         errorMsg.textContent = msg;
@@ -130,22 +199,31 @@ export interface Manual {
         btnGuardar.textContent = busy ? "Guardando…" : "Guardar";
     }
 
+    function leerTipo(): TipoManual {
+        return (radiosTipo.find((r) => r.checked)?.value ?? "CANVA") as TipoManual;
+    }
+    function fijarTipo(tipo: TipoManual) {
+        radiosTipo.forEach((r) => { r.checked = r.value === tipo; });
+    }
+
     function cargarManual(manual: Manual | null) {
         manualActual = manual;
         limpiarError();
         if (manual) {
-            titulo.textContent   = "Editar manual";
-            inputTit.value       = manual.titulo;
-            inputDesc.value      = manual.descripcion;
-            inputUrl.value       = manual.url;
-            selectTipo.value     = manual.tipo;
+            titulo.textContent    = "Editar manual";
+            subtitulo.textContent = "Actualiza los datos del recurso.";
+            inputTit.value        = manual.titulo;
+            inputDesc.value       = manual.descripcion;
+            inputUrl.value        = manual.url;
+            fijarTipo(manual.tipo);
             btnEliminar.classList.remove("hidden");
         } else {
-            titulo.textContent   = "Agregar manual";
-            inputTit.value       = "";
-            inputDesc.value      = "";
-            inputUrl.value       = "";
-            selectTipo.value     = "CANVA";
+            titulo.textContent    = "Agregar manual";
+            subtitulo.textContent = "Registra un recurso para el equipo.";
+            inputTit.value        = "";
+            inputDesc.value       = "";
+            inputUrl.value        = "";
+            fijarTipo("CANVA");
             btnEliminar.classList.add("hidden");
         }
     }
@@ -154,7 +232,7 @@ export interface Manual {
         const t  = inputTit.value.trim();
         const d  = inputDesc.value.trim();
         const u  = inputUrl.value.trim();
-        const ti = selectTipo.value as TipoManual;
+        const ti = leerTipo();
         if (!t) { mostrarError("El título es obligatorio.");      return null; }
         if (!d) { mostrarError("La descripción es obligatoria."); return null; }
         if (!u) { mostrarError("La URL es obligatoria.");         return null; }

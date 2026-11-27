@@ -1,0 +1,38 @@
+---
+/**
+ * Icono de un tipo de manual. VIDEO no tenía icono propio, por eso
+ * incluye un respaldo (reproductor) y cualquier tipo sin icono lo usa.
+ */
+import CanvaIcon from './CanvaIcon.astro';
+import DriveIcon from './DriveIcon.astro';
+import ExcelIcon from './ExcelIcon.astro';
+import WebIcon from './WebIcon.astro';
+import WordIcon from './WordIcon.astro';
+import type { TipoManual } from '../../../lib/manual-tipos';
+
+interface Props {
+    tipo: TipoManual;
+    class?: string;
+}
+
+const { tipo, class: className = "size-5" } = Astro.props;
+
+const iconos: Partial<Record<TipoManual, any>> = {
+    CANVA: CanvaIcon,
+    WORD: WordIcon,
+    DRIVE: DriveIcon,
+    EXCEL: ExcelIcon,
+    WEB: WebIcon,
+};
+
+const Icono = iconos[tipo];
+---
+
+{Icono ? (
+    <Icono class={className} />
+) : (
+    <svg class={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="3" />
+        <path d="M10.5 9.5v5l4.5-2.5-4.5-2.5Z" fill="currentColor" />
+    </svg>
+)}

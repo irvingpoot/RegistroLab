@@ -7,27 +7,26 @@
  * La lógica de datos/envío no cambió: mismos IDs, mismo payload `lote_json`.
  */
 
-import Layout from "../layouts/Layout.astro";
-import Icon from "../components/Icon.astro";
-import ReturnButton from "../components/ReturnButton.astro";
+import Layout from "../../layouts/Layout.astro";
+import ReturnButton from "../../components/ReturnButton.astro";
 import { clerkClient } from "@clerk/astro/server";
 import {
     crearCitasEnLote,
     getDiasBloqueadosDesdeHoy,
     type CitaLote,
     type ResultadoLote,
-} from "../services/citas.service";
-import DownTriangle from "../components/icons/DownTriangle.astro";
-import CalendarIcon from "../components/icons/CalendarIcon.astro";
-import LeftTriangle from "../components/icons/LeftTriangle.astro";
-import RightTriangle from "../components/icons/RightTriangle.astro";
-import ClockIcon from "../components/icons/ClockIcon.astro";
-import CheckIcon from "../components/icons/CheckIcon.astro";
-import PacientesIcon from "../components/icons/dashboard/PacientesIcon.astro";
-import AgendaIcon from "../components/icons/dashboard/AgendaIcon.astro";
-import ServiciosIcon from "../components/icons/dashboard/ServiciosIcon.astro";
-import ConfirmModal from "../components/ConfirmModal.astro";
-import AlertModal from "../components/AlertModal.astro";
+} from "../../services/citas.service";
+import DownTriangle from "../../components/icons/DownTriangle.astro";
+import CalendarIcon from "../../components/icons/CalendarIcon.astro";
+import LeftTriangle from "../../components/icons/LeftTriangle.astro";
+import RightTriangle from "../../components/icons/RightTriangle.astro";
+import ClockIcon from "../../components/icons/ClockIcon.astro";
+import CheckIcon from "../../components/icons/CheckIcon.astro";
+import PacientesIcon from "../../components/icons/dashboard/PacientesIcon.astro";
+import AgendaIcon from "../../components/icons/dashboard/AgendaIcon.astro";
+import ServiciosIcon from "../../components/icons/dashboard/ServiciosIcon.astro";
+import ConfirmModal from "../../components/ConfirmModal.astro";
+import AlertModal from "../../components/AlertModal.astro";
 
 
 const user = await Astro.locals.currentUser();
@@ -41,12 +40,14 @@ try {
     const client   = clerkClient(Astro);
     const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
     const users    = Array.isArray(response) ? response : (response.data || []);
-    listaPsicologos = users.map(u => {
-        const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
-        return nombre || u.username || u.emailAddresses[0].emailAddress;
-    });
+    listaPsicologos = users
+        .filter(u => u.publicMetadata?.puedeAtender === true)
+        .map(u => {
+            const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+            return nombre || u.username || u.emailAddresses[0].emailAddress;
+        });
 } catch (e) {
-    console.error("Error cargando perfiles:", e);
+    console.error("Error cargando psicólogos:", e);
 }
 
 const listaInhabiles = await getDiasBloqueadosDesdeHoy();
@@ -90,7 +91,6 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
 ---
 
 <Layout title="Multiples citas | Lab-Somno">
-    <Icon />
     <ReturnButton href="/citas" text="Volver a la Agenda" />
 
     {hayRespuesta && totalError === 0 && (
@@ -827,7 +827,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
     async function validarYArmarLote() {
         if (fechasSeleccionadas.size === 0) {
             $("btn-abrir-calendario").classList.add(...ERROR_INPUT);
-            await window.mostrarAlerta("Debes seleccionar al menos una fecha en el calendario.", { titulo: "Faltan fechas" });
+            await window.mostrarAlerta("Debes seleccionar al menos una fecha en el calendario.", { titulo: "Faltan fechas", tipo: "advertencia" });
             $("btn-abrir-calendario").focus();
             return null;
         }
@@ -835,7 +835,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
         const horaSeleccionada = $("campo-hora").value;
         if (!horaSeleccionada) {
             $("campo-hora").classList.add(...ERROR_INPUT);
-            await window.mostrarAlerta("Debes seleccionar una hora para las citas.", { titulo: "Falta la hora" });
+            await window.mostrarAlerta("Debes seleccionar una hora para las citas.", { titulo: "Falta la hora", tipo: "advertencia" });
             $("campo-hora").focus();
             return null;
         }
@@ -932,7 +932,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
             const n = lote.length;
             const confirmado = await window.confirmarAccion(
                 `¿Registrar ${n} ${n === 1 ? "cita" : "citas"} de ${servicioActual} para ${lote[0].nombre} a las ${formatoHora($("campo-hora").value)}?`,
-                { textoConfirmar: "Registrar", peligroso: false },
+                { titulo: "Registrar citas", textoConfirmar: "Registrar", peligroso: false },
             );
             if (!confirmado) return;
 
@@ -948,7 +948,7 @@ const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
 </script>
 
 <script>
-    import { obtenerCatalogo, type ServicioCatalogo } from "../lib/catalogo-servicios";
+    import { obtenerCatalogo, type ServicioCatalogo } from "../../lib/catalogo-servicios";
 
     type Codigo = "TMS" | "NFB";
     const PREFIJOS: Record<Codigo, string> = { TMS: "tms", NFB: "nfb" };

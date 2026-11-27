@@ -16,7 +16,6 @@
  */
 
 import Layout from "../layouts/Layout.astro"
-import Icon from "../components/Icon.astro"
 import ReturnButton from "../components/ReturnButton.astro"
 import PatientTypeModal from "../components/PatientTypeModal.astro"
 import { getPacientes } from "../services/pacientes.service"
@@ -104,7 +103,6 @@ const tipoActivo = filtroSueno ? "sueno" : filtroAnimo ? "animo" : null;
 ---
 
 <Layout title="Pacientes | Lab-Somno">
-    <Icon />
     <ReturnButton href="/dashboard" text="Volver al dashboard" />
     <main class="max-w-7xl mx-auto pt-10 pb-28 px-4">
 
