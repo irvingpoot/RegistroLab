@@ -1,0 +1,976 @@
+---
+/**
+ * @file multiples-citas-personalizadas.astro
+ * @description Registro de varias citas, cada una con sus propios datos (paciente, servicio,
+ * fecha, hora, precio…), en formato de tarjetas que se pueden agregar, duplicar y eliminar.
+ *
+ * El servicio, el precio y la fecha/hora se eligen igual que en nueva-cita (catálogo completo de
+ * servicios, `datetime-local`, días bloqueados no permitidos).
+ *
+ * Usa el mismo servicio que multiples-citas: `crearCitasEnLote` (cada cita se valida y se
+ * inserta por separado). Las que fallan regresan a la pantalla con su mensaje de error para
+ * corregirlas y reintentar; las que se guardaron ya no se vuelven a enviar.
+ */
+
+import Layout from "../../layouts/Layout.astro";
+import ReturnButton from "../../components/ReturnButton.astro";
+import { clerkClient } from "@clerk/astro/server";
+import {
+    crearCitasEnLote,
+    getDiasBloqueadosDesdeHoy,
+    type CitaLote,
+    type ResultadoLote,
+} from "../../services/citas.service";
+import DownTriangle from "../../components/icons/DownTriangle.astro";
+import ConfirmModal from "../../components/ConfirmModal.astro";
+import AlertModal from "../../components/AlertModal.astro";
+
+const user = await Astro.locals.currentUser();
+const nombreRegistrador = user
+    ? `${user.firstName} ${user.lastName}`.trim() || user.username || "Desconocido"
+    : "Anónimo";
+
+let listaPsicologos: string[] = [];
+try {
+    const client   = clerkClient(Astro);
+    const response = await client.users.getUserList({ limit: 20, orderBy: "created_at" });
+    const users    = Array.isArray(response) ? response : (response.data || []);
+    listaPsicologos = users
+        .filter(u => u.publicMetadata?.puedeAtender === true)
+        .map(u => {
+            const nombre = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+            return nombre || u.username || u.emailAddresses[0].emailAddress;
+        });
+} catch (e) {
+    console.error("Error cargando psicólogos:", e);
+}
+
+const listaInhabiles = await getDiasBloqueadosDesdeHoy();
+
+type CitaLoteUI = CitaLote & { sesion?: string | null; observacionesRaw?: string | null };
+
+let lote: CitaLoteUI[] = [];
+let resultados: ResultadoLote[] = [];
+let hayRespuesta = false;
+let totalExito   = 0;
+let totalError   = 0;
+let cardsFallidas: Record<string, unknown>[] = [];
+
+if (Astro.request.method === "POST") {
+    const data    = await Astro.request.formData();
+    const payload = data.get("lote_json") as string;
+    try {
+        lote         = JSON.parse(payload);
+        resultados   = await crearCitasEnLote(lote, nombreRegistrador);
+        hayRespuesta = true;
+        totalExito   = resultados.filter(r => r.exito).length;
+        totalError   = resultados.filter(r => !r.exito).length;
+        cardsFallidas = resultados
+            .filter(r => !r.exito)
+            .map(r => ({ ...(lote[r.index] ?? {}), error: r.error }));
+    } catch (e) {
+        hayRespuesta = true;
+        resultados   = [{ index: 0, nombre: "—", exito: false, error: e instanceof Error ? e.message : "Error al procesar el lote" }];
+        totalError   = 1;
+    }
+}
+
+const opcionesMotivo = [
+    { value: "entrevista",  label: "Entrevista Inicial" },
+    { value: "seguimiento", label: "Seguimiento"        },
+    { value: "tratamiento", label: "Tratamiento"        },
+    { value: "otro",        label: "Otro"               },
+];
+const opcionesReferencia = [
+    { value: "Servicio Medico", label: "Servicio Médico" },
+    { value: "Particular",      label: "Particular"      },
+    { value: "Protocolo",       label: "Protocolo (Tesis/Investigación)" },
+];
+
+const fechaHoyTexto = new Date().toLocaleDateString("es-MX", {
+    timeZone: "America/Merida",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+});
+
+const datosJson = JSON.stringify({ inhabiles: listaInhabiles, fallidas: cardsFallidas }).replace(/</g, "\\u003c");
+---
+
+<Layout title="Citas personalizadas | Lab-Somno">
+    <ReturnButton href="/citas" text="Volver a la Agenda" />
+
+    {hayRespuesta && totalError === 0 && (
+        <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm px-4">
+            <div class="bg-gray-900 border border-white/10 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full">
+                <div class="success-checkmark">
+                    <div class="check-icon">
+                        <span class="icon-line line-tip"></span>
+                        <span class="icon-line line-long"></span>
+                        <div class="icon-circle"></div>
+                        <div class="icon-fix"></div>
+                    </div>
+                </div>
+                <h2 class="text-3xl text-white mt-4 text-center leading-tight">
+                    ¡{totalExito} {totalExito === 1 ? "cita agendada" : "citas agendadas"}!
+                </h2>
+                <p class="text-gray-400 mt-2 text-center">Todas se guardaron correctamente.</p>
+                <script is:inline>setTimeout(() => { window.location.replace("/citas"); }, 2500);</script>
+            </div>
+        </div>
+    )}
+
+    {hayRespuesta && totalError > 0 && (
+        <div id="overlay-resultado" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+            <div class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
+                <h2 class="text-3xl text-white mb-1 text-center leading-tight">Resultado del lote</h2>
+                <p class="text-gray-400 text-sm text-center mb-5">
+                    <span class="text-emerald-400 font-semibold">{totalExito} guardadas</span>
+                    &nbsp;·&nbsp;
+                    <span class="text-red-400 font-semibold">{totalError} con error</span>
+                </p>
+                <ul class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {resultados.map(r => (
+                        <li class={`flex items-start gap-3 p-3 rounded-xl border text-sm ${r.exito ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"}`}>
+                            <span class={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${r.exito ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
+                                {r.exito ? "✓" : "✗"}
+                            </span>
+                            <div>
+                                <p class="text-white font-medium">{r.nombre}</p>
+                                {!r.exito && <p class="text-red-300 mt-0.5">{r.error}</p>}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+                {cardsFallidas.length > 0 && (
+                    <p class="mt-4 text-sm text-gray-400">
+                        Las citas con error siguen en pantalla para que las corrijas y reintentes. Las guardadas no se volverán a enviar.
+                    </p>
+                )}
+                <div class="mt-6 flex gap-3">
+                    <a href="/citas" class="flex-1 text-center bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl border border-white/10 transition-colors text-sm">Ir a la Agenda</a>
+                    {cardsFallidas.length > 0 && (
+                        <button
+                            type="button"
+                            onclick="document.getElementById('overlay-resultado')?.remove(); document.querySelector('[data-card][data-estado=error]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })"
+                            class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer"
+                        >
+                            Corregir y reintentar
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    )}
+
+    <main id="pagina" class="acc-blue w-full max-w-[2560px] mx-auto pt-6 md:pt-10 pb-40 px-5 sm:px-8 xl:px-12">
+
+        <header class="max-w-7xl mx-auto mb-5">
+            <div class="absolute -top-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <h1 class="max-md:max-w-xs max-md:pt-10 max-lg:max-w-xl text-4xl md:text-6xl font-extrabold text-balance text-center">Agendar <span class="bg-gradient-to-r from-blue-500 via-blue-300 to-blue-600 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">varias</span> citas</h1>
+            <p class=" pt-5 text-lg text-gray-400 text-center">
+                Cada tarjeta es una cita con sus propios datos: paciente, servicio, fecha, hora y precio. Agrega, duplica o elimina las que necesites y regístralas todas juntas.
+            </p>
+        </header>
+
+        <form id="form-lote" method="POST" class="mt-8" novalidate>
+            <input type="hidden" name="lote_json" id="lote_json" />
+
+            <div id="lista-cards" class="lista-cards">
+                <button type="button" data-agregar class="add-card">
+                    <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                    Agregar otra cita
+                </button>
+            </div>
+
+            <div class="dock">
+                <div class="dock-inner">
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div class="flex items-end gap-2">
+                            <span id="dock-total" class="dock-num">1</span>
+                            <span id="dock-label" class="pb-1 text-gray-400">cita</span>
+                        </div>
+                        <span class="dock-chip acc-emerald"><b id="dock-listas">0</b> <span id="dock-listas-label">listas</span></span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button type="button" data-agregar class="btn-ghost">
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                            <span class="hidden sm:inline">Agregar cita</span>
+                        </button>
+                        <button type="submit" class="btn-primary compact">Registrar lote</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+    </main>
+
+    <template id="tpl-card">
+        <article class="card acc-blue" data-card>
+            <header class="card-head">
+                <span class="card-num" data-num>01</span>
+                <div class="min-w-[10rem] flex-1">
+                    <h3 class="card-title vacio" data-titulo>Nueva cita</h3>
+                    <p class="card-sub" data-subtitulo>Sin servicio · Sin fecha</p>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" class="icon-btn" data-accion="duplicar" aria-label="Duplicar cita" title="Duplicar">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15" /></svg>
+                    </button>
+                    <button type="button" class="icon-btn icon-btn-danger" data-accion="eliminar" aria-label="Eliminar cita" title="Eliminar">
+                        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.2A2 2 0 0 0 9 21h6a2 2 0 0 0 2-1.8L18 7M9 7V4.5A.5.5 0 0 1 9.5 4h5a.5.5 0 0 1 .5.5V7" /></svg>
+                    </button>
+                </div>
+            </header>
+
+            <p class="card-msg card-msg-error hidden" data-error role="alert"></p>
+            <p class="card-msg card-msg-aviso hidden" data-aviso role="status"></p>
+
+            <div class="card-body grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                <label class="campo sm:col-span-2">
+                    <span class="lbl">Nombre completo <i class="req">*</i></span>
+                    <input type="text" data-f="nombre" placeholder="Ej. María González López" autocomplete="off" class="field" />
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">Teléfono</span>
+                    <input type="tel" data-f="telefono" placeholder="10 dígitos" autocomplete="off" class="field" />
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">Referencia <i class="req">*</i></span>
+                    <span class="relative block">
+                        <select data-f="referencia" class="field">
+                            <option value="" disabled selected>Seleccionar…</option>
+                            {opcionesReferencia.map(o => <option value={o.value}>{o.label}</option>)}
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"><DownTriangle class="h-4 w-4" /></span>
+                    </span>
+                </label>
+
+                <label class="campo sm:col-span-2">
+                    <span class="lbl">Motivo de consulta</span>
+                    <input type="text" data-f="sintoma" placeholder="Ej. Ansiedad, insomnio…" autocomplete="off" class="field" />
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">Tipo de cita <i class="req">*</i></span>
+                    <span class="relative block">
+                        <select data-f="motivo" class="field">
+                            <option value="" disabled selected>Seleccionar…</option>
+                            {opcionesMotivo.map(o => <option value={o.value}>{o.label}</option>)}
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"><DownTriangle class="h-4 w-4" /></span>
+                    </span>
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">¿Quién atenderá? <i class="req">*</i></span>
+                    <span class="relative block">
+                        <select data-f="atendido_por" class="field">
+                            <option value="" disabled selected>Seleccionar…</option>
+                            {listaPsicologos.map(n => <option value={n}>{n}</option>)}
+                            <option value="Por asignar">— Por definir —</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"><DownTriangle class="h-4 w-4" /></span>
+                    </span>
+                </label>
+
+                <label class="campo sm:col-span-2">
+                    <span class="lbl">Fecha y hora <i class="req">*</i></span>
+                    <input type="datetime-local" data-f="fecha_hora" class="field cursor-pointer" />
+                </label>
+
+                <label class="campo sm:col-span-2">
+                    <span class="lbl">Servicio <i class="req hidden" data-servicio-req>*</i></span>
+                    <span class="relative block">
+                        <select data-f="servicio_id" disabled class="field">
+                            <option value="" disabled selected>Cargando servicios…</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"><DownTriangle class="h-4 w-4" /></span>
+                    </span>
+                    <span class="hidden text-xs text-amber-400" data-servicio-aviso role="status"></span>
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">Precio</span>
+                    <span class="relative block">
+                        <select data-f="precio" disabled class="field">
+                            <option value="" disabled selected>Cargando precios…</option>
+                        </select>
+                        <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400"><DownTriangle class="h-4 w-4" /></span>
+                    </span>
+                </label>
+
+                <label class="campo">
+                    <span class="lbl">N.º de sesión</span>
+                    <input type="number" min="1" data-f="sesion" placeholder="Opcional" class="field" />
+                </label>
+
+                <label class="campo sm:col-span-2">
+                    <span class="lbl">Observaciones</span>
+                    <input type="text" data-f="observaciones" placeholder="Opcional" autocomplete="off" class="field" />
+                </label>
+            </div>
+        </article>
+    </template>
+
+    <script type="application/json" id="datos-pagina" set:html={datosJson}></script>
+
+    <ConfirmModal />
+    <AlertModal />
+</Layout>
+
+<style is:global>
+    .acc-blue   { --a: 59 130 246;  --t: 147 197 253; }
+    .acc-purple { --a: 168 85 247;  --t: 216 180 254; }
+    .acc-cyan   { --a: 6 182 212;   --t: 103 232 249; }
+    .acc-emerald{ --a: 16 185 129;  --t: 110 231 183; }
+
+    .card {
+        position: relative;
+        border: 1px solid rgb(255 255 255 / .1);
+        background: rgb(15 23 42 / .4);
+        border-radius: 1.25rem;
+        overflow: hidden;
+        transition: border-color .2s ease;
+    }
+    .card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        opacity: .85;
+        transition: background-color .2s ease;
+    }
+    .card:focus-within { border-color: rgb(var(--a) / .4); }
+    .card[data-estado="error"]    { border-color: rgb(239 68 68 / .55); }
+    .card[data-conflicto="1"]     { border-color: rgb(245 158 11 / .55); }
+    .card-in  { animation: card-in .3s ease both; }
+    .card-out { animation: card-out .18s ease forwards; pointer-events: none; }
+    @keyframes card-in  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes card-out { to   { opacity: 0; transform: scale(.98); } }
+    @media (prefers-reduced-motion: reduce) { .card-in, .card-out { animation: none; } }
+
+    .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .75rem 1rem;
+        padding: 1rem 1.25rem 1rem 1.5rem;
+        border-bottom: 1px solid rgb(255 255 255 / .1);
+    }
+    .card-num {
+        min-width: 2.75rem;
+        font-size: 2rem;
+        line-height: 1;
+        letter-spacing: -.02em;
+        font-variant-numeric: tabular-nums;
+        color: rgb(var(--t));
+        transition: color .2s ease;
+    }
+    .card-title {
+        font-size: 1.25rem;
+        line-height: 1.2;
+        color: #fff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .card-title.vacio { color: #6b7280; }
+    .card-sub {
+        margin-top: .2rem;
+        font-size: .8125rem;
+        color: #9ca3af;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .card-msg { margin: 0; padding: .65rem 1.5rem; font-size: .875rem; }
+    .card-msg-error { color: #fca5a5; background: rgb(239 68 68 / .1);  border-bottom: 1px solid rgb(239 68 68 / .2); }
+    .card-msg-aviso { color: #fcd34d; background: rgb(245 158 11 / .1); border-bottom: 1px solid rgb(245 158 11 / .2); }
+
+    .card-body { padding: 1.25rem 1.25rem 1.4rem 1.5rem; }
+
+    .lista-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+        gap: 1.25rem;
+    }
+
+    .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: .65rem;
+        color: #9ca3af;
+        cursor: pointer;
+        transition: background-color .15s ease, color .15s ease;
+    }
+    .icon-btn:hover:not(:disabled) { background: rgb(255 255 255 / .08); color: #fff; }
+    .icon-btn-danger:hover:not(:disabled) { background: rgb(239 68 68 / .15); color: #f87171; }
+    .icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .campo { display: block; min-width: 0; }
+    .campo [data-servicio-aviso]:not(.hidden) { display: block; margin-top: .375rem; }
+    .lbl {
+        display: block;
+        margin-bottom: .4rem;
+        font-size: .875rem;
+        font-weight: 500;
+        color: #d1d5db;
+    }
+    .req { font-style: normal; color: #f87171; }
+    .field {
+        display: block;
+        width: 100%;
+        padding: .7rem .9rem;
+        font-size: .9375rem;
+        color: #fff;
+        background: rgb(2 6 23 / .45);
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: .75rem;
+        transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .field::placeholder { color: #6b7280; }
+    .field:hover:not(:disabled) { border-color: rgb(255 255 255 / .22); }
+    .field:focus {
+        outline: none;
+        border-color: rgb(var(--a) / .75);
+        background: rgb(2 6 23 / .65);
+        box-shadow: 0 0 0 3px rgb(var(--a) / .2);
+    }
+    .field:disabled { opacity: .6; cursor: not-allowed; }
+    select.field { appearance: none; padding-right: 2.5rem; cursor: pointer; }
+    .field option { background: #0f172a; color: #fff; }
+    .field.is-error { border-color: rgb(239 68 68); box-shadow: 0 0 0 3px rgb(239 68 68 / .25); }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(.7); cursor: pointer; }
+
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: .85rem 1.25rem;
+        border-radius: .75rem;
+        font-size: .9375rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgb(var(--a));
+        cursor: pointer;
+        transition: filter .15s ease, transform .15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.12); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .6; cursor: wait; filter: none; transform: none; }
+    .btn-primary.compact { width: auto; padding: .7rem 1.5rem; }
+
+    .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .7rem 1.1rem;
+        border-radius: .75rem;
+        font-size: .9375rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgb(255 255 255 / .05);
+        border: 1px solid rgb(255 255 255 / .12);
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+    .btn-ghost:hover { background: rgb(255 255 255 / .1); border-color: rgb(255 255 255 / .25); }
+
+    .add-card {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: .6rem;
+        align-self: start;
+        width: 100%;
+        min-height: 11rem;
+        padding: 1.2rem;
+        border-radius: 1.25rem;
+        border: 1px dashed rgb(var(--a) / .45);
+        background: rgb(var(--a) / .06);
+        color: rgb(var(--t));
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color .2s ease, border-color .2s ease;
+    }
+    .add-card:hover { background: rgb(var(--a) / .13); border-color: rgb(var(--a) / .8); }
+
+    .icon-btn:focus-visible,
+    .btn-primary:focus-visible,
+    .btn-ghost:focus-visible,
+    .add-card:focus-visible { outline: 2px solid rgb(var(--t)); outline-offset: 2px; }
+
+    .dock {
+        position: fixed;
+        inset: auto 0 0 0;
+        z-index: 40;
+        padding: .75rem 1.25rem max(.75rem, env(safe-area-inset-bottom));
+        background: rgb(15 15 17 / .85);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgb(255 255 255 / .1);
+    }
+    .dock-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        max-width: 2560px;
+        margin: 0 auto;
+    }
+    @media (min-width: 640px)  { .dock { padding-inline: 2rem; } }
+    @media (min-width: 1280px) { .dock { padding-inline: 3rem; } }
+    .dock-num {
+        font-size: 2.5rem;
+        line-height: 1;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+    }
+    .dock-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .3rem .75rem;
+        border-radius: 9999px;
+        font-size: .8125rem;
+        color: rgb(var(--t));
+        background: rgb(var(--a) / .14);
+        border: 1px solid rgb(var(--a) / .35);
+    }
+    .dock-chip b { font-weight: 600; color: #fff; }
+    @media (max-width: 639px) { .dock-chip { display: none; } }
+
+    .success-checkmark { width: 80px; height: 115px; margin: 0 auto; }
+    .check-icon { width:80px; height:80px; position:relative; border-radius:50%; box-sizing:content-box; border:4px solid #4CAF50; }
+    .check-icon::before, .check-icon::after { content:''; height:100px; position:absolute; background:#111827; transform:rotate(-45deg); }
+    .check-icon::before { top:3px; left:-2px; width:30px; transform-origin:100% 50%; border-radius:100px 0 0 100px; }
+    .check-icon::after  { top:0; left:30px; width:60px; transform-origin:0 50%; border-radius:0 100px 100px 0; animation:rotate-circle 4.25s ease-in; }
+    .icon-line { height:5px; background:#4CAF50; display:block; border-radius:2px; position:absolute; z-index:10; }
+    .line-tip  { top:46px; left:14px; width:25px; transform:rotate(45deg);  animation:icon-line-tip 0.75s; }
+    .line-long { top:38px; right:8px; width:47px; transform:rotate(-45deg); animation:icon-line-long 0.75s; }
+    .icon-circle { top:-4px;left:-4px;z-index:10;width:80px;height:80px;border-radius:50%;position:absolute;box-sizing:content-box;border:4px solid rgba(76,175,80,.5); }
+    .icon-fix { top:8px;width:5px;left:26px;z-index:1;height:85px;position:absolute;transform:rotate(-45deg);background:#111827; }
+    @keyframes rotate-circle { 0%{transform:rotate(-45deg)} 5%{transform:rotate(-45deg)} 12%{transform:rotate(-405deg)} 100%{transform:rotate(-405deg)} }
+    @keyframes icon-line-tip  { 0%{width:0;left:1px;top:19px} 54%{width:0;left:1px;top:19px} 70%{width:50px;left:-8px;top:37px} 84%{width:17px;left:21px;top:48px} 100%{width:25px;left:14px;top:46px} }
+    @keyframes icon-line-long { 0%{width:0;right:46px;top:54px} 65%{width:0;right:46px;top:54px} 84%{width:55px;right:0;top:35px} 100%{width:47px;right:8px;top:38px} }
+</style>
+
+<script>
+    import { obtenerCatalogo, type ServicioCatalogo } from "../../lib/catalogo-servicios";
+    import { iniciarSelectorServicio } from "../../lib/selector-servicio";
+
+    interface DatosCard {
+        nombre: string; telefono: string; sintoma: string;
+        referencia: string; motivo: string; atendido_por: string;
+        fecha_hora: string; servicio_id: string; precio: string;
+        sesion: string; observaciones: string;
+        error?: string;
+    }
+
+    const MAX_CARDS = 40;
+    const ACENTOS = ["acc-blue", "acc-purple", "acc-cyan", "acc-emerald"];
+    const TEXTO_DIA_BLOQUEADO =
+        "Este día está marcado como inhábil o tiene un evento que abarca todo el día. Por favor, selecciona otro día para la cita.";
+    const win = window as any;
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const q = <T extends HTMLElement = HTMLElement>(root: ParentNode, sel: string) => root.querySelector<T>(sel)!;
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    const datos = JSON.parse($("datos-pagina").textContent || "{}") as { inhabiles: string[]; fallidas: any[] };
+    const inhabiles = new Set<string>(datos.inhabiles ?? []);
+
+    const lista = $("lista-cards");
+    const casillaAgregar = q(lista, "[data-agregar]");
+    const plantilla = $<HTMLTemplateElement>("tpl-card");
+    const formulario = $<HTMLFormElement>("form-lote");
+
+    const fmtFecha = new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric", month: "short" });
+    const fechaDe = (iso: string) => {
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    };
+    const textoFecha = (iso: string) => fmtFecha.format(fechaDe(iso)).replace(/\./g, "").replace(",", "");
+    const formatoHora = (v: string) =>
+        new Date(`1970-01-01T${v}`).toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
+    const textoFechaHora = (v: string) => {
+        const [f, h] = v.split("T");
+        return h ? `${textoFecha(f)} · ${formatoHora(h)}` : textoFecha(f);
+    };
+
+    let catalogo: ServicioCatalogo[] = [];
+    let catalogoEstado: "cargando" | "listo" | "error" = "cargando";
+    const servicioPorId = (id: string) => catalogo.find((s) => s.id === id);
+
+    function aplicarAcento(card: HTMLElement) {
+        const i = catalogo.findIndex((s) => s.id === q<HTMLSelectElement>(card, '[data-f="servicio_id"]').value);
+        const clase = i >= 0 ? ACENTOS[i % ACENTOS.length] : ACENTOS[0];
+        ACENTOS.forEach((c) => card.classList.toggle(c, c === clase));
+    }
+
+    let pendientes = 0;
+
+    async function iniciarSelectores(card: HTMLElement) {
+        const sSel = q<HTMLSelectElement>(card, '[data-f="servicio_id"]');
+        const pSel = q<HTMLSelectElement>(card, '[data-f="precio"]');
+        pendientes++;
+        try {
+            await iniciarSelectorServicio({
+                servicio: sSel,
+                precio: pSel,
+                aviso: q(card, "[data-servicio-aviso]"),
+                asterisco: q(card, "[data-servicio-req]"),
+                obligatorio: true,
+                textoVacio: "Selecciona un servicio",
+            });
+
+            const servicioId = card.dataset.servicioPendiente ?? "";
+            const precioId = card.dataset.precioPendiente ?? "";
+            delete card.dataset.servicioPendiente;
+            delete card.dataset.precioPendiente;
+            if (servicioId && servicioPorId(servicioId)) {
+                sSel.value = servicioId;
+                sSel.dispatchEvent(new Event("change"));
+                if (precioId) pSel.value = precioId;
+            }
+        } catch (e) {
+            console.error("No se pudo iniciar el selector de servicio:", e);
+        } finally {
+            pendientes--;
+        }
+        aplicarAcento(card);
+        actualizarCabecera(card);
+        actualizarResumen();
+    }
+
+    const cards = () => Array.from(lista.querySelectorAll<HTMLElement>("[data-card]"));
+    const numeroDe = (card: HTMLElement) => pad(cards().indexOf(card) + 1);
+
+    function leerCard(card: HTMLElement): DatosCard {
+        const v = (f: string) =>
+            card.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-f="${f}"]`)?.value ?? "";
+        return {
+            nombre: v("nombre"), telefono: v("telefono"), sintoma: v("sintoma"),
+            referencia: v("referencia"), motivo: v("motivo"), atendido_por: v("atendido_por"),
+            fecha_hora: v("fecha_hora"), servicio_id: v("servicio_id"), precio: v("precio"),
+            sesion: v("sesion"), observaciones: v("observaciones"),
+        };
+    }
+
+    function actualizarCabecera(card: HTMLElement) {
+        const d = leerCard(card);
+        const titulo = q(card, "[data-titulo]");
+        titulo.textContent = d.nombre.trim() || "Nueva cita";
+        titulo.classList.toggle("vacio", !d.nombre.trim());
+        q(card, "[data-subtitulo]").textContent =
+            `${servicioPorId(d.servicio_id)?.nombre ?? "Sin servicio"} · ${d.fecha_hora ? textoFechaHora(d.fecha_hora) : "Sin fecha"}`;
+    }
+
+    function mostrarError(card: HTMLElement, texto: string) {
+        const el = q(card, "[data-error]");
+        el.textContent = texto;
+        el.classList.remove("hidden");
+        card.dataset.estado = "error";
+    }
+
+    function limpiarError(card: HTMLElement) {
+        q(card, "[data-error]").classList.add("hidden");
+        delete card.dataset.estado;
+    }
+
+    function revisar(card: HTMLElement): { el: HTMLElement | null; nombre: string }[] {
+        const d = leerCard(card);
+        const f = (k: string) => card.querySelector<HTMLElement>(`[data-f="${k}"]`);
+        const r: { el: HTMLElement | null; nombre: string }[] = [];
+
+        if (!d.nombre.trim()) r.push({ el: f("nombre"), nombre: "nombre" });
+        if (!d.referencia)    r.push({ el: f("referencia"), nombre: "referencia" });
+        if (!d.motivo)        r.push({ el: f("motivo"), nombre: "tipo de cita" });
+        if (!d.atendido_por)  r.push({ el: f("atendido_por"), nombre: "quién atenderá" });
+
+        if (!d.fecha_hora) r.push({ el: f("fecha_hora"), nombre: "fecha y hora" });
+        else if (inhabiles.has(d.fecha_hora.split("T")[0])) r.push({ el: f("fecha_hora"), nombre: "una fecha que no esté bloqueada" });
+
+        const sSel = q<HTMLSelectElement>(card, '[data-f="servicio_id"]');
+        const pSel = q<HTMLSelectElement>(card, '[data-f="precio"]');
+        if (!sSel.disabled && !sSel.value) r.push({ el: sSel, nombre: "servicio" });
+        else if (sSel.value && !pSel.value) r.push({ el: pSel, nombre: "precio" });
+
+        return r;
+    }
+
+    function actualizarResumen() {
+        const cs = cards();
+        const n = cs.length;
+        const listas = cs.filter((c) => revisar(c).length === 0).length;
+        $("dock-total").textContent = String(n);
+        $("dock-label").textContent = n === 1 ? "cita" : "citas";
+        $("dock-listas").textContent = String(listas);
+        $("dock-listas-label").textContent = listas === 1 ? "lista" : "listas";
+        cs.forEach((c, i) => {
+            q(c, "[data-num]").textContent = pad(i + 1);
+            q<HTMLButtonElement>(c, '[data-accion="eliminar"]').disabled = n === 1;
+        });
+        revisarConflictos();
+    }
+
+    function revisarConflictos(): boolean {
+        const grupos = new Map<string, HTMLElement[]>();
+        cards().forEach((c) => {
+            delete c.dataset.conflicto;
+            q(c, "[data-aviso]").classList.add("hidden");
+            const d = leerCard(c);
+            if (!d.fecha_hora || !d.atendido_por) return;
+            const clave = `${d.atendido_por}|${d.fecha_hora}`;
+            grupos.set(clave, [...(grupos.get(clave) ?? []), c]);
+        });
+
+        let hay = false;
+        grupos.forEach((grupo) => {
+            if (grupo.length < 2) return;
+            hay = true;
+            grupo.forEach((c) => {
+                const otras = grupo.filter((x) => x !== c).map(numeroDe).join(", ");
+                const aviso = q(c, "[data-aviso]");
+                aviso.textContent = `Mismo psicólogo, fecha y hora que la cita ${otras}.`;
+                aviso.classList.remove("hidden");
+                c.dataset.conflicto = "1";
+            });
+        });
+        return hay;
+    }
+
+    function crearCard(d: Partial<DatosCard> = {}, despuesDe?: HTMLElement): HTMLElement {
+        const card = plantilla.content.firstElementChild!.cloneNode(true) as HTMLElement;
+        if (despuesDe) despuesDe.after(card); else casillaAgregar.before(card);
+
+        (["nombre", "telefono", "sintoma", "referencia", "motivo", "atendido_por", "fecha_hora", "sesion", "observaciones"] as const)
+            .forEach((k) => {
+                if (d[k]) q<HTMLInputElement>(card, `[data-f="${k}"]`).value = d[k] as string;
+            });
+        if (d.servicio_id) card.dataset.servicioPendiente = d.servicio_id;
+        if (d.precio) card.dataset.precioPendiente = d.precio;
+        actualizarCabecera(card);
+        if (catalogoEstado !== "cargando") void iniciarSelectores(card);
+        if (d.error) mostrarError(card, d.error);
+
+        card.classList.add("card-in");
+        card.addEventListener("animationend", () => card.classList.remove("card-in"), { once: true });
+        actualizarResumen();
+        return card;
+    }
+
+    function enfocar(card: HTMLElement, campo: string) {
+        card.scrollIntoView({ block: "center", behavior: "smooth" });
+        q<HTMLElement>(card, `[data-f="${campo}"]`).focus({ preventScroll: true });
+    }
+
+    const avisoLimite = () =>
+        win.mostrarAlerta(`Por ahora el máximo es de ${MAX_CARDS} citas por lote. Registra este lote y crea otro.`, { titulo: "Límite alcanzado", tipo: "advertencia" });
+
+    async function agregar() {
+        if (cards().length >= MAX_CARDS) return void (await avisoLimite());
+        enfocar(crearCard(), "nombre");
+    }
+
+    async function duplicar(card: HTMLElement) {
+        if (cards().length >= MAX_CARDS) return void (await avisoLimite());
+        const copia = crearCard({ ...leerCard(card), fecha_hora: "", error: undefined }, card);
+        enfocar(copia, "fecha_hora");
+    }
+
+    async function eliminar(card: HTMLElement) {
+        if (cards().length === 1) return;
+        const d = leerCard(card);
+        const conDatos = [d.nombre, d.telefono, d.sintoma, d.referencia, d.motivo, d.atendido_por, d.fecha_hora, d.servicio_id, d.sesion, d.observaciones]
+            .some((v) => v.trim());
+        if (conDatos) {
+            const ok = await win.confirmarAccion(
+                `¿Eliminar la cita de ${d.nombre.trim() || "esta tarjeta"}? Se perderán sus datos.`,
+                { titulo: "Eliminar cita", textoConfirmar: "Eliminar", peligroso: true },
+            );
+            if (!ok) return;
+        }
+        card.classList.add("card-out");
+        setTimeout(() => { card.remove(); actualizarResumen(); }, 180);
+    }
+
+    lista.addEventListener("click", (e) => {
+        const t = e.target as HTMLElement;
+        const card = t.closest<HTMLElement>("[data-card]");
+        if (!card) return;
+        const accion = t.closest<HTMLElement>("[data-accion]")?.dataset.accion;
+        if (accion === "duplicar") void duplicar(card);
+        else if (accion === "eliminar") void eliminar(card);
+    });
+
+    function alCambiar(e: Event) {
+        const t = e.target as HTMLInputElement | HTMLSelectElement;
+        const card = t.closest<HTMLElement>("[data-card]");
+        if (!card) return;
+        t.classList.remove("is-error");
+        limpiarError(card);
+
+        const campo = t.dataset.f;
+        let bloqueado = false;
+
+        if (e.type === "change" && campo === "fecha_hora" && t.value && inhabiles.has(t.value.split("T")[0])) {
+            t.value = "";
+            bloqueado = true;
+        }
+        if (campo === "servicio_id") {
+            delete card.dataset.precioPendiente;
+            aplicarAcento(card);
+        }
+
+        actualizarCabecera(card);
+        actualizarResumen();
+        if (bloqueado) void win.mostrarAlerta(TEXTO_DIA_BLOQUEADO, { titulo: "Día bloqueado", tipo: "advertencia" }).then(() => t.focus());
+    }
+    lista.addEventListener("input", alCambiar);
+    lista.addEventListener("change", alCambiar);
+
+    lista.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault();
+    });
+
+    document.querySelectorAll("[data-agregar]").forEach((b) => b.addEventListener("click", () => void agregar()));
+
+    function validar(): HTMLElement[] {
+        const invalidas: HTMLElement[] = [];
+        cards().forEach((card) => {
+            const faltan = revisar(card);
+            faltan.forEach((x) => x.el?.classList.add("is-error"));
+            if (faltan.length) {
+                mostrarError(card, `Falta: ${faltan.map((x) => x.nombre).join(", ")}.`);
+                invalidas.push(card);
+            } else {
+                limpiarError(card);
+            }
+        });
+        return invalidas;
+    }
+
+    function irA(card: HTMLElement, selector = ".is-error") {
+        card.scrollIntoView({ block: "center", behavior: "smooth" });
+        card.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    }
+
+    function armarCita(card: HTMLElement) {
+        const d = leerCard(card);
+        const servicio = servicioPorId(d.servicio_id);
+
+        const sesion = parseInt(d.sesion);
+        const textoSesion = Number.isFinite(sesion) && sesion > 0 ? `Sesión #${sesion}` : "";
+        const obs = [textoSesion, d.observaciones.trim()].filter(Boolean).join(" | ");
+
+        return {
+            nombre:        d.nombre.trim(),
+            telefono:      d.telefono.trim() || null,
+            sintoma:       d.sintoma.trim()  || null,
+            referencia:    d.referencia,
+            motivo:        d.motivo,
+            fechaLocal:    d.fecha_hora,
+            observaciones: obs || null,
+            atendidoPor:   d.atendido_por,
+            servicio:      servicio?.nombre ?? "Sin servicio",
+            servicioId:    servicio ? servicio.id : null,
+            precioId:      servicio && d.precio ? d.precio : null,
+            sesion:           textoSesion ? String(sesion) : null,
+            observacionesRaw: d.observaciones.trim() || null,
+        };
+    }
+
+    const botonesEnviar = document.querySelectorAll<HTMLButtonElement>('button[type="submit"]');
+    let enProceso = false;
+
+    function bloquearEnvio() {
+        botonesEnviar.forEach((b) => { b.disabled = true; b.textContent = "Registrando…"; });
+        formulario.setAttribute("aria-busy", "true");
+    }
+    function liberarEnvio() {
+        enProceso = false;
+        botonesEnviar.forEach((b) => { b.disabled = false; b.textContent = "Registrar lote"; });
+        formulario.removeAttribute("aria-busy");
+    }
+    window.addEventListener("pageshow", (e) => { if (e.persisted) liberarEnvio(); });
+
+    formulario.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (enProceso) return;
+        enProceso = true;
+
+        let enviado = false;
+        try {
+            if (catalogoEstado === "cargando" || pendientes > 0) {
+                await win.mostrarAlerta("Espera un momento: todavía se están cargando los servicios y precios.", { titulo: "Cargando catálogo" });
+                return;
+            }
+
+            const invalidas = validar();
+            if (invalidas.length) {
+                const nums = invalidas.map(numeroDe).join(", ");
+                await win.mostrarAlerta(
+                    invalidas.length === 1
+                        ? `La cita ${nums} tiene datos obligatorios sin completar.`
+                        : `Hay ${invalidas.length} citas con datos obligatorios sin completar: ${nums}.`,
+                    { titulo: "Faltan datos", tipo: "advertencia" },
+                );
+                irA(invalidas[0]);
+                return;
+            }
+
+            if (revisarConflictos()) {
+                await win.mostrarAlerta(
+                    "Hay citas con el mismo psicólogo, fecha y hora. Cambia la hora o el psicólogo de una de ellas.",
+                    { titulo: "Citas que se empalman", tipo: "advertencia" },
+                );
+                irA(cards().find((c) => c.dataset.conflicto === "1")!, '[data-f="fecha_hora"]');
+                return;
+            }
+
+            const lote = cards().map(armarCita);
+            const n = lote.length;
+            const pacientes = new Set(lote.map((c) => c.nombre.toLowerCase().replace(/\s+/g, " "))).size;
+
+            const confirmado = await win.confirmarAccion(
+                `¿Registrar ${n} ${n === 1 ? "cita" : "citas"} para ${pacientes} ${pacientes === 1 ? "paciente" : "pacientes"}?`,
+                { titulo: "Registrar citas", textoConfirmar: "Registrar", peligroso: false },
+            );
+            if (!confirmado) return;
+
+            bloquearEnvio();
+            $<HTMLInputElement>("lote_json").value = JSON.stringify(lote);
+            enviado = true;
+            formulario.submit();
+        } finally {
+            if (!enviado) enProceso = false;
+        }
+    });
+
+    const iniciales: Partial<DatosCard>[] = (datos.fallidas ?? []).map((c) => ({
+        nombre: c.nombre ?? "", telefono: c.telefono ?? "", sintoma: c.sintoma ?? "",
+        referencia: c.referencia ?? "", motivo: c.motivo ?? "", atendido_por: c.atendidoPor ?? "",
+        fecha_hora: c.fechaLocal ?? "", servicio_id: c.servicioId ?? "", precio: c.precioId ?? "",
+        sesion: c.sesion ?? "", observaciones: c.observacionesRaw ?? "",
+        error: c.error,
+    }));
+    if (iniciales.length) iniciales.forEach((d) => crearCard(d)); else crearCard();
+
+    (async () => {
+        try {
+            catalogo = await obtenerCatalogo({ forzar: (datos.fallidas ?? []).length > 0 });
+            catalogoEstado = "listo";
+        } catch {
+            catalogoEstado = "error";
+        }
+        await Promise.all(cards().map(iniciarSelectores));
+        actualizarResumen();
+    })();
+</script>

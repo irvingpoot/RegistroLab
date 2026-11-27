@@ -301,7 +301,7 @@ export interface CitaLote {
     fechaLocal: string;          
     observaciones: string | null;
     atendidoPor: string;
-    servicio: "TMS" | "NFB";     
+    servicio?: string | null; 
     servicioId?: string | null;
     precioId?: string | null;
 }
@@ -375,9 +375,7 @@ export async function crearCitasEnLote(
                 referencia:        c.referencia,
                 motivo:            c.motivo,
                 fecha_hora:        fechaISO,
-                observaciones:     c.observaciones
-                                    ? `[${c.servicio}] ${c.observaciones}`
-                                    : `[${c.servicio}]`,
+                observaciones:     [c.servicio ? `[${c.servicio}]` : "", c.observaciones].filter(Boolean).join(" ") || null,
                 estado:            "pendiente",
                 registrado_por_id: registradoPorId,
                 atendido_por:      c.atendidoPor,

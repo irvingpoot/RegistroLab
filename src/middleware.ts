@@ -24,7 +24,7 @@ const isProtectedRoute = createRouteMatcher([
     '/lista',
     '/citas',
     '/nueva-cita',
-    '/multiples-citas',
+    '/multi(.*)',
     '/404',
     '/feedback',
     '/reportes',

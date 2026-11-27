@@ -16,11 +16,12 @@ const RUTAS_RECEPCION: string[] = [
     "/dashboard",
     "/citas",
     "/nueva-cita",
-    "/multiples-citas",
+    "/multi(.*)",
     "/editar-cita",
     "/gestor",
     "/estadisticas",
-    "/waitlist"
+    "/waitlist",
+    '/404'
 ];
 
 export function esRolValido(valor: unknown): valor is Rol {

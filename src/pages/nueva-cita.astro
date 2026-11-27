@@ -18,13 +18,12 @@
  * La lógica de acceso a datos vive en: src/services/citas.service.ts
  */
 
-import Layout from "../layouts/Layout.astro"
-import Icon from "../components/Icon.astro"
-import ReturnButton from "../components/ReturnButton.astro"
+import Layout from "../layouts/Layout.astro";
+import ReturnButton from "../components/ReturnButton.astro";
 import { clerkClient } from "@clerk/astro/server";
 import { crearCita, getDiasBloqueadosDesdeHoy } from "../services/citas.service";
 import DownTriangle from "../components/icons/DownTriangle.astro";
-import AlertIcon from "../components/icons/citas/AlertIcon.astro";
+import AlertModal from "../components/AlertModal.astro";
 import { eliminarDeEspera } from "../services/lista-espera.service";
 
 const user = await Astro.locals.currentUser();
@@ -102,7 +101,6 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
 ---
 
 <Layout title="Agendar Nueva Cita | Lab-Somno">
-    <Icon />
     <ReturnButton
         href={esperaId ? "/waitlist" : "/citas"}
         text={esperaId ? "Volver a la Lista de espera" : "Volver a la Agenda"}
@@ -128,12 +126,6 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
         </div>
     )}
 
-    {hayError && (
-        <div class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg bg-red-600 z-50 text-center w-11/12 md:w-auto">
-            {mensaje}
-        </div>
-    )}
-
     <main class="max-w-7xl mx-auto pt-6 md:pt-10 pb-28 px-4">
         <div class="flex flex-col items-center justify-center mb-8">
             <h1 class="text-4xl md:text-6xl font-extrabold text-center leading-tight">
@@ -141,7 +133,14 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
             </h1>
         </div>
 
-        <form method="POST" id="form-cita" data-hay-error={hayError ? "1" : undefined}>
+        <form
+            method="POST"
+            id="form-cita"
+            novalidate
+            data-hay-error={hayError ? "1" : undefined}
+            data-mensaje-error={hayError ? mensaje : undefined}
+            data-inhabiles={JSON.stringify(listaInhabiles)}
+        >
             {esperaId && <input type="hidden" name="espera_id" value={esperaId} />}
             <div class="flex flex-col items-center justify-center">
                 
@@ -194,7 +193,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                     
                     <div class="flex flex-col">
                         <label class="text-lg font-medium text-gray-300 mb-2">Cita de <span class="text-red-500">*</span>:</label>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-700 bg-gray-900/50 rounded-xl">
+                        <div id="grupo-motivo" class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-700 bg-gray-900/50 rounded-xl transition-all">
                             <label class="flex items-center gap-3 cursor-pointer hover:text-blue-400 transition p-2 rounded hover:bg-white/5">
                                 <input type="radio" name="motivo" value="entrevista" required class="accent-blue-500 w-5 h-5">
                                 <span class="font-medium">Entrevista Inicial</span>
@@ -281,7 +280,7 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
                 </div>
 
                 <div class="pt-10 pb-10 w-full max-w-4xl flex justify-end">
-                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white text-lg font-semibold px-8 py-3 rounded-xl hover:bg-blue-500 hover:scale-105 transition duration-300 cursor-pointer active:scale-95 flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full md:w-auto bg-blue-600 text-white text-lg font-semibold px-8 py-3 rounded-xl hover:bg-blue-500 hover:scale-105 transition duration-300 cursor-pointer active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait disabled:hover:scale-100 disabled:active:scale-100">
                         Agendar Cita
                     </button>
                 </div>
@@ -290,22 +289,15 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
         </form>
     </main>
 
-    <dialog id="modal-error-fecha" class="m-auto bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl backdrop:backdrop-blur-xl w-full max-w-sm text-center p-0 overflow-hidden outline-none">
-        <div class="p-6">
-            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-900/30 border border-red-500/30 mb-4">
-                <AlertIcon class="h-7 w-7 text-red-500" />
-            </div>
-            <h3 class="text-xl font-extrabold text-white mb-2">Día Bloqueado</h3>
-            <p class="text-gray-400 text-sm mb-6">Este día está marcado como inhábil o tiene un evento que abarca todo el día. Por favor, selecciona otro día para la cita.</p>
-            
-            <button onclick="document.getElementById('modal-error-fecha').close()" type="button" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-xl border border-gray-700 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500">
-                Entendido
-            </button>
-        </div>
-    </dialog>
+    <AlertModal />
 </Layout>
 
 <style>
+    .is-error {
+        border-color: rgb(239 68 68) !important;
+        box-shadow: 0 0 0 3px rgb(239 68 68 / 0.25) !important;
+    }
+
     input[type="datetime-local"]::-webkit-calendar-picker-indicator {
         filter: invert(1);
         cursor: pointer;
@@ -422,28 +414,23 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
     }
 </style>
 
-<script define:vars={{ listaInhabiles }}>
-    document.addEventListener("DOMContentLoaded", () => {
-        const inputFecha = document.getElementById('fecha_hora');
-        
-        if (inputFecha) {
-            inputFecha.addEventListener('change', (e) => {
-                const fechaSeleccionada = e.target.value.split('T')[0];
-                
-                if (listaInhabiles.includes(fechaSeleccionada)) {
-                    document.getElementById('modal-error-fecha').showModal();
-                    e.target.value = ''; 
-                }
-            });
-        }
-    });
-</script>
-
 <script>
     import { iniciarSelectorServicio } from "../lib/selector-servicio";
 
-    const form = document.getElementById("form-cita");
+    const win = window as any;
+    const form = document.getElementById("form-cita") as HTMLFormElement;
+    const botonEnviar = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const textoBoton = botonEnviar.textContent?.trim() || "Agendar Cita";
+    const grupoMotivo = document.getElementById("grupo-motivo")!;
+    const inhabiles = new Set<string>(JSON.parse(form.dataset.inhabiles || "[]"));
 
+    const campo = (nombre: string) =>
+        form.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${nombre}"]`)!;
+
+    const TEXTO_DIA_BLOQUEADO =
+        "Este día está marcado como inhábil o tiene un evento que abarca todo el día. Por favor, selecciona otro día para la cita.";
+
+    let catalogoCargando = true;
     iniciarSelectorServicio({
         servicio: document.getElementById("servicio_id") as HTMLSelectElement,
         precio: document.getElementById("precio_id") as HTMLSelectElement,
@@ -451,6 +438,99 @@ const listaInhabiles = await getDiasBloqueadosDesdeHoy();
         asterisco: document.getElementById("servicio-obligatorio"),
         obligatorio: true,
         textoVacio: "Selecciona un servicio",
-        forzarRecarga: form?.dataset.hayError === "1",
+        forzarRecarga: form.dataset.hayError === "1",
+    }).finally(() => { catalogoCargando = false; });
+
+    const mensajeError = form.dataset.mensajeError;
+    if (mensajeError) {
+        const mostrar = () => void win.mostrarAlerta(mensajeError, { titulo: "No se pudo agendar", tipo: "error" });
+        if (document.readyState === "complete") mostrar();
+        else window.addEventListener("DOMContentLoaded", mostrar);
+    }
+
+    campo("fecha_hora").addEventListener("change", async () => {
+        const input = campo("fecha_hora");
+        const dia = input.value.split("T")[0];
+        if (dia && inhabiles.has(dia)) {
+            input.value = "";
+            await win.mostrarAlerta(TEXTO_DIA_BLOQUEADO, { titulo: "Día bloqueado", tipo: "advertencia" });
+            input.focus();
+        }
+    });
+
+    function revisar(): { el: HTMLElement; nombre: string }[] {
+        const faltan: { el: HTMLElement; nombre: string }[] = [];
+
+        if (!campo("nombre").value.trim()) faltan.push({ el: campo("nombre"), nombre: "nombre" });
+        if (!campo("referencia").value) faltan.push({ el: campo("referencia"), nombre: "referencia" });
+        if (!form.querySelector('input[name="motivo"]:checked')) faltan.push({ el: grupoMotivo, nombre: "tipo de cita" });
+
+        const servicio = campo("servicio_id");
+        const precio = campo("precio_id");
+        if (!servicio.disabled && !servicio.value) faltan.push({ el: servicio, nombre: "servicio" });
+        else if (servicio.value && !precio.value) faltan.push({ el: precio, nombre: "precio" });
+
+        if (!campo("atendido_por").value) faltan.push({ el: campo("atendido_por"), nombre: "quién atenderá" });
+
+        const fecha = campo("fecha_hora").value;
+        if (!fecha) faltan.push({ el: campo("fecha_hora"), nombre: "fecha y hora" });
+        else if (inhabiles.has(fecha.split("T")[0])) faltan.push({ el: campo("fecha_hora"), nombre: "una fecha que no esté bloqueada" });
+
+        return faltan;
+    }
+
+    function irA(el: HTMLElement) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        (el.matches("input, select, textarea") ? el : el.querySelector<HTMLElement>("input"))?.focus({ preventScroll: true });
+    }
+
+    function limpiarError(e: Event) {
+        const t = e.target as HTMLElement;
+        t.classList.remove("is-error");
+        if (t.matches('input[name="motivo"]')) grupoMotivo.classList.remove("is-error");
+        if (t.id === "servicio_id") document.getElementById("precio_id")?.classList.remove("is-error");
+    }
+    form.addEventListener("input", limpiarError);
+    form.addEventListener("change", limpiarError);
+
+    let enProceso = false;
+
+    window.addEventListener("pageshow", (e) => {
+        if (!e.persisted) return;
+        enProceso = false;
+        botonEnviar.disabled = false;
+        botonEnviar.textContent = textoBoton;
+    });
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (enProceso) return;
+        enProceso = true;
+
+        let enviado = false;
+        try {
+            if (catalogoCargando) {
+                await win.mostrarAlerta("Espera un momento: todavía se están cargando los servicios y precios.", { titulo: "Cargando catálogo" });
+                return;
+            }
+
+            const faltan = revisar();
+            if (faltan.length) {
+                faltan.forEach((f) => f.el.classList.add("is-error"));
+                await win.mostrarAlerta(
+                    `Completa los campos marcados en rojo: ${faltan.map((f) => f.nombre).join(", ")}.`,
+                    { titulo: "Faltan datos", tipo: "advertencia" },
+                );
+                irA(faltan[0].el);
+                return;
+            }
+
+            botonEnviar.disabled = true;
+            botonEnviar.textContent = "Agendando…";
+            enviado = true;
+            form.submit();
+        } finally {
+            if (!enviado) enProceso = false;
+        }
     });
 </script>
